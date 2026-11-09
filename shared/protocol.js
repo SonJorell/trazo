@@ -7,11 +7,15 @@
  *   cursor  { x, y }                    Posición del puntero en coordenadas del mundo.
  *   screen  { w, h, data }              Cuadro JPEG (data URL) de la pantalla de quien transmite.
  *   screen-stop {}                      Deja de transmitir la pantalla.
+ *   control-register { key }            (PC presentador) Se registra como destino del control remoto.
+ *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
  *   welcome { you, peers, elements, screen? }  Respuesta a `join` con el estado completo.
  *   screen  { from, w, h, data }        Último cuadro de la pantalla compartida.
  *   screen-stop { from }                La transmisión terminó.
+ *   controller  { online }              Hay (o ya no hay) un PC que acepta control remoto.
+ *   control { from, action, ... }       (solo al PC registrado) Orden validada.
  *   ops     { from, ops }               Cambios aceptados de otro participante.
  *   peer-join  { peer }                 Alguien entró.
  *   peer-leave { id }                   Alguien salió.
@@ -28,6 +32,9 @@ export const MSG = Object.freeze({
   PEER_LEAVE: 'peer-leave',
   SCREEN: 'screen',
   SCREEN_STOP: 'screen-stop',
+  CONTROL_REGISTER: 'control-register',
+  CONTROL: 'control',
+  CONTROLLER: 'controller',
   ERROR: 'error',
 });
 
@@ -57,7 +64,37 @@ export const ERR = Object.freeze({
   NOT_JOINED: 'not_joined',
   RATE_LIMITED: 'rate_limited',
   ROOM_FULL: 'room_full',
+  CONTROL_DENIED: 'control_denied',
+  NO_CONTROLLER: 'no_controller',
 });
+
+/**
+ * Control remoto: órdenes permitidas (lista blanca). Las de teclado se traducen a teclas
+ * en el PC; `zoom` usa coordenadas normalizadas (0–1) de la pantalla del PC.
+ */
+export const CONTROL_ACTIONS = Object.freeze([
+  'next', 'prev', 'first', 'last', 'black', 'white', 'start', 'end',
+  'zoom', 'zoom-reset', 'share-on', 'share-off',
+]);
+export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
+export const CONTROL_KEY_RE = /^[A-Za-z0-9]{16,64}$/;
+
+/** Valida una orden de control. Devuelve una copia limpia o null. */
+export function validateControl(msg) {
+  if (!msg || !CONTROL_ACTIONS.includes(msg.action)) return null;
+  const out = { action: msg.action };
+  if (msg.action === 'next' || msg.action === 'prev') {
+    out.style = KEY_STYLES.includes(msg.style) ? msg.style : 'arrows';
+  }
+  if (msg.action === 'zoom') {
+    const unit = (v) => Number.isFinite(v) && v >= 0 && v <= 1;
+    if (!unit(msg.nx) || !unit(msg.ny) || !Number.isFinite(msg.scale)) return null;
+    out.nx = msg.nx;
+    out.ny = msg.ny;
+    out.scale = Math.min(8, Math.max(1, msg.scale));
+  }
+  return out;
+}
 
 /** Códigos de sala: 6 caracteres sin letras ni números ambiguos. */
 export const ROOM_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';

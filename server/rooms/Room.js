@@ -24,6 +24,7 @@ export class Room {
     }
     this.peers = new Map(); // id -> { id, name, color, send }
     this.screen = null; // { from, w, h, data } — pantalla compartida en vivo (no se guarda en disco)
+    this.controller = null; // { id, key } — PC que acepta control remoto (la clave solo vive en memoria)
     this.onChange = hooks.onChange ?? (() => {});
     this._colorIndex = 0;
   }

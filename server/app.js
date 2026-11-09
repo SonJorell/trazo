@@ -36,6 +36,9 @@ export async function createApp(config, deps = {}) {
       if (url.pathname === '/sala' || url.pathname === '/board') {
         if (servePublic(req, res, '/board.html')) return;
       }
+      if (url.pathname === '/control') {
+        if (servePublic(req, res, '/control.html')) return;
+      }
       if (serveShared(req, res, url.pathname)) return;
       if (servePublic(req, res, url.pathname)) return;
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

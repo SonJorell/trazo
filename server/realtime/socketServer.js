@@ -1,5 +1,13 @@
 import { WebSocketServer } from 'ws';
-import { MSG, ERR, cleanName, validateScreenFrame } from '../../shared/protocol.js';
+import crypto from 'node:crypto';
+import {
+  MSG,
+  ERR,
+  cleanName,
+  validateScreenFrame,
+  validateControl,
+  CONTROL_KEY_RE,
+} from '../../shared/protocol.js';
 import { randomId } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
 
@@ -64,6 +72,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (msg.t === MSG.CURSOR) handleCursor(msg);
         else if (msg.t === MSG.SCREEN) handleScreen(msg);
         else if (msg.t === MSG.SCREEN_STOP) stopScreen();
+        else if (msg.t === MSG.CONTROL_REGISTER) registerController(msg);
+        else if (msg.t === MSG.CONTROL) handleControl(msg);
       } catch (err) {
         logger.error('Error procesando mensaje:', err);
         fail(ERR.BAD_REQUEST, 'Error procesando el mensaje');
@@ -88,6 +98,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         peers: room.publicPeers().filter((p) => p.id !== id),
         elements: room.snapshot(),
         screen: room.screen,
+        controller: Boolean(room.controller),
       });
       room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color } }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
@@ -120,10 +131,35 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       }
     }
 
+    function registerController(msg) {
+      if (typeof msg.key !== 'string' || !CONTROL_KEY_RE.test(msg.key)) {
+        return fail(ERR.BAD_REQUEST, 'Clave de control inválida');
+      }
+      client.room.controller = { id: client.id, key: msg.key };
+      client.room.broadcast({ t: MSG.CONTROLLER, online: true }, client.id);
+    }
+
+    function handleControl(msg) {
+      const ctl = client.room.controller;
+      if (!ctl) return fail(ERR.NO_CONTROLLER, 'El PC presentador no está conectado');
+      const given = Buffer.from(typeof msg.key === 'string' ? msg.key : '');
+      const expected = Buffer.from(ctl.key);
+      if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+        return fail(ERR.CONTROL_DENIED, 'Clave de control incorrecta: vuelve a escanear el QR de control');
+      }
+      const order = validateControl(msg);
+      if (!order) return fail(ERR.BAD_REQUEST, 'Orden de control inválida');
+      client.room.peers.get(ctl.id)?.send(JSON.stringify({ t: MSG.CONTROL, from: client.id, ...order }));
+    }
+
     ws.on('close', () => {
       const { room, peer } = client;
       if (!room) return;
       stopScreen();
+      if (room.controller?.id === client.id) {
+        room.controller = null;
+        room.broadcast({ t: MSG.CONTROLLER, online: false }, client.id);
+      }
       room.removePeer(client.id);
       room.broadcast({ t: MSG.PEER_LEAVE, id: client.id });
       logger.info(`${peer.name} salió de la sala ${room.id} (${room.peers.size} conectados)`);
