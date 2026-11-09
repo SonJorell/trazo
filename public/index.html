@@ -26,6 +26,19 @@
       <section class="card">
         <h2>Nueva pizarra</h2>
         <form id="create-form" class="stack">
+          <div class="mode-choice" role="radiogroup" aria-label="Tipo de pizarra">
+            <label class="mode-card">
+              <input type="radio" name="mode" value="blank" checked />
+              <span class="mode-title">En blanco</span>
+              <span class="muted small">Una pizarra vacía para dibujar juntos.</span>
+            </label>
+            <label class="mode-card" id="live-card">
+              <input type="radio" name="mode" value="live" />
+              <span class="mode-title"><span class="live-dot"></span> En directo</span>
+              <span class="muted small">Transmites tu pantalla y los demás la ven de fondo y marcan encima.</span>
+            </label>
+          </div>
+          <p id="live-note" class="muted small" hidden>La transmisión se inicia desde el navegador de un PC. En este dispositivo podrás crear la sala y transmitir luego desde el PC.</p>
           <label class="check">
             <input id="use-pin" type="checkbox" />
             Proteger con PIN (para salas con otras personas)

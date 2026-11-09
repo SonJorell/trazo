@@ -71,6 +71,19 @@ desde el PC y el celular en la misma red.
 | Marcar desde otro dispositivo | Un trazo hecho en el visor apareció sobre la pantalla del PC en la misma posición, con el cursor remoto |
 | Atajo global `Ctrl+Shift+Q` | Cierra el overlay y el servidor embebido |
 
+### Versión 1.2 — En blanco o en directo, vista móvil y cierre de salas
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 28/28 (nuevas: cierre de salas vacías, barrido de salas en disco con gracia tras reinicio, guardados simultáneos sin choques, modo de sala en la API) |
+| Inicio | Elección «En blanco / En directo»; al crear en directo el anfitrión ve el diálogo «Transmitir pantalla» |
+| Visor sin transmisión aún | Aviso «Esperando transmisión…» |
+| Celular 375×812 (vertical) | La transmisión 1920×1080 encaja al ancho; barra superior en una línea con «En vivo» y botón ⛶ |
+| Pantalla completa (vertical) | Fondo oscuro, transmisión de borde a borde, herramientas compactas y botón para salir |
+| Celular 812×375 (horizontal) | Se reajusta solo: la transmisión ocupa toda la altura y las herramientas pasan a una columna |
+| Cierre automático (plazo de prueba: 1 min) | Sala vacía → 404 a los ~70 s y su archivo se borró; la sala con gente siguió abierta |
+| Defecto encontrado en uso real | `ENOENT` al guardar la misma sala dos veces a la vez → corregido con una cola por sala |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

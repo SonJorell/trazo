@@ -55,6 +55,9 @@ export class Renderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (this.transparent) {
       ctx.clearRect(0, 0, this.width, this.height);
+    } else if (document.body.classList.contains('immersive')) {
+      ctx.fillStyle = '#111111'; // pantalla completa: fondo oscuro alrededor de la transmisión
+      ctx.fillRect(0, 0, this.width, this.height);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, this.width, this.height);

@@ -59,7 +59,10 @@ test('API: crear y consultar salas', async () => {
   const { id, hasPin } = await createRoom({ pin: '2468' });
   assert.equal(hasPin, true);
   const info = await (await fetch(`${base}/api/rooms/${id}`)).json();
-  assert.deepEqual(info, { id, hasPin: true });
+  assert.deepEqual(info, { id, hasPin: true, mode: 'blank', live: false });
+  const live = await createRoom({ mode: 'live' });
+  assert.equal(live.mode, 'live');
+  assert.equal((await fetch(`${base}/api/rooms`, { method: 'POST', body: '{"mode":"otro"}' })).status, 400);
   assert.equal((await fetch(`${base}/api/rooms/zzzzzz`)).status, 404);
   assert.equal((await fetch(`${base}/api/rooms`, { method: 'POST', body: '{"pin":"1"}' })).status, 400);
 });

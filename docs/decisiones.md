@@ -95,3 +95,32 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   `(0,0,ancho,alto)` del mundo, por lo que una marca hecha en el celular cae en el mismo punto de la
   pantalla del PC. La ventana usa `setContentProtection(true)` para no salir en su propia captura
   y no duplicar las marcas.
+
+## ADR-013 — Cierre de salas vacías por barrido periódico
+
+- **Contexto**: las salas no debían quedar abiertas para siempre.
+- **Decisión**: cada sala guarda `lastActiveAt` (última entrada o salida). Un barrido cada 30 s
+  cierra las que llevan vacías más de `EMPTY_ROOM_TTL_MIN` (2 min): las quita de memoria y borra
+  su archivo. El barrido también revisa el disco, para limpiar salas viejas tras un reinicio, y da
+  un plazo de gracia desde el arranque para que nadie pierda su sala al reiniciar el servidor.
+- **Alternativa descartada**: un temporizador por sala no sobrevive a reinicios y complica las
+  carreras entre cargar y cerrar.
+- **Consecuencias**: el comportamiento es simple de probar (`sweep(now)`) y robusto. El plazo
+  absorbe recargas de página y cortes breves de Wi-Fi.
+
+## ADR-014 — Transmitir desde el navegador del anfitrión
+
+- **Decisión**: además del overlay, el anfitrión puede transmitir desde Chrome o Edge con
+  `getDisplayMedia` (pide qué pantalla o ventana compartir y excluye la propia pestaña). Ve su
+  propia transmisión de fondo como vista previa local, sin pasar por la red.
+- **Consecuencias**: «En directo» funciona sin instalar nada. El overlay sigue siendo la opción
+  para dibujar directamente encima de la pantalla del PC.
+
+## ADR-015 — Cola de escritura por sala en FileStore
+
+- **Contexto**: en uso real apareció `ENOENT` al renombrar archivos temporales: un guardado
+  diferido y un `flush` escribían el mismo `.tmp` a la vez.
+- **Decisión**: las operaciones de cada sala se encolan, y cada escritura usa un archivo temporal
+  único.
+- **Consecuencias**: no hay más choques. Una prueba lanza 20 guardados simultáneos y verifica el
+  resultado.

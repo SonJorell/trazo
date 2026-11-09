@@ -6,7 +6,10 @@
  * - Rueda: desplazar; Ctrl + rueda (o pellizco en trackpad): zoom.
  * Con `lockView` (modo sobre la pantalla) la vista queda fija 1:1: sin zoom ni desplazamiento.
  */
-export function attachPointerInput(canvas, { viewport, getTool, render, onCursor, isSpaceDown, lockView = false }) {
+export function attachPointerInput(
+  canvas,
+  { viewport, getTool, render, onCursor, isSpaceDown, lockView = false, onUserView = () => {} },
+) {
   const pointers = new Map(); // pointerId → { x, y }
   let drawingId = null; // puntero que controla la herramienta
   let panningId = null;
@@ -56,6 +59,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
 
     if (gesture && pointers.size === 2) {
       const next = twoFinger();
+      onUserView();
       if (gesture.dist > 0) viewport.zoomAt(next.mid.x, next.mid.y, next.dist / gesture.dist);
       viewport.pan(next.mid.x - gesture.mid.x, next.mid.y - gesture.mid.y);
       gesture = next;
@@ -64,6 +68,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
     }
 
     if (panningId === e.pointerId && prev) {
+      onUserView();
       viewport.pan(pt.x - prev.x, pt.y - prev.y);
       render();
       return;
@@ -102,6 +107,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
     (e) => {
       e.preventDefault();
       if (lockView) return;
+      onUserView();
       const pt = local(e);
       if (e.ctrlKey || e.metaKey) viewport.zoomAt(pt.x, pt.y, Math.exp(-e.deltaY * 0.01));
       else viewport.pan(-e.deltaX, -e.deltaY);

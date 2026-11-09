@@ -20,9 +20,10 @@
           <span id="status" class="status" data-state="connecting" title="Conectando…"></span>
           <span id="room-code"></span>
         </span>
-        <button id="screen-badge" class="live-badge" title="Ver la pantalla compartida completa" hidden>
-          <span class="dot"></span> Pantalla en vivo
+        <button id="screen-badge" class="live-badge" title="Encajar la pantalla compartida" hidden>
+          <span class="dot"></span> <span class="label">Pantalla en vivo</span>
         </button>
+        <button id="fullscreen-btn" class="icon-btn" title="Ver a pantalla completa" aria-label="Ver a pantalla completa" hidden></button>
       </div>
       <div class="cluster">
         <div id="presence" class="presence" aria-label="Participantes"></div>
@@ -30,6 +31,7 @@
       </div>
     </header>
 
+    <button id="exit-immersive" class="icon-btn exit-immersive" title="Salir de pantalla completa" aria-label="Salir de pantalla completa"></button>
     <nav id="toolbar" class="toolbar" aria-label="Herramientas"></nav>
     <aside id="style-panel" class="style-panel" aria-label="Estilo"></aside>
 
