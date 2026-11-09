@@ -21,6 +21,7 @@ export class Room {
       if (el) this.elements.set(el.id, el);
     }
     this.peers = new Map(); // id -> { id, name, color, send }
+    this.screen = null; // { from, w, h, data } — pantalla compartida en vivo (no se guarda en disco)
     this.onChange = hooks.onChange ?? (() => {});
     this._colorIndex = 0;
   }
@@ -78,12 +79,28 @@ export class Room {
     return { accepted, rejected, full };
   }
 
-  /** Envía un mensaje a todos los participantes salvo `exceptId`. */
-  broadcast(message, exceptId = null) {
+  /**
+   * Envía un mensaje a todos los participantes salvo `exceptId`.
+   * `volatile`: el mensaje se puede descartar si la conexión de un participante va atrasada
+   * (cuadros de pantalla: importa el más reciente, no todos).
+   */
+  broadcast(message, exceptId = null, { volatile = false } = {}) {
     const payload = JSON.stringify(message);
     for (const peer of this.peers.values()) {
-      if (peer.id !== exceptId) peer.send(payload);
+      if (peer.id !== exceptId) peer.send(payload, { volatile });
     }
+  }
+
+  /** Guarda el último cuadro de la pantalla compartida por `from`. */
+  setScreen(from, frame) {
+    this.screen = { from, ...frame };
+  }
+
+  /** Detiene la transmisión si la hacía `from`. Devuelve true si había una activa. */
+  clearScreen(from) {
+    if (!this.screen || this.screen.from !== from) return false;
+    this.screen = null;
+    return true;
   }
 
   toJSON() {

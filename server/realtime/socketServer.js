@@ -1,10 +1,11 @@
 import { WebSocketServer } from 'ws';
-import { MSG, ERR, cleanName } from '../../shared/protocol.js';
+import { MSG, ERR, cleanName, validateScreenFrame } from '../../shared/protocol.js';
 import { randomId } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
 
 const HEARTBEAT_MS = 30_000;
 const MAX_OPS_PER_MESSAGE = 500;
+const MAX_BUFFERED_FOR_VOLATILE = 1024 * 1024; // si hay >1 MB pendiente, se saltan cuadros
 
 /**
  * Canal en tiempo real en la ruta `/ws`.
@@ -32,8 +33,10 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
 
-    const send = (msg) => {
-      if (ws.readyState === ws.OPEN) ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const send = (msg, { volatile = false } = {}) => {
+      if (ws.readyState !== ws.OPEN) return;
+      if (volatile && ws.bufferedAmount > MAX_BUFFERED_FOR_VOLATILE) return;
+      ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg));
     };
     const fail = (code, message, close = false) => {
       send({ t: MSG.ERROR, code, message });
@@ -59,6 +62,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (!client.room) fail(ERR.NOT_JOINED, 'Primero debes unirte a una sala');
         else if (msg.t === MSG.OPS) handleOps(msg);
         else if (msg.t === MSG.CURSOR) handleCursor(msg);
+        else if (msg.t === MSG.SCREEN) handleScreen(msg);
+        else if (msg.t === MSG.SCREEN_STOP) stopScreen();
       } catch (err) {
         logger.error('Error procesando mensaje:', err);
         fail(ERR.BAD_REQUEST, 'Error procesando el mensaje');
@@ -82,6 +87,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         you: { id, name, color },
         peers: room.publicPeers().filter((p) => p.id !== id),
         elements: room.snapshot(),
+        screen: room.screen,
       });
       room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color } }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
@@ -101,9 +107,23 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       client.room.broadcast({ t: MSG.CURSOR, id: client.id, x: msg.x, y: msg.y }, client.id);
     }
 
+    function handleScreen(msg) {
+      const frame = validateScreenFrame(msg);
+      if (!frame) return fail(ERR.BAD_REQUEST, 'Cuadro de pantalla inválido');
+      client.room.setScreen(client.id, frame);
+      client.room.broadcast({ t: MSG.SCREEN, from: client.id, ...frame }, client.id, { volatile: true });
+    }
+
+    function stopScreen() {
+      if (client.room?.clearScreen(client.id)) {
+        client.room.broadcast({ t: MSG.SCREEN_STOP, from: client.id }, client.id);
+      }
+    }
+
     ws.on('close', () => {
       const { room, peer } = client;
       if (!room) return;
+      stopScreen();
       room.removePeer(client.id);
       room.broadcast({ t: MSG.PEER_LEAVE, id: client.id });
       logger.info(`${peer.name} salió de la sala ${room.id} (${room.peers.size} conectados)`);
