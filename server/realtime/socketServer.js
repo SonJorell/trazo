@@ -73,7 +73,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     async function handleJoin(msg) {
       if (client.room) return; // ya está unido
       const room = await rooms.get(msg.room);
-      if (!room) return fail(ERR.ROOM_NOT_FOUND, 'La sala no existe', true);
+      if (!room) return fail(ERR.ROOM_NOT_FOUND, 'La sala no existe o se cerró por quedar vacía', true);
       if (room.hasPin) {
         if (!msg.pin) return fail(ERR.PIN_REQUIRED, 'Esta sala requiere PIN', true);
         if (!rooms.checkPin(room, String(msg.pin))) return fail(ERR.PIN_INVALID, 'PIN incorrecto', true);

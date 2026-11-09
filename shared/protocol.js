@@ -63,6 +63,8 @@ export const ERR = Object.freeze({
 export const ROOM_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 export const ROOM_ID_RE = /^[a-z0-9]{4,24}$/;
 export const PIN_RE = /^[0-9]{4,8}$/;
+/** Modo con el que el anfitrión crea la sala: pizarra en blanco o transmisión en directo. */
+export const ROOM_MODES = Object.freeze(['blank', 'live']);
 export const MAX_NAME = 24;
 
 /** Limpia el nombre visible de un participante. */

@@ -39,8 +39,8 @@ function readJson(req) {
 /**
  * Rutas de la API:
  *   GET  /api/info           → URLs de la red local y puerto.
- *   POST /api/rooms          → crea sala { pin? } → { id, hasPin }
- *   GET  /api/rooms/:id      → { id, hasPin } o 404
+ *   POST /api/rooms          → crea sala { pin?, mode? } → { id, hasPin, mode }
+ *   GET  /api/rooms/:id      → { id, hasPin, mode, live } o 404 (no existe o se cerró)
  *   GET  /api/qr.svg?text=   → código QR en SVG (solo para URLs de este servidor)
  */
 export function createApiHandler({ rooms, config }) {
@@ -52,22 +52,26 @@ export function createApiHandler({ rooms, config }) {
 
     try {
       if (req.method === 'GET' && pathname === '/api/info') {
-        sendJson(res, 200, { port: config.port, lanUrls: lanUrls() });
+        sendJson(res, 200, {
+          port: config.port,
+          lanUrls: lanUrls(),
+          emptyRoomTtlMin: Math.round(config.emptyRoomTtlMs / 60_000),
+        });
         return true;
       }
 
       if (req.method === 'POST' && pathname === '/api/rooms') {
         const body = await readJson(req);
-        const room = await rooms.create({ pin: body.pin });
-        sendJson(res, 201, { id: room.id, hasPin: room.hasPin });
+        const room = await rooms.create({ pin: body.pin, mode: body.mode ?? 'blank' });
+        sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode });
         return true;
       }
 
       const match = pathname.match(/^\/api\/rooms\/([^/]+)$/);
       if (req.method === 'GET' && match) {
         const room = await rooms.get(match[1]);
-        if (!room) sendJson(res, 404, { error: 'La sala no existe' });
-        else sendJson(res, 200, { id: room.id, hasPin: room.hasPin });
+        if (!room) sendJson(res, 404, { error: 'La sala no existe o se cerró por quedar vacía' });
+        else sendJson(res, 200, { id: room.id, hasPin: room.hasPin, mode: room.mode, live: Boolean(room.screen) });
         return true;
       }
 
