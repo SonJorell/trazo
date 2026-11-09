@@ -572,6 +572,10 @@ async function start() {
     setupOverlay({
       room,
       sharer,
+      connection,
+      viewport,
+      overlayState: overlay,
+      render,
       actions: {
         clear: () => clearBoard({ ask: false }),
         invite: () => shareDialog({ room, hasPin: roomHasPin }),

@@ -10,7 +10,12 @@
  *   Ctrl+Shift+X  limpiar marcas
  *   Ctrl+Shift+S  transmitir / detener pantalla
  *   Ctrl+Shift+H  ocultar / mostrar
+ *   Ctrl+Shift+0  quitar la lupa
  *   Ctrl+Shift+Q  salir
+ *
+ * Control remoto: el celular manda órdenes (diapositivas) que aquí se convierten en teclas
+ * mediante un proceso PowerShell persistente (`keys.ps1`). Solo se aceptan las teclas de
+ * la lista blanca `KEYMAP`; nunca texto arbitrario.
  */
 import {
   app,
@@ -24,6 +29,7 @@ import {
   screen,
   session,
 } from 'electron';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +47,57 @@ let sharing = false;
 let room = null;
 
 if (!app.requestSingleInstanceLock()) app.quit();
+
+// ---------- Teclas para el programa de presentación ----------
+// [código virtual de Windows, ¿tecla extendida?]
+const VK = {
+  right: [0x27, 1],
+  left: [0x25, 1],
+  pageDown: [0x22, 1],
+  pageUp: [0x21, 1],
+  home: [0x24, 1],
+  end: [0x23, 1],
+  space: [0x20, 0],
+  backspace: [0x08, 0],
+  b: [0x42, 0],
+  w: [0x57, 0],
+  f5: [0x74, 0],
+  esc: [0x1b, 0],
+};
+const KEYMAP = {
+  next: { arrows: VK.right, pages: VK.pageDown, space: VK.space },
+  prev: { arrows: VK.left, pages: VK.pageUp, space: VK.backspace },
+  first: VK.home,
+  last: VK.end,
+  black: VK.b,
+  white: VK.w,
+  start: VK.f5,
+  end: VK.esc,
+};
+
+let keyHelper = null;
+function startKeyHelper() {
+  if (process.platform !== 'win32') return;
+  keyHelper = spawn(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(HERE, 'keys.ps1')],
+    { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
+  );
+  keyHelper.on('exit', () => (keyHelper = null));
+  keyHelper.stderr.on('data', (d) => console.error('keys.ps1:', d.toString().trim()));
+}
+
+function pressKey(action, style = 'arrows') {
+  const entry = KEYMAP[action];
+  const key = Array.isArray(entry) ? entry : entry?.[style] ?? entry?.arrows;
+  if (!key) return false;
+  if (!keyHelper) startKeyHelper();
+  if (!keyHelper) return false;
+  // Si la ventana de Trazo tiene el foco (modo dibujar), se lo devolvemos a la presentación.
+  if (win?.isFocused()) win.blur();
+  keyHelper.stdin.write(`${key[0]} ${key[1]}\n`);
+  return true;
+}
 
 // ---------- Servidor ----------
 async function serverIsUp() {
@@ -198,6 +255,8 @@ function refreshTray() {
       { type: 'separator' },
       { label: 'Transmitir pantalla a la sala', type: 'checkbox', checked: sharing, accelerator: 'Ctrl+Shift+S', click: () => command('share-toggle') },
       { label: 'Invitar (mostrar QR)', click: () => (setMode('draw'), command('invite')) },
+      { label: 'Control remoto (QR para el celular)', click: () => (setMode('draw'), command('remote')) },
+      { label: 'Quitar zoom', accelerator: 'Ctrl+Shift+0', click: () => command('zoom-reset') },
       { label: 'Limpiar marcas', accelerator: 'Ctrl+Shift+X', click: () => command('clear') },
       { label: 'Nueva sala', click: () => newRoom().catch((err) => console.error(err)) },
       { type: 'separator' },
@@ -224,6 +283,7 @@ ipcMain.on('overlay:sharing', (_e, on) => {
   refreshTray();
 });
 ipcMain.on('overlay:hide', toggleVisible);
+ipcMain.handle('overlay:key', (_e, action, style) => pressKey(String(action), String(style)));
 ipcMain.on('overlay:quit', () => app.quit());
 
 // ---------- Ciclo de vida ----------
@@ -239,6 +299,7 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+  startKeyHelper();
   createWindow();
   setMode('pass'); // arranca dejando pasar los clics hasta que el usuario pida dibujar
   createTray();
@@ -248,6 +309,7 @@ app.whenReady().then(async () => {
     'CommandOrControl+Shift+X': () => command('clear'),
     'CommandOrControl+Shift+S': () => command('share-toggle'),
     'CommandOrControl+Shift+H': toggleVisible,
+    'CommandOrControl+Shift+0': () => command('zoom-reset'),
     'CommandOrControl+Shift+Q': () => app.quit(),
   };
   for (const [accel, fn] of Object.entries(shortcuts)) {
@@ -265,6 +327,9 @@ app.on('before-quit', (e) => {
   embedded.close().finally(() => app.quit());
 });
 
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  keyHelper?.kill();
+});
 
 app.on('window-all-closed', () => app.quit());

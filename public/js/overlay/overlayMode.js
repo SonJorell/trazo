@@ -1,6 +1,8 @@
 import { h } from '../ui/dom.js';
 import { ICONS } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
+import { Magnifier } from './magnifier.js';
+import { setupRemoteControl } from './remoteControl.js';
 
 /** Zonas que reciben clics aunque la ventana esté en modo «usar el PC». */
 const INTERACTIVE = '.ov-hit, .modal-backdrop, .toasts, .text-editor';
@@ -14,9 +16,24 @@ const INTERACTIVE = '.ov-hit, .modal-backdrop, .toasts, .text-editor';
  * Dentro de la app de escritorio (Electron), `window.trazoOverlay` controla la
  * ventana; en un navegador normal el modo se simula.
  */
-export function setupOverlay({ room, sharer, actions }) {
+export function setupOverlay({ room, sharer, actions, connection, viewport, overlayState, render }) {
   const bridge = window.trazoOverlay ?? null;
   document.body.classList.add('overlay-mode');
+
+  const zoomBtn = h('button', {
+    class: 'ov-btn ov-zoom',
+    title: 'Quitar la lupa (Ctrl+Shift+0)',
+    hidden: true,
+    onclick: () => magnifier.reset(),
+  });
+  zoomBtn.innerHTML = `${ICONS.zoomOut}<span>Quitar zoom</span>`;
+  const magnifier = new Magnifier({
+    viewport,
+    overlayState,
+    render,
+    onChange: (on) => (zoomBtn.hidden = !on),
+  });
+  const remote = setupRemoteControl({ room, connection, bridge, magnifier, sharer });
 
   const modeBtn = h('button', { class: 'ov-btn ov-mode' });
   const shareBtn = h('button', {
@@ -30,7 +47,14 @@ export function setupOverlay({ room, sharer, actions }) {
     modeBtn,
     h('span', { class: 'ov-room code', title: 'Código de la sala' }, room.toUpperCase()),
     shareBtn,
+    zoomBtn,
     h('button', { class: 'ov-btn', title: 'Invitar (QR)', html: ICONS.share, onclick: actions.invite }),
+    h('button', {
+      class: 'ov-btn',
+      title: 'Control remoto desde el celular (diapositivas y zoom)',
+      html: ICONS.remote,
+      onclick: () => remote.showControlQr(),
+    }),
     h('button', { class: 'ov-btn', title: 'Limpiar marcas (Ctrl+Shift+X)', html: ICONS.trash, onclick: () => actions.clear() }),
     bridge ? h('button', { class: 'ov-btn', title: 'Ocultar (Ctrl+Shift+H)', html: ICONS.eyeOff, onclick: () => bridge.hide() }) : null,
     bridge ? h('button', { class: 'ov-btn danger', title: 'Cerrar (Ctrl+Shift+Q)', html: ICONS.close, onclick: () => bridge.quit() }) : null,
@@ -94,6 +118,8 @@ export function setupOverlay({ room, sharer, actions }) {
       if (cmd === 'clear') actions.clear();
       else if (cmd === 'share-toggle') toggleShare();
       else if (cmd === 'invite') actions.invite();
+      else if (cmd === 'zoom-reset') magnifier.reset();
+      else if (cmd === 'remote') remote.showControlQr();
     });
     bridge.ready();
   } else {
