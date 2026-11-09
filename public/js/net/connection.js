@@ -19,6 +19,11 @@ export class Connection extends Emitter {
     this._timer = null;
   }
 
+  /** Bytes en cola de envío (para no saturar la red con cuadros de pantalla). */
+  get bufferedAmount() {
+    return this.ws?.bufferedAmount ?? 0;
+  }
+
   get online() {
     return this.status === 'online';
   }

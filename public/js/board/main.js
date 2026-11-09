@@ -17,32 +17,40 @@ import { askJoin, confirmDialog, fatalDialog, shareDialog } from '../ui/dialogs.
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
+import { setupOverlay } from '../overlay/overlayMode.js';
+import { ScreenSharer } from '../overlay/screenShare.js';
 import { api, parseRoomCode } from '../util/api.js';
 import { local, rememberRoom, savedName, saveName, savedPin, savePin, forgetPin } from '../util/storage.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const room = parseRoomCode(new URLSearchParams(location.search).get('room'));
+const params = new URLSearchParams(location.search);
+const room = parseRoomCode(params.get('room'));
 if (!room) location.replace('/');
+/** Modo «sobre la pantalla»: fondo transparente y vista fija 1:1 con la pantalla del PC. */
+const OVERLAY = params.get('overlay') === '1';
+const STYLE_KEY = OVERLAY ? 'trazo:style:overlay' : 'trazo:style';
 
 // ---------- Estado ----------
 const scene = new Scene();
 const history = new History(scene);
 const viewport = new Viewport();
-const overlay = { selection: new Set(), marquee: null, cursors: new Map(), editingId: null };
+const overlay = { selection: new Set(), marquee: null, cursors: new Map(), editingId: null, screen: null };
 const style = {
-  stroke: '#1e1e1e',
+  stroke: OVERLAY ? '#e03131' : '#1e1e1e',
   fill: 'transparent',
-  strokeWidth: 2,
+  strokeWidth: OVERLAY ? 4 : 2,
   fontSize: 28,
-  ...local.get('trazo:style', {}),
+  ...local.get(STYLE_KEY, {}),
 };
 
 const canvas = $('#board');
-const renderer = new Renderer(canvas, { scene, viewport, overlay });
+const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: OVERLAY });
 const render = () => renderer.requestRender();
-viewport.x = -renderer.width / 2;
-viewport.y = -renderer.height / 2;
+if (!OVERLAY) {
+  viewport.x = -renderer.width / 2;
+  viewport.y = -renderer.height / 2;
+}
 
 let roomHasPin = false;
 let sync = null;
@@ -122,6 +130,7 @@ const toolbar = $('#toolbar');
 for (const def of TOOL_DEFS) {
   const btn = h('button', {
     class: 'tool',
+    'data-tool': def.name,
     title: `${def.label} (${def.key.toUpperCase()})`,
     'aria-label': def.label,
     html: ICONS[def.name],
@@ -153,7 +162,7 @@ const STYLE_TARGETS = {
 
 const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
   Object.assign(style, partial);
-  local.set('trazo:style', style);
+  local.set(STYLE_KEY, style);
   stylePanel.refresh();
   if (!overlay.selection.size) return;
   const tx = ctx.begin();
@@ -188,7 +197,7 @@ function zoomBy(factor) {
 }
 
 function fitToContent() {
-  const b = scene.bounds();
+  const b = overlay.screen ? { x: 0, y: 0, w: overlay.screen.w, h: overlay.screen.h } : scene.bounds();
   if (b) viewport.fit(b, renderer.width, renderer.height, 60, 2);
   afterViewChange();
 }
@@ -199,9 +208,9 @@ function afterViewChange() {
   render();
 }
 
-async function clearBoard() {
+async function clearBoard({ ask = true } = {}) {
   if (!scene.alive().length) return;
-  const ok = await confirmDialog('¿Borrar todo el contenido de la pizarra? Podrás deshacerlo.', {
+  const ok = !ask || await confirmDialog('¿Borrar todo el contenido de la pizarra? Podrás deshacerlo.', {
     okLabel: 'Limpiar',
     danger: true,
   });
@@ -263,8 +272,33 @@ menu.append(
   menuItem('home', 'Inicio', () => (location.href = '/')),
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
-  menuItem('trash', 'Limpiar pizarra', clearBoard),
+  menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
 );
+
+// ---------- Pantalla compartida en vivo (fondo) ----------
+let screenSeq = 0;
+const screenBadge = $('#screen-badge');
+screenBadge.addEventListener('click', fitToContent);
+function showScreen(frame) {
+  if (OVERLAY) return; // la ventana sobre la pantalla no se dibuja a sí misma de fondo
+  const seq = ++screenSeq;
+  if (!frame) {
+    overlay.screen = null;
+    screenBadge.hidden = true;
+    render();
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    if (seq !== screenSeq) return; // llegó uno más nuevo
+    const first = !overlay.screen;
+    overlay.screen = { img, w: frame.w, h: frame.h };
+    screenBadge.hidden = false;
+    if (first) fitToContent();
+    else render();
+  };
+  img.src = frame.data;
+}
 
 $('#room-code').textContent = room.toUpperCase();
 document.title = `Trazo · ${room.toUpperCase()}`;
@@ -311,6 +345,7 @@ attachPointerInput(canvas, {
   },
   onCursor: (p) => sync?.sendCursor(p),
   isSpaceDown: () => spaceDown,
+  lockView: OVERLAY,
 });
 
 const onResize = () => {
@@ -339,7 +374,7 @@ async function start() {
   roomHasPin = info.hasPin;
   rememberRoom(room);
 
-  let name = savedName();
+  let name = savedName() || (OVERLAY ? 'Pantalla PC' : '');
   let pin = info.hasPin ? savedPin(room) : null;
   if (!name || (info.hasPin && !pin)) {
     const answer = await askJoin({ room, defaultName: name, needPin: info.hasPin && !pin });
@@ -351,13 +386,31 @@ async function start() {
 
   const connection = new Connection({ room, getJoin: () => ({ name, pin }) });
   const presence = new Presence($('#presence'), { overlay, render });
-  sync = new Sync({ scene, connection, presence });
+  sync = new Sync({ scene, connection, presence, onScreen: showScreen });
+
+  if (OVERLAY) {
+    const sharer = new ScreenSharer({
+      connection,
+      hasViewers: () => presence.peerCount > 0,
+      getSize: () => ({ w: window.innerWidth, h: window.innerHeight }),
+      onState: () => {},
+    });
+    setupOverlay({
+      room,
+      sharer,
+      actions: {
+        clear: () => clearBoard({ ask: false }),
+        invite: () => shareDialog({ room, hasPin: roomHasPin }),
+        commitText: () => textEditor.active && textEditor.commit(),
+      },
+    });
+  }
 
   let firstWelcome = true;
   connection.on('message', (msg) => {
     if (msg.t === 'welcome' && firstWelcome) {
       firstWelcome = false;
-      if (scene.alive().length) fitToContent();
+      if (!OVERLAY && scene.alive().length && !overlay.screen) fitToContent();
     }
     if (msg.t === 'error') toast(msg.message);
   });

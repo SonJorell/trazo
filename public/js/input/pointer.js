@@ -4,8 +4,9 @@
  * - 2 dedos: zoom con pellizco y desplazamiento (cancela el trazo en curso).
  * - Botón central, barra espaciadora o herramienta Mano: desplazar.
  * - Rueda: desplazar; Ctrl + rueda (o pellizco en trackpad): zoom.
+ * Con `lockView` (modo sobre la pantalla) la vista queda fija 1:1: sin zoom ni desplazamiento.
  */
-export function attachPointerInput(canvas, { viewport, getTool, render, onCursor, isSpaceDown }) {
+export function attachPointerInput(canvas, { viewport, getTool, render, onCursor, isSpaceDown, lockView = false }) {
   const pointers = new Map(); // pointerId → { x, y }
   let drawingId = null; // puntero que controla la herramienta
   let panningId = null;
@@ -27,7 +28,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
     pointers.set(e.pointerId, pt);
     canvas.setPointerCapture?.(e.pointerId);
 
-    if (pointers.size === 2) {
+    if (pointers.size === 2 && !lockView) {
       if (drawingId !== null) getTool().cancel();
       drawingId = null;
       panningId = null;
@@ -37,7 +38,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
     if (pointers.size > 2) return;
 
     const tool = getTool();
-    if (e.button === 1 || isSpaceDown() || tool.pans) {
+    if (!lockView && (e.button === 1 || isSpaceDown() || tool.pans)) {
       panningId = e.pointerId;
       canvas.style.cursor = 'grabbing';
       return;
@@ -100,6 +101,7 @@ export function attachPointerInput(canvas, { viewport, getTool, render, onCursor
     'wheel',
     (e) => {
       e.preventDefault();
+      if (lockView) return;
       const pt = local(e);
       if (e.ctrlKey || e.metaKey) viewport.zoomAt(pt.x, pt.y, Math.exp(-e.deltaY * 0.01));
       else viewport.pan(-e.deltaX, -e.deltaY);
