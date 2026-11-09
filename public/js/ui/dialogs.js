@@ -89,8 +89,11 @@ export function fatalDialog(message) {
 /** Muestra el enlace de la sala para la red local, con QR y botón copiar. */
 export async function shareDialog({ room, hasPin }) {
   let urls = [];
+  let ttlMin = 0;
   try {
-    urls = (await api.info()).lanUrls;
+    const info = await api.info();
+    urls = info.lanUrls;
+    ttlMin = info.emptyRoomTtlMin;
   } catch {
     /* sin info: se usa la dirección actual */
   }
@@ -122,10 +125,47 @@ export async function shareDialog({ room, hasPin }) {
       h('div', { class: 'row' }, input, btn),
       h('p', {}, 'Código de sala: ', h('strong', { class: 'code' }, room.toUpperCase())),
       hasPin ? h('p', { class: 'muted' }, 'Esta sala tiene PIN: compártelo por separado.') : null,
+      ttlMin ? h('p', { class: 'muted small' }, `La sala se cierra y se borra ${ttlMin} min después de que salga el último participante.`) : null,
       isLocalhost && !urls.length
         ? h('p', { class: 'error' }, 'No se detectó la red local. Conecta el PC a la Wi-Fi.')
         : null,
       h('button', { class: 'btn primary', onclick: () => close() }, 'Listo'),
     ),
   );
+}
+
+/**
+ * Pide al anfitrión que inicie la transmisión. El navegador exige un clic del usuario
+ * antes de capturar la pantalla, por eso es un diálogo con botón.
+ * Devuelve true si eligió transmitir.
+ */
+export function liveStartDialog() {
+  return new Promise((resolve) => {
+    const done = (v) => {
+      close();
+      resolve(v);
+    };
+    const { close } = modal(
+      h(
+        'div',
+        { class: 'stack center' },
+        h('h2', {}, 'Pizarra en directo'),
+        h('p', {}, 'Comparte tu pantalla o una ventana: los demás la verán de fondo y podrán marcar encima.'),
+        h(
+          'p',
+          { class: 'muted small' },
+          'Consejo: elige otra ventana u otra pantalla (no esta pestaña). Para dibujar directamente sobre tu pantalla usa ',
+          h('strong', {}, 'iniciar-overlay.bat'),
+          '.',
+        ),
+        h(
+          'div',
+          { class: 'row end' },
+          h('button', { class: 'btn ghost', onclick: () => done(false) }, 'Más tarde'),
+          h('button', { class: 'btn primary', html: `${ICONS.screen} Transmitir pantalla`, onclick: () => done(true) }),
+        ),
+      ),
+      { onDismiss: () => resolve(false) },
+    );
+  });
 }

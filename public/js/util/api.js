@@ -12,7 +12,7 @@ async function request(method, path, body) {
 
 export const api = {
   info: () => request('GET', '/api/info'),
-  createRoom: (pin) => request('POST', '/api/rooms', pin ? { pin } : {}),
+  createRoom: ({ pin, mode = 'blank' } = {}) => request('POST', '/api/rooms', pin ? { pin, mode } : { mode }),
   getRoom: (id) => request('GET', `/api/rooms/${encodeURIComponent(id)}`),
   qrUrl: (text) => `/api/qr.svg?text=${encodeURIComponent(text)}`,
 };

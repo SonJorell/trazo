@@ -13,14 +13,24 @@ import { Sync } from '../net/sync.js';
 import { Presence } from '../ui/presence.js';
 import { TextEditor } from '../ui/textEditor.js';
 import { createStylePanel } from '../ui/stylePanel.js';
-import { askJoin, confirmDialog, fatalDialog, shareDialog } from '../ui/dialogs.js';
+import { askJoin, confirmDialog, fatalDialog, liveStartDialog, shareDialog } from '../ui/dialogs.js';
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
 import { setupOverlay } from '../overlay/overlayMode.js';
 import { ScreenSharer } from '../overlay/screenShare.js';
 import { api, parseRoomCode } from '../util/api.js';
-import { local, rememberRoom, savedName, saveName, savedPin, savePin, forgetPin } from '../util/storage.js';
+import {
+  local,
+  rememberRoom,
+  savedName,
+  saveName,
+  savedPin,
+  savePin,
+  forgetPin,
+  forgetRoom,
+  isHostOf,
+} from '../util/storage.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -197,7 +207,8 @@ function zoomBy(factor) {
 }
 
 function fitToContent() {
-  const b = overlay.screen ? { x: 0, y: 0, w: overlay.screen.w, h: overlay.screen.h } : scene.bounds();
+  if (overlay.screen) return fitScreen();
+  const b = scene.bounds();
   if (b) viewport.fit(b, renderer.width, renderer.height, 60, 2);
   afterViewChange();
 }
@@ -276,15 +287,63 @@ menu.append(
 );
 
 // ---------- Pantalla compartida en vivo (fondo) ----------
+// Quien transmite envía cuadros; los demás la ven de fondo en (0,0,w,h) del mundo.
 let screenSeq = 0;
+let followScreen = true; // reajustar al girar o cambiar de tamaño mientras no se mueva la vista a mano
+let roomMode = 'blank';
+let hostSharer = null;
+let previewTimer = null;
+const hosting = () => Boolean(hostSharer?.active);
+const canShareScreen = !OVERLAY && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+const isNarrow = () => window.matchMedia('(max-width: 760px)').matches;
+const isImmersive = () => document.body.classList.contains('immersive');
+
 const screenBadge = $('#screen-badge');
-screenBadge.addEventListener('click', fitToContent);
+const fsBtn = $('#fullscreen-btn');
+const exitImmersiveBtn = $('#exit-immersive');
+fsBtn.innerHTML = ICONS.maximize;
+exitImmersiveBtn.innerHTML = ICONS.minimize;
+
+/** Zona libre de la pantalla (sin barras) donde encajar la transmisión. */
+function screenBox() {
+  if (isImmersive()) return { x: 0, y: 0, w: renderer.width, h: renderer.height };
+  const top = 60;
+  const bottom = isNarrow() ? 124 : 64;
+  return { x: 8, y: top, w: renderer.width - 16, h: renderer.height - top - bottom };
+}
+
+function fitScreen() {
+  const s = overlay.screen;
+  if (!s) return;
+  viewport.fitInto({ x: 0, y: 0, w: s.w, h: s.h }, screenBox());
+  afterViewChange();
+}
+
+function updateScreenUi() {
+  const live = Boolean(overlay.screen);
+  const waiting = !live && roomMode === 'live' && !hosting() && !OVERLAY;
+  screenBadge.hidden = !live && !waiting;
+  screenBadge.classList.toggle('waiting', waiting);
+  const short = isNarrow();
+  screenBadge.querySelector('.label').textContent = hosting()
+    ? 'Transmitiendo'
+    : live
+      ? short
+        ? 'En vivo'
+        : 'Pantalla en vivo'
+      : short
+        ? 'Esperando…'
+        : 'Esperando transmisión…';
+  fsBtn.hidden = !live;
+  if (!live && isImmersive()) exitImmersive();
+}
+
 function showScreen(frame) {
-  if (OVERLAY) return; // la ventana sobre la pantalla no se dibuja a sí misma de fondo
+  if (OVERLAY || hosting()) return; // quien transmite no se dibuja su propio eco
   const seq = ++screenSeq;
   if (!frame) {
     overlay.screen = null;
-    screenBadge.hidden = true;
+    updateScreenUi();
     render();
     return;
   }
@@ -293,12 +352,95 @@ function showScreen(frame) {
     if (seq !== screenSeq) return; // llegó uno más nuevo
     const first = !overlay.screen;
     overlay.screen = { img, w: frame.w, h: frame.h };
-    screenBadge.hidden = false;
-    if (first) fitToContent();
-    else render();
+    if (first) {
+      followScreen = true;
+      updateScreenUi();
+      fitScreen();
+      if (isNarrow() && !isImmersive()) toast('Toca ⛶ para ver la pantalla completa');
+    } else render();
   };
   img.src = frame.data;
 }
+
+/** Vista previa local de la propia transmisión (el anfitrión ve lo mismo que los demás). */
+function setHostPreview(video) {
+  clearInterval(previewTimer);
+  if (video) {
+    const dpr = window.devicePixelRatio || 1;
+    overlay.screen = { img: video, w: Math.round(video.videoWidth / dpr), h: Math.round(video.videoHeight / dpr) };
+    previewTimer = setInterval(render, 100);
+    followScreen = true;
+    fitScreen();
+  } else {
+    overlay.screen = null;
+    render();
+  }
+  updateScreenUi();
+}
+
+async function toggleHostShare() {
+  if (!hostSharer) return;
+  try {
+    await hostSharer.toggle();
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') toast(`No se pudo transmitir: ${err.message}`);
+  }
+}
+
+// ---------- Pantalla completa (móvil) ----------
+async function enterImmersive() {
+  document.body.classList.add('immersive');
+  followScreen = true;
+  fitScreen();
+  const el = document.documentElement;
+  try {
+    await (el.requestFullscreen?.({ navigationUI: 'hide' }) ?? el.webkitRequestFullscreen?.());
+  } catch {
+    /* iPhone no permite pantalla completa en páginas: se usa el modo inmersivo igual */
+  }
+  let locked = false;
+  try {
+    await screen.orientation?.lock?.('landscape');
+    locked = true;
+  } catch {
+    /* no soportado: se sugiere girar a mano */
+  }
+  const s = overlay.screen;
+  if (!locked && s && s.w > s.h && window.innerHeight > window.innerWidth) {
+    toast('Gira el teléfono para verla más grande');
+  }
+  setTimeout(fitScreen, 300);
+}
+
+function exitImmersive() {
+  document.body.classList.remove('immersive');
+  const fsEl = document.fullscreenElement ?? document.webkitFullscreenElement;
+  if (fsEl) (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.())?.catch?.(() => {});
+  try {
+    screen.orientation?.unlock?.();
+  } catch {
+    /* sin soporte */
+  }
+  setTimeout(fitScreen, 300);
+}
+
+const onFullscreenChange = () => {
+  const fsEl = document.fullscreenElement ?? document.webkitFullscreenElement;
+  if (!fsEl && isImmersive()) exitImmersive();
+};
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+screenBadge.addEventListener('click', () => {
+  followScreen = true;
+  fitScreen();
+});
+fsBtn.addEventListener('click', enterImmersive);
+exitImmersiveBtn.addEventListener('click', exitImmersive);
+
+const shareScreenItem = menuItem('screen', 'Transmitir mi pantalla', toggleHostShare);
+shareScreenItem.hidden = true;
+menu.insertBefore(shareScreenItem, menu.children[1]);
 
 $('#room-code').textContent = room.toUpperCase();
 document.title = `Trazo · ${room.toUpperCase()}`;
@@ -346,13 +488,17 @@ attachPointerInput(canvas, {
   onCursor: (p) => sync?.sendCursor(p),
   isSpaceDown: () => spaceDown,
   lockView: OVERLAY,
+  onUserView: () => (followScreen = false),
 });
 
 const onResize = () => {
   renderer.resize();
   textEditor.reposition();
+  if (overlay.screen && followScreen) fitScreen();
+  updateScreenUi();
 };
 window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', () => setTimeout(onResize, 300));
 window.visualViewport?.addEventListener('resize', onResize);
 
 // Los cursores remotos se desvanecen: redibujar de vez en cuando.
@@ -364,14 +510,18 @@ async function start() {
   try {
     info = await api.getRoom(room);
   } catch (err) {
+    if (err.status === 404) forgetRoom(room);
     fatalDialog(
       err.status === 404
-        ? `La sala ${room.toUpperCase()} no existe. Revisa el código o crea una nueva.`
+        ? `La sala ${room.toUpperCase()} no existe o se cerró porque quedó vacía. Crea una nueva desde el inicio.`
         : 'No se pudo contactar con el servidor. ¿Está encendido el PC?',
     );
     return;
   }
   roomHasPin = info.hasPin;
+  roomMode = info.mode ?? 'blank';
+  const isHost = isHostOf(room);
+  updateScreenUi();
   rememberRoom(room);
 
   let name = savedName() || (OVERLAY ? 'Pantalla PC' : '');
@@ -387,6 +537,30 @@ async function start() {
   const connection = new Connection({ room, getJoin: () => ({ name, pin }) });
   const presence = new Presence($('#presence'), { overlay, render });
   sync = new Sync({ scene, connection, presence, onScreen: showScreen });
+
+  if (canShareScreen) {
+    hostSharer = new ScreenSharer({
+      connection,
+      hasViewers: () => presence.peerCount > 0,
+      getSize: (video) => {
+        const dpr = window.devicePixelRatio || 1;
+        return { w: Math.round(video.videoWidth / dpr), h: Math.round(video.videoHeight / dpr) };
+      },
+      onPreview: setHostPreview,
+      onState: (on) => {
+        shareScreenItem.lastChild.textContent = on ? 'Detener transmisión' : 'Transmitir mi pantalla';
+        toast(on ? 'Transmitiendo tu pantalla a la sala' : 'Transmisión detenida');
+        updateScreenUi();
+      },
+      displayMediaOptions: {
+        video: { frameRate: 10 },
+        audio: false,
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+      },
+    });
+    shareScreenItem.hidden = false;
+  }
 
   if (OVERLAY) {
     const sharer = new ScreenSharer({
@@ -411,6 +585,11 @@ async function start() {
     if (msg.t === 'welcome' && firstWelcome) {
       firstWelcome = false;
       if (!OVERLAY && scene.alive().length && !overlay.screen) fitToContent();
+      // El anfitrión de una sala en directo empieza a transmitir (requiere un clic suyo).
+      if (roomMode === 'live' && isHost && !OVERLAY) {
+        if (hostSharer) liveStartDialog().then((yes) => yes && toggleHostShare());
+        else toast('Para transmitir la pantalla abre esta sala en el navegador del PC');
+      }
     }
     if (msg.t === 'error') toast(msg.message);
   });

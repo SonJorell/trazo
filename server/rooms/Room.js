@@ -15,6 +15,8 @@ export class Room {
     this.id = data.id;
     this.createdAt = data.createdAt ?? Date.now();
     this.pin = data.pin ?? null; // { salt, hash } o null
+    this.mode = data.mode === 'live' ? 'live' : 'blank';
+    this.lastActiveAt = data.lastActiveAt ?? this.createdAt; // última entrada o salida de alguien
     this.elements = new Map();
     for (const raw of data.elements ?? []) {
       const el = sanitizeElement(raw);
@@ -39,11 +41,22 @@ export class Room {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
     const peer = { id, name, color, send };
     this.peers.set(id, peer);
+    this.lastActiveAt = Date.now();
     return peer;
   }
 
   removePeer(id) {
-    return this.peers.delete(id);
+    const removed = this.peers.delete(id);
+    if (removed) this.lastActiveAt = Date.now();
+    return removed;
+  }
+
+  /**
+   * ¿Lleva vacía más de `ttlMs`? `notBefore` da un plazo de gracia (p. ej. desde que arrancó
+   * el servidor, para que la gente alcance a reconectarse antes de cerrar su sala).
+   */
+  isExpired(now, ttlMs, notBefore = 0) {
+    return this.peers.size === 0 && now - Math.max(this.lastActiveAt, notBefore) >= ttlMs;
   }
 
   publicPeers() {
@@ -104,6 +117,13 @@ export class Room {
   }
 
   toJSON() {
-    return { id: this.id, createdAt: this.createdAt, pin: this.pin, elements: this.snapshot() };
+    return {
+      id: this.id,
+      createdAt: this.createdAt,
+      lastActiveAt: this.lastActiveAt,
+      mode: this.mode,
+      pin: this.pin,
+      elements: this.snapshot(),
+    };
   }
 }

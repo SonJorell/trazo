@@ -15,7 +15,16 @@ export async function createApp(config, deps = {}) {
   const store = deps.store ?? new FileStore(config.dataDir);
   await store.init();
 
-  const rooms = new RoomManager({ store, saveDelayMs: config.saveDelayMs, logger });
+  const rooms = new RoomManager({
+    store,
+    saveDelayMs: config.saveDelayMs,
+    emptyRoomTtlMs: config.emptyRoomTtlMs,
+    logger,
+  });
+  const sweep = () => rooms.sweep().catch((err) => logger.error('Error cerrando salas vacías:', err));
+  const sweeper = setInterval(sweep, config.sweepIntervalMs);
+  sweeper.unref?.();
+  sweep();
   const serveShared = createStaticHandler(config.sharedDir, '/shared/');
   const servePublic = createStaticHandler(config.publicDir, '/');
   const handleApi = createApiHandler({ rooms, config });
@@ -50,6 +59,7 @@ export async function createApp(config, deps = {}) {
       });
     },
     async close() {
+      clearInterval(sweeper);
       for (const ws of wss.clients) ws.terminate();
       wss.close();
       await rooms.flush();

@@ -10,6 +10,9 @@ servicios externos y sin internet.
 - Deshacer / rehacer, exportar a PNG, limpiar pizarra
 - Varias personas a la vez: ves sus trazos **mientras dibujan**, sus cursores y sus nombres
 - Salas con código corto, **PIN opcional** y enlace + **código QR** para el celular
+- Al crear eliges **En blanco** o **En directo** (transmites tu pantalla y los demás marcan encima)
+- En el celular la transmisión se ve **a pantalla completa** y se reajusta al girar el teléfono
+- Las salas **se cierran solas** cuando no queda nadie (2 minutos después, configurable)
 - Se guarda sola en disco; si se corta la Wi-Fi puedes seguir dibujando y se sincroniza al volver
 - **Modo sobre la pantalla**: una capa transparente encima de todo para marcar sobre cualquier
   programa, y **transmisión de la pantalla del PC** a la sala para marcarla desde el celular
@@ -42,9 +45,15 @@ La consola muestra algo así:
   [código QR]
 ```
 
-1. En el PC abre `http://localhost:3080` y pulsa **Crear pizarra**.
+1. En el PC abre `http://localhost:3080`, elige **En blanco** o **En directo** y pulsa **Crear pizarra**.
+   En directo, el navegador te pedirá qué pantalla o ventana compartir (Chrome o Edge en el PC).
 2. Dentro de la pizarra pulsa **Compartir**: aparece el enlace y un QR.
 3. Escanéalo con la cámara del celular (misma Wi-Fi) y a dibujar.
+4. Si la sala está en directo, en el celular toca **⛶** para verla a pantalla completa
+   (gira el teléfono para verla más grande; **⤡** para salir).
+
+> **Cierre automático**: cuando sale el último participante, la sala se cierra y se borra a los
+> 2 minutos (`EMPTY_ROOM_TTL_MIN`). Exporta un PNG si quieres conservar el dibujo.
 
 > **Firewall de Windows**: la primera vez Windows preguntará si permites a Node.js comunicarse.
 > Marca **Redes privadas** y acepta. Si no aparece el aviso y el celular no conecta, revisa que la
@@ -102,6 +111,8 @@ Variables de entorno (ver `.env.example`):
 | `HOST` | `0.0.0.0` | `127.0.0.1` para que solo funcione en este PC |
 | `DATA_DIR` | `data` | Carpeta donde se guardan las salas |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
+| `EMPTY_ROOM_TTL_MIN` | `2` | Minutos que una sala vacía sigue abierta antes de borrarse |
+| `SWEEP_INTERVAL_MS` | `30000` | Cada cuánto se revisan las salas vacías |
 
 Ejemplo en Windows: `set PORT=3090 && npm start`.
 

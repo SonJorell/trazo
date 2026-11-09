@@ -38,6 +38,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-15 | *(v1.1)* Alternar entre «dibujar» y «usar el PC» (clics a través de la capa) con un atajo global. |
 | RF-16 | *(v1.1)* Transmitir la pantalla del PC a la sala para verla de fondo en otros dispositivos. |
 | RF-17 | *(v1.1)* Las marcas hechas desde otro dispositivo aparecen sobre la pantalla del PC en la misma posición. |
+| RF-18 | *(v1.2)* Al crear la sala, el anfitrión elige «En blanco» o «En directo»; en directo se le ofrece transmitir su pantalla desde el navegador del PC y ve una vista previa. |
+| RF-19 | *(v1.2)* En el celular, la transmisión ocupa toda la pantalla disponible, tiene modo pantalla completa y se reajusta al girar el teléfono. |
+| RF-20 | *(v1.2)* Una sala sin participantes se cierra y se borra pasado un plazo configurable (2 min por defecto). |
 
 ## 4. Reglas de negocio
 
@@ -48,6 +51,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
   (*last-writer-wins* por elemento); a igual versión, desempata un `nonce` aleatorio.
 - RN-05: Borrar es un borrado lógico (`isDeleted`) para que deshacer y la sincronización funcionen.
 - RN-06: Deshacer solo revierte acciones del propio usuario.
+- RN-07: Una sala se cierra cuando lleva vacía el plazo configurado; tras reiniciar el servidor se
+  concede ese mismo plazo de gracia para que la gente se reconecte.
+- RN-08: Una sala cerrada no se puede recuperar: su archivo se borra.
 
 ## 5. Requerimientos no funcionales y limitantes técnicos
 
@@ -94,6 +100,10 @@ y el linter pasa.
 | T-12 | Modo overlay en el cliente | `?overlay=1`: transparente, vista 1:1, modos dibujar/usar PC | Terminado |
 | T-13 | Visor de pantalla en vivo | Fondo con la pantalla compartida y aviso «Pantalla en vivo» | Terminado |
 | T-14 | App de escritorio Electron | Ventana transparente, atajos globales, bandeja, servidor embebido | Terminado |
+| T-15 | Modo de sala (en blanco / en directo) | Elección al crear, diálogo de transmisión del anfitrión, aviso «Esperando…» | Terminado |
+| T-16 | Vista móvil de la transmisión | Encaje automático, pantalla completa, reajuste al girar | Terminado |
+| T-17 | Cierre de salas vacías | Barrido periódico con pruebas; recientes omite salas cerradas | Terminado |
+| T-18 | Guardado concurrente seguro | Cola por sala en FileStore con prueba | Terminado |
 
 ## 9. Backlog — Trabajo futuro
 

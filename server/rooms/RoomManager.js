@@ -1,18 +1,24 @@
 import crypto from 'node:crypto';
 import { Room } from './Room.js';
 import { hashPin, verifyPin } from './pin.js';
-import { ROOM_ALPHABET, ROOM_ID_RE, PIN_RE } from '../../shared/protocol.js';
+import { ROOM_ALPHABET, ROOM_ID_RE, PIN_RE, ROOM_MODES } from '../../shared/protocol.js';
 
 /**
  * Crea, carga y guarda salas. Depende solo de la interfaz del almacén:
  *   store.exists(id) → Promise<boolean>
  *   store.load(id)   → Promise<object|null>
  *   store.save(id, data) → Promise<void>
+ *   store.delete(id) → Promise<void>
+ *   store.list()     → Promise<string[]>
+ *
+ * Las salas sin participantes se cierran (y se borran) tras `emptyRoomTtlMs`.
  */
 export class RoomManager {
-  constructor({ store, saveDelayMs = 1000, logger }) {
+  constructor({ store, saveDelayMs = 1000, emptyRoomTtlMs = 120_000, logger }) {
     this.store = store;
     this.saveDelayMs = saveDelayMs;
+    this.emptyRoomTtlMs = emptyRoomTtlMs;
+    this.startedAt = Date.now(); // gracia tras reiniciar: nadie ha podido reconectarse aún
     this.logger = logger;
     this.rooms = new Map(); // salas cargadas en memoria
     this._timers = new Map();
@@ -31,18 +37,21 @@ export class RoomManager {
   }
 
   /** Crea una sala nueva, opcionalmente protegida con PIN. */
-  async create({ pin } = {}) {
+  async create({ pin, mode = 'blank' } = {}) {
     if (pin !== undefined && pin !== null && pin !== '' && !PIN_RE.test(String(pin))) {
       throw Object.assign(new Error('El PIN debe tener entre 4 y 8 dígitos'), { status: 400 });
+    }
+    if (!ROOM_MODES.includes(mode)) {
+      throw Object.assign(new Error('Modo de sala inválido'), { status: 400 });
     }
     let id;
     do id = this._newId();
     while (this.rooms.has(id) || (await this.store.exists(id)));
 
-    const room = this._wrap({ id, createdAt: Date.now(), pin: pin ? hashPin(String(pin)) : null });
+    const room = this._wrap({ id, createdAt: Date.now(), mode, pin: pin ? hashPin(String(pin)) : null });
     this.rooms.set(id, room);
     await this.store.save(id, room.toJSON());
-    this.logger?.info(`Sala creada: ${id}${room.hasPin ? ' (con PIN)' : ''}`);
+    this.logger?.info(`Sala creada: ${id} (${mode === 'live' ? 'en directo' : 'en blanco'}${room.hasPin ? ', con PIN' : ''})`);
     return room;
   }
 
@@ -84,11 +93,40 @@ export class RoomManager {
     this._timers.set(room.id, timer);
   }
 
-  /** Libera de memoria una sala sin participantes (sigue en disco). */
+  /** Libera de memoria una sala sin participantes (sigue en disco hasta que caduque). */
   async releaseIfEmpty(room) {
     if (room.peers.size > 0) return;
+    room.screen = null;
+    this.scheduleSave(room); // guarda lastActiveAt
     await this.flush(room.id);
-    if (room.peers.size === 0) this.rooms.delete(room.id);
+    if (room.peers.size === 0 && this.rooms.get(room.id) === room) this.rooms.delete(room.id);
+  }
+
+  /**
+   * Cierra las salas que llevan vacías más del plazo: las quita de memoria y borra su archivo.
+   * Revisa tanto las cargadas como las que solo están en disco (p. ej. tras reiniciar).
+   * @returns {Promise<string[]>} códigos de las salas cerradas
+   */
+  async sweep(now = Date.now()) {
+    const closed = [];
+    const ids = new Set([...this.rooms.keys(), ...(await this.store.list())]);
+    for (const id of ids) {
+      if (this._loading.has(id)) continue;
+      let room = this.rooms.get(id);
+      if (!room) {
+        const data = await this.store.load(id).catch(() => null);
+        if (!data || this.rooms.has(id)) continue; // alguien la cargó mientras leíamos
+        room = new Room(data);
+      }
+      if (!room.isExpired(now, this.emptyRoomTtlMs, this.startedAt)) continue;
+      clearTimeout(this._timers.get(id));
+      this._timers.delete(id);
+      this.rooms.delete(id);
+      await this.store.delete(id);
+      closed.push(id);
+    }
+    if (closed.length) this.logger?.info(`Salas cerradas por estar vacías: ${closed.join(', ')}`);
+    return closed;
   }
 
   /** Fuerza el guardado pendiente de una sala o de todas. */

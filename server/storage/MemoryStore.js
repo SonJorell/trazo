@@ -15,6 +15,14 @@ export class MemoryStore {
     return raw ? JSON.parse(raw) : null;
   }
 
+  async list() {
+    return [...this.data.keys()];
+  }
+
+  async delete(id) {
+    this.data.delete(id);
+  }
+
   async save(id, data) {
     this.data.set(id, JSON.stringify(data));
   }

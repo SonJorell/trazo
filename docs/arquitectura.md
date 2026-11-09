@@ -85,7 +85,18 @@ trazo/
 ```
 
 Archivo de sala (`data/rooms/<código>.json`):
-`{ id, createdAt, pin: { salt, hash } | null, elements: [...] }`.
+`{ id, createdAt, lastActiveAt, mode: 'blank' | 'live', pin: { salt, hash } | null, elements: [...] }`.
+
+### Ciclo de vida de una sala
+
+```mermaid
+stateDiagram-v2
+  [*] --> Vacía: crear (POST /api/rooms)
+  Vacía --> Activa: alguien entra
+  Activa --> Vacía: sale el último (lastActiveAt = ahora)
+  Vacía --> Cerrada: barrido y plazo cumplido (2 min)
+  Cerrada --> [*]: archivo borrado
+```
 
 ## 4. Protocolo en tiempo real
 

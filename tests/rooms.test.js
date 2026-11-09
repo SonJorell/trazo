@@ -79,3 +79,54 @@ test('TokenBucket limita ráfagas y se recarga con el tiempo', () => {
   now = 1000;
   assert.equal(b.take(), true);
 });
+
+test('las salas vacías se cierran y borran pasado el plazo', async () => {
+  const store = new MemoryStore();
+  const rooms = new RoomManager({ store, saveDelayMs: 0, emptyRoomTtlMs: 60_000 });
+  const t0 = Date.now();
+  const empty = await rooms.create();
+  const busy = await rooms.create({ mode: 'live' });
+  busy.addPeer({ id: 'p1', name: 'Ana', send: () => {} });
+
+  // Antes del plazo no se cierra nada.
+  assert.deepEqual(await rooms.sweep(t0 + 30_000), []);
+
+  // Pasado el plazo se cierra solo la vacía; la que tiene gente sigue.
+  assert.deepEqual(await rooms.sweep(t0 + 61_000), [empty.id]);
+  assert.equal(await rooms.get(empty.id), null);
+  assert.equal(await store.exists(empty.id), false);
+  assert.ok(await rooms.get(busy.id));
+
+  // Cuando se va el último, el plazo cuenta desde su salida.
+  busy.removePeer('p1');
+  await rooms.releaseIfEmpty(busy);
+  const left = busy.lastActiveAt;
+  assert.deepEqual(await rooms.sweep(left + 59_000), []);
+  assert.deepEqual(await rooms.sweep(left + 60_000), [busy.id]);
+});
+
+test('el barrido también cierra salas viejas que solo están en disco', async () => {
+  const store = new MemoryStore();
+  await store.save('viejo1', { id: 'viejo1', createdAt: 0, lastActiveAt: 0, elements: [] });
+  const rooms = new RoomManager({ store, emptyRoomTtlMs: 60_000 });
+  // Recién arrancado el servidor hay gracia para que la gente se reconecte.
+  assert.deepEqual(await rooms.sweep(Date.now()), []);
+  assert.deepEqual(await rooms.sweep(Date.now() + 61_000), ['viejo1']);
+  assert.deepEqual(await store.list(), []);
+});
+
+test('FileStore: guardados simultáneos de la misma sala no chocan', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'trazo-'));
+  try {
+    const store = new FileStore(dir);
+    await store.init();
+    await Promise.all(Array.from({ length: 20 }, (_, i) => store.save('carrera', { id: 'carrera', n: i })));
+    assert.equal((await store.load('carrera')).n, 19, 'gana el último guardado');
+    const leftovers = (await fs.readdir(path.join(dir, 'rooms'))).filter((f) => f.endsWith('.tmp'));
+    assert.deepEqual(leftovers, []);
+    await store.delete('carrera');
+    assert.equal(await store.exists('carrera'), false);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
