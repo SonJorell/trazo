@@ -688,3 +688,163 @@ label.check {
     bottom: calc(130px + var(--safe-bottom));
   }
 }
+
+/* ===== Pantalla compartida (visores) ===== */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid #ffc9c9;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: var(--danger);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.live-badge .dot,
+.ov-btn.live svg {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.live-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ===== Modo «sobre la pantalla» (overlay) ===== */
+html:has(body.overlay-mode),
+body.overlay-mode {
+  background: transparent;
+}
+
+.overlay-mode .topbar,
+.overlay-mode .tool[data-tool='hand'],
+.overlay-mode .bottombar .group:first-child {
+  display: none;
+}
+
+.overlay-mode .toolbar {
+  top: 12px;
+  bottom: auto;
+  left: 12px;
+  transform: none;
+  max-width: none;
+}
+
+.overlay-mode .style-panel {
+  top: 72px;
+  left: 12px;
+  right: auto;
+  bottom: auto;
+  width: 196px;
+  flex-direction: column;
+}
+
+/* En overlay el panel de estilo se muestra salvo que se oculte con el botón de paleta. */
+.overlay-mode .style-panel:not(.open) {
+  display: flex;
+}
+
+.overlay-mode .style-panel.open {
+  display: none;
+}
+
+.overlay-mode .bottombar {
+  bottom: 12px;
+}
+
+.overlay-bar {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 50;
+}
+
+.ov-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  min-width: 36px;
+  justify-content: center;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ov-btn:hover {
+  background: var(--bg);
+}
+
+.ov-btn.ov-mode {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ov-btn.live {
+  color: var(--danger);
+}
+
+.ov-btn.danger:hover {
+  color: var(--danger);
+}
+
+.ov-room {
+  padding: 0 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Modo «usar el PC»: solo queda la píldora para volver a dibujar. */
+body.overlay-mode[data-mode='pass'] #board {
+  pointer-events: none;
+}
+
+body.overlay-mode[data-mode='pass'] .toolbar,
+body.overlay-mode[data-mode='pass'] .style-panel,
+body.overlay-mode[data-mode='pass'] .bottombar,
+body.overlay-mode[data-mode='pass'] .overlay-bar > :not(.ov-mode):not(.live) {
+  display: none;
+}
+
+body.overlay-mode[data-mode='pass'] .overlay-bar {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+body.overlay-mode[data-mode='pass'] .overlay-bar:hover {
+  opacity: 1;
+}
+
+body.overlay-mode[data-mode='draw'] #board {
+  box-shadow: inset 0 0 0 3px rgba(66, 99, 235, 0.55);
+}

@@ -59,6 +59,18 @@ desde el PC y el celular en la misma red.
 | Persistencia | `data/rooms/mkxbc6.json` guardado: 24 elementos (14 visibles) |
 | Defecto encontrado en la prueba | Aparecía el texto «null» junto a los avatares → corregido (`fix/presencia-null`) |
 
+### Versión 1.1 — Dibujar sobre la pantalla
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 25/25 (nueva prueba: retransmisión de pantalla, último cuadro para recién llegados, rechazo de cuadros inválidos y aviso al desconectar) |
+| `iniciar-overlay.bat` en Windows | Instala Electron 45, inicia el servidor embebido y crea la sala del overlay (EW4QZG) |
+| Capa transparente | Visible encima de las ventanas; en «usar el PC» solo queda la píldora «Dibujar» |
+| Modo dibujar | Barra de herramientas, panel de estilo, marco azul y trazos rojos encima de otras apps |
+| Transmitir | Aviso «Transmitiendo la pantalla a la sala»; el visor muestra «Pantalla en vivo» con la pantalla del PC de fondo y las marcas alineadas |
+| Marcar desde otro dispositivo | Un trazo hecho en el visor apareció sobre la pantalla del PC en la misma posición, con el cursor remoto |
+| Atajo global `Ctrl+Shift+Q` | Cierra el overlay y el servidor embebido |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para
@@ -70,6 +82,8 @@ desde el PC y el celular en la misma red.
 - **Funciones.** Estilo de boceto a mano, imágenes, copiar y pegar, varias páginas, exportar SVG o
   JSON, PWA instalable y compactación de lápidas. El backlog completo está en
   `docs/requerimientos.md`.
+- **Overlay.** Varios monitores, marcas que se desvanecen (puntero láser), WebRTC para más fluidez e
+  instalador con inicio automático.
 - **Integraciones.** La API REST y el protocolo están documentados, así que se puede añadir un
   servidor MCP para que una IA dibuje en la pizarra.
 

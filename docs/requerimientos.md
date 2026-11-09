@@ -34,6 +34,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-11 | Persistencia: la pizarra se conserva al cerrar el navegador o reiniciar el servidor. |
 | RF-12 | Exportar la pizarra como imagen PNG. |
 | RF-13 | Limpiar la pizarra (acción deshacible). |
+| RF-14 | *(v1.1)* Capa transparente siempre encima de todas las ventanas para dibujar sobre la pantalla del PC. |
+| RF-15 | *(v1.1)* Alternar entre «dibujar» y «usar el PC» (clics a través de la capa) con un atajo global. |
+| RF-16 | *(v1.1)* Transmitir la pantalla del PC a la sala para verla de fondo en otros dispositivos. |
+| RF-17 | *(v1.1)* Las marcas hechas desde otro dispositivo aparecen sobre la pantalla del PC en la misma posición. |
 
 ## 4. Reglas de negocio
 
@@ -86,8 +90,17 @@ y el linter pasa.
 | T-08 | Sincronización cliente y reconexión | `public/js/net` | Terminado |
 | T-09 | UI: barra, panel de estilo, presencia, compartir | `public/js/ui` | Terminado |
 | T-10 | Documentación y empaquetado | README, docs, script `.bat` | Terminado |
+| T-11 | Retransmisión de pantalla en el servidor | Mensajes `screen`/`screen-stop` con prueba de integración | Terminado |
+| T-12 | Modo overlay en el cliente | `?overlay=1`: transparente, vista 1:1, modos dibujar/usar PC | Terminado |
+| T-13 | Visor de pantalla en vivo | Fondo con la pantalla compartida y aviso «Pantalla en vivo» | Terminado |
+| T-14 | App de escritorio Electron | Ventana transparente, atajos globales, bandeja, servidor embebido | Terminado |
 
 ## 9. Backlog — Trabajo futuro
+
+- Overlay en varios monitores (hoy cubre el monitor principal).
+- Marcas que se desvanecen solas (modo puntero láser).
+- Transmisión por WebRTC para más fluidez (hoy JPEG por WebSocket, ~6 cuadros/s).
+- Instalador de la app de overlay (.exe) con inicio automático.
 
 - Acceso desde internet mediante túnel gratuito (Cloudflare Tunnel o Tailscale).
 - Estilo "a mano" tipo boceto (trazos irregulares).

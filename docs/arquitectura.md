@@ -38,6 +38,7 @@ trazo/
 │   ├── elements.js         Modelo, saneo y regla LWW
 │   ├── geometry.js         Límites y pruebas de impacto
 │   └── protocol.js         Tipos de mensaje, errores y validaciones
+├── overlay/                App de escritorio (Electron): main.js, preload.cjs, icon.png
 ├── public/                 Cliente (HTML/CSS/JS nativo, sin compilación)
 │   ├── index.html          Inicio: crear / unirse / recientes
 │   ├── board.html          Pizarra
@@ -49,6 +50,7 @@ trazo/
 │       ├── tools/          select, pen, shape (rect/elipse/línea/flecha), text, eraser, hand
 │       ├── input/          pointer.js (ratón, lápiz, táctil, pellizco, rueda)
 │       ├── net/            connection.js (reconexión), sync.js (puente escena ↔ red)
+│       ├── overlay/        overlayMode.js (modo sobre la pantalla), screenShare.js (captura)
 │       ├── ui/             barra, panel de estilo, presencia, diálogos, editor de texto, avisos
 │       └── util/           api.js, storage.js, emitter.js
 ├── tests/                  Pruebas con node:test (unitarias + integración)
@@ -95,6 +97,9 @@ Archivo de sala (`data/rooms/<código>.json`):
 | S → C | `ops` | `from`, `ops` aceptados |
 | C ↔ S | `cursor` | `x`, `y` (y `id` al reenviar) |
 | S → C | `peer-join` / `peer-leave` | participante |
+| C → S | `screen` | `w`, `h`, `data` (JPEG en data URL, ≤480 000 caracteres) |
+| S → C | `screen` | `from`, `w`, `h`, `data` (descartable si el cliente va atrasado) |
+| C ↔ S | `screen-stop` | fin de la transmisión (también al desconectarse quien transmite) |
 | S → C | `error` | `code`, `message`; los de sala/PIN cierran la conexión |
 
 ### Flujo de una edición
@@ -120,7 +125,32 @@ sequenceDiagram
   (lo dibujado sin conexión no se pierde).
 - Deshacer = aplicar el estado anterior como edición nueva → se propaga como cualquier cambio.
 
-## 5. Seguridad
+## 5. Modo sobre la pantalla (v1.1)
+
+```mermaid
+flowchart LR
+  subgraph PC
+    OV["Electron: ventana transparente\nsiempre encima\n(sala?overlay=1)"]
+    SRV["Servidor Trazo"]
+    SCR(("Pantalla"))
+    OV -- "getDisplayMedia\n(JPEG ~6 fps)" --> SRV
+    SCR -. captura .-> OV
+  end
+  CEL["Celular\n(fondo: pantalla del PC)"]
+  SRV -- "screen" --> CEL
+  CEL -- "ops (marcas)" --> SRV
+  SRV -- "ops" --> OV
+```
+
+- `overlay/main.js` crea la ventana, registra los atajos globales y la bandeja, y responde a
+  `getDisplayMedia` con la pantalla principal sin mostrar diálogo.
+- `overlay/preload.cjs` expone solo `window.trazoOverlay` (modo, interactividad, ocultar, salir).
+- En la página, `overlayMode.js` arma la barra de control y pide a Electron que deje pasar los clics,
+  salvo sobre las zonas interactivas (`.ov-hit`). `screenShare.js` envía los cuadros.
+- Los visores guardan el último cuadro en `overlay.screen` y el renderizador lo dibuja bajo los
+  elementos en `(0,0,w,h)`.
+
+## 6. Seguridad
 
 | Riesgo | Mitigación |
 |--------|------------|
@@ -131,8 +161,10 @@ sequenceDiagram
 | XSS | el cliente nunca inserta texto de usuarios como HTML (`textContent` / canvas) |
 | QR abierto | `/api/qr.svg` solo genera códigos de URLs de este mismo servidor |
 | Conexiones colgadas | latido ping/pong cada 30 s |
+| Cuadros de pantalla falsos | solo `data:image/jpeg;base64`, tamaño y dimensiones acotados |
+| Overlay navegando a otro sitio | Electron bloquea navegación fuera de Trazo y ventanas nuevas; `contextIsolation` + `sandbox` |
 
-## 6. Stack tecnológico y justificación
+## 7. Stack tecnológico y justificación
 
 | Pieza | Elección | Motivo |
 |-------|----------|--------|
@@ -142,4 +174,5 @@ sequenceDiagram
 | Cliente | HTML + CSS + JS (módulos ES), Canvas 2D | Sin compilación; funciona en cualquier navegador moderno |
 | Persistencia | Archivos JSON | Cero instalación; intercambiable |
 | Pruebas | `node:test` | Incluido en Node, sin dependencias |
+| Overlay | Electron (opcional, carpeta aparte) | Única vía práctica para una ventana transparente, siempre encima y con clics pasantes |
 | Calidad | ESLint 9 + EditorConfig | Reglas comunes para todo el equipo |

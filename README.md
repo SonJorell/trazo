@@ -11,6 +11,8 @@ servicios externos y sin internet.
 - Varias personas a la vez: ves sus trazos **mientras dibujan**, sus cursores y sus nombres
 - Salas con código corto, **PIN opcional** y enlace + **código QR** para el celular
 - Se guarda sola en disco; si se corta la Wi-Fi puedes seguir dibujando y se sincroniza al volver
+- **Modo sobre la pantalla**: una capa transparente encima de todo para marcar sobre cualquier
+  programa, y **transmisión de la pantalla del PC** a la sala para marcarla desde el celular
 
 ## Requisitos
 
@@ -47,6 +49,33 @@ La consola muestra algo así:
 > **Firewall de Windows**: la primera vez Windows preguntará si permites a Node.js comunicarse.
 > Marca **Redes privadas** y acepta. Si no aparece el aviso y el celular no conecta, revisa que la
 > red Wi-Fi esté marcada como *privada* en la configuración de Windows.
+
+## Dibujar sobre la pantalla (overlay)
+
+Doble clic en **`iniciar-overlay.bat`**. La primera vez descarga Electron (unos 100 MB). Aparece
+una píldora arriba a la derecha y un icono en la bandeja del sistema.
+
+| Atajo | Acción |
+|-------|--------|
+| `Ctrl+Shift+D` | Alternar **Dibujar** ↔ **Usar el PC** (los clics atraviesan la capa) |
+| `Ctrl+Shift+S` | Transmitir / detener la pantalla a la sala |
+| `Ctrl+Shift+X` | Limpiar las marcas |
+| `Ctrl+Shift+H` | Ocultar / mostrar la capa |
+| `Ctrl+Shift+Q` | Salir |
+
+**Marcar la pantalla desde el celular**
+
+1. En la capa pulsa **Dibujar** → **Invitar** (icono compartir) y escanea el QR con el celular.
+2. Pulsa **Transmitir**. En el celular verás la pantalla del PC de fondo («Pantalla en vivo»).
+3. Lo que dibujes en el celular aparece encima de la pantalla del PC, en el mismo lugar.
+
+Notas:
+
+- La capa se excluye de la captura, así la pantalla transmitida no la duplica.
+- Solo se envían cuadros cuando hay alguien mirando; la calidad se ajusta sola (~6 cuadros/s).
+- Si el servidor (`iniciar.bat`) ya está corriendo, el overlay lo usa; si no, lo inicia él mismo.
+- Para depurar, `set TRAZO_OVERLAY_CAPTURABLE=1` deja la capa visible en capturas.
+- La transmisión es para la red local: no la uses en redes públicas.
 
 ### Atajos de teclado
 
@@ -85,11 +114,13 @@ Ejemplo en Windows: `set PORT=3090 && npm start`.
 | `npm test` | Pruebas unitarias y de integración (`node:test`) |
 | `npm run lint` | Revisa el estilo del código con ESLint |
 | `npm run check` | Lint + pruebas |
+| `npm run overlay` | Instala Electron (si falta) y abre el modo sobre la pantalla |
 
 ## Estructura
 
 ```
 server/   Servidor: HTTP, WebSocket, salas, persistencia
+overlay/  App de escritorio (Electron) para dibujar sobre la pantalla
 shared/   Modelo, geometría y protocolo (usados por servidor y navegador)
 public/   Cliente sin compilación: HTML, CSS y módulos JS
 tests/    Pruebas automáticas
