@@ -79,7 +79,11 @@ function writeState(state) {
 }
 
 async function createRoom() {
-  const res = await fetch(`${BASE}/api/rooms`, { method: 'POST' });
+  const res = await fetch(`${BASE}/api/rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'live' }),
+  });
   if (!res.ok) throw new Error(`No se pudo crear la sala (${res.status})`);
   return (await res.json()).id;
 }

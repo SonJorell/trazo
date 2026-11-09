@@ -38,6 +38,18 @@ export class Viewport {
     return { x: this.x, y: this.y, w: w / this.zoom, h: h / this.zoom };
   }
 
+  /**
+   * Encaja `rect` (mundo) dentro de la caja de pantalla `box` = { x, y, w, h }.
+   * Sirve para que la pantalla transmitida ocupe todo el espacio libre.
+   */
+  fitInto(rect, box, maxZoom = MAX_ZOOM) {
+    if (!rect || box.w <= 0 || box.h <= 0) return;
+    const z = Math.min(box.w / Math.max(rect.w, 1), box.h / Math.max(rect.h, 1), maxZoom);
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+    this.x = rect.x + rect.w / 2 - (box.x + box.w / 2) / this.zoom;
+    this.y = rect.y + rect.h / 2 - (box.y + box.h / 2) / this.zoom;
+  }
+
   /** Centra la vista en un rectángulo del mundo, ajustando el zoom para que quepa. */
   fit(rect, w, h, padding = 40, maxZoom = 1) {
     if (!rect) return;
