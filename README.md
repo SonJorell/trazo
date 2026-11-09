@@ -13,6 +13,8 @@ servicios externos y sin internet.
 - Al crear eliges **En blanco** o **En directo** (transmites tu pantalla y los demás marcan encima)
 - En el celular la transmisión se ve **a pantalla completa** y se reajusta al girar el teléfono
 - Las salas **se cierran solas** cuando no queda nadie (2 minutos después, configurable)
+- **Control remoto desde el celular**: pasar diapositivas (PowerPoint, Google Slides, PDF, Canva,
+  HTML) y **lupa** para ampliar una zona de la proyección
 - Se guarda sola en disco; si se corta la Wi-Fi puedes seguir dibujando y se sincroniza al volver
 - **Modo sobre la pantalla**: una capa transparente encima de todo para marcar sobre cualquier
   programa, y **transmisión de la pantalla del PC** a la sala para marcarla desde el celular
@@ -70,6 +72,7 @@ una píldora arriba a la derecha y un icono en la bandeja del sistema.
 | `Ctrl+Shift+S` | Transmitir / detener la pantalla a la sala |
 | `Ctrl+Shift+X` | Limpiar las marcas |
 | `Ctrl+Shift+H` | Ocultar / mostrar la capa |
+| `Ctrl+Shift+0` | Quitar la lupa |
 | `Ctrl+Shift+Q` | Salir |
 
 **Marcar la pantalla desde el celular**
@@ -85,6 +88,26 @@ Notas:
 - Si el servidor (`iniciar.bat`) ya está corriendo, el overlay lo usa; si no, lo inicia él mismo.
 - Para depurar, `set TRAZO_OVERLAY_CAPTURABLE=1` deja la capa visible en capturas.
 - La transmisión es para la red local: no la uses en redes públicas.
+
+## Control remoto desde el celular (presentaciones)
+
+Requiere la app de overlay abierta en el PC (`iniciar-overlay.bat`).
+
+1. En el PC, en la barra del overlay pulsa **Control remoto** (icono de celular) o usa el menú de
+   la bandeja. Escanea el QR con tu celular. **Ese QR lleva una clave secreta: no lo muestres al
+   público.**
+2. Abre tu presentación en el PC (PowerPoint, Google Slides, PDF, Canva o HTML) y déjala en primer plano.
+3. En el celular:
+   - **Anterior / Siguiente** (o desliza el dedo a izquierda o derecha sobre los botones).
+   - **Iniciar** (F5), **Inicio**, **Fin**, **Negro** (B), **Blanco** (W) y **Salir** (Esc).
+   - **Teclas**: *Flechas* (por defecto), *AvPág* (algunos visores de PDF) o *Espacio*.
+   - **Lupa**: toca un punto del recuadro para ampliarlo 2×, pellizca para cambiar el zoom,
+     arrastra para moverte y pulsa **Quitar zoom** para volver. Activa **Ver pantalla** para ver
+     la pantalla del PC en el recuadro.
+4. En el PC, `Ctrl+Shift+0` también quita la lupa.
+
+Las teclas se envían a la ventana que esté en primer plano. Si estabas dibujando, Trazo le
+devuelve el foco a la presentación antes de pulsar la tecla.
 
 ### Atajos de teclado
 
