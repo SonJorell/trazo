@@ -49,11 +49,10 @@ export class Presence {
 
   _paint() {
     const people = [this.me, ...this.peers.values()].filter(Boolean);
-    this.container.replaceChildren(
-      ...people.slice(0, 5).map((p, i) =>
-        h('span', { class: 'avatar', style: `background:${p.color}`, title: i === 0 ? `${p.name} (tú)` : p.name }, initials(p.name)),
-      ),
-      people.length > 5 ? h('span', { class: 'avatar more' }, `+${people.length - 5}`) : null,
+    const nodes = people.slice(0, 5).map((p, i) =>
+      h('span', { class: 'avatar', style: `background:${p.color}`, title: i === 0 ? `${p.name} (tú)` : p.name }, initials(p.name)),
     );
+    if (people.length > 5) nodes.push(h('span', { class: 'avatar more' }, `+${people.length - 5}`));
+    this.container.replaceChildren(...nodes);
   }
 }
