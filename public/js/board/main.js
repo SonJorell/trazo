@@ -1,0 +1,395 @@
+import { createElement } from '/shared/elements.js';
+import { hitTest } from '/shared/geometry.js';
+import { Scene } from '../core/scene.js';
+import { History, Transaction } from '../core/history.js';
+import { Viewport } from '../core/viewport.js';
+import { Renderer } from '../render/renderer.js';
+import { measureText, LINE_HEIGHT } from '../render/draw.js';
+import { exportPng } from '../render/exportPng.js';
+import { attachPointerInput } from '../input/pointer.js';
+import { createTools, TOOL_DEFS } from '../tools/index.js';
+import { Connection } from '../net/connection.js';
+import { Sync } from '../net/sync.js';
+import { Presence } from '../ui/presence.js';
+import { TextEditor } from '../ui/textEditor.js';
+import { createStylePanel } from '../ui/stylePanel.js';
+import { askJoin, confirmDialog, fatalDialog, shareDialog } from '../ui/dialogs.js';
+import { toast } from '../ui/toast.js';
+import { ICONS } from '../ui/icons.js';
+import { h } from '../ui/dom.js';
+import { api, parseRoomCode } from '../util/api.js';
+import { local, rememberRoom, savedName, saveName, savedPin, savePin, forgetPin } from '../util/storage.js';
+
+const $ = (sel) => document.querySelector(sel);
+
+const room = parseRoomCode(new URLSearchParams(location.search).get('room'));
+if (!room) location.replace('/');
+
+// ---------- Estado ----------
+const scene = new Scene();
+const history = new History(scene);
+const viewport = new Viewport();
+const overlay = { selection: new Set(), marquee: null, cursors: new Map(), editingId: null };
+const style = {
+  stroke: '#1e1e1e',
+  fill: 'transparent',
+  strokeWidth: 2,
+  fontSize: 28,
+  ...local.get('trazo:style', {}),
+};
+
+const canvas = $('#board');
+const renderer = new Renderer(canvas, { scene, viewport, overlay });
+const render = () => renderer.requestRender();
+viewport.x = -renderer.width / 2;
+viewport.y = -renderer.height / 2;
+
+let roomHasPin = false;
+let sync = null;
+let spaceDown = false;
+
+// ---------- Contexto que reciben las herramientas ----------
+const ctx = {
+  scene,
+  viewport,
+  overlay,
+  get style() {
+    return style;
+  },
+  get selection() {
+    return overlay.selection;
+  },
+  begin: () => new Transaction(scene, history),
+  render,
+  tol: (px) => px / viewport.zoom,
+  hit: (el, p, tol) => hitTest(el, p.x, p.y, tol),
+  select(ids) {
+    overlay.selection.clear();
+    for (const id of ids) overlay.selection.add(id);
+    onSelectionChange();
+  },
+  toggleSelect(id) {
+    if (overlay.selection.has(id)) overlay.selection.delete(id);
+    else overlay.selection.add(id);
+    onSelectionChange();
+  },
+  editText(el, p) {
+    if (el) {
+      overlay.editingId = el.id;
+      textEditor.open({ id: el.id, x: el.x, y: el.y, text: el.text, fontSize: el.fontSize, color: el.stroke });
+    } else {
+      const y = p.y - (style.fontSize * LINE_HEIGHT) / 2;
+      textEditor.open({ id: null, x: p.x, y, text: '', fontSize: style.fontSize, color: style.stroke });
+    }
+    render();
+  },
+};
+
+// ---------- Texto ----------
+const textEditor = new TextEditor($('#editor-layer'), {
+  viewport,
+  onCommit({ id, x, y, text, fontSize, color }) {
+    overlay.editingId = null;
+    const tx = ctx.begin();
+    if (id) {
+      if (!scene.get(id)) return render();
+      if (!text) tx.update(id, { isDeleted: true });
+      else tx.update(id, { text, ...measureText(text, fontSize) });
+    } else if (text) {
+      const el = createElement('text', { x, y, text, fontSize, stroke: color, ...measureText(text, fontSize) });
+      tx.add(el);
+    }
+    tx.commit();
+    render();
+  },
+});
+
+// ---------- Herramientas y barra ----------
+const tools = createTools(ctx);
+let tool = tools.get('pen');
+const toolButtons = new Map();
+
+function setTool(name) {
+  if (textEditor.active) textEditor.commit();
+  tool.cancel();
+  tool = tools.get(name);
+  canvas.style.cursor = tool.cursor;
+  for (const [n, btn] of toolButtons) btn.classList.toggle('active', n === name);
+  if (name !== 'select') ctx.select([]);
+}
+
+const toolbar = $('#toolbar');
+for (const def of TOOL_DEFS) {
+  const btn = h('button', {
+    class: 'tool',
+    title: `${def.label} (${def.key.toUpperCase()})`,
+    'aria-label': def.label,
+    html: ICONS[def.name],
+    onclick: () => setTool(def.name),
+  });
+  toolButtons.set(def.name, btn);
+  toolbar.append(btn);
+}
+toolbar.append(
+  h('span', { class: 'sep' }),
+  h('button', {
+    class: 'tool',
+    id: 'style-toggle',
+    title: 'Colores y grosor',
+    'aria-label': 'Colores y grosor',
+    html: ICONS.palette,
+    onclick: () => $('#style-panel').classList.toggle('open'),
+  }),
+);
+setTool('pen');
+
+// ---------- Estilo ----------
+const STYLE_TARGETS = {
+  stroke: () => true,
+  fill: (el) => el.type === 'rect' || el.type === 'ellipse',
+  strokeWidth: (el) => el.type !== 'text',
+  fontSize: (el) => el.type === 'text',
+};
+
+const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
+  Object.assign(style, partial);
+  local.set('trazo:style', style);
+  stylePanel.refresh();
+  if (!overlay.selection.size) return;
+  const tx = ctx.begin();
+  for (const id of overlay.selection) {
+    const el = scene.get(id);
+    if (!el) continue;
+    const changes = {};
+    for (const [key, value] of Object.entries(partial)) if (STYLE_TARGETS[key](el)) changes[key] = value;
+    if (changes.fontSize) Object.assign(changes, measureText(el.text, changes.fontSize));
+    if (Object.keys(changes).length) tx.update(id, changes);
+  }
+  tx.commit();
+});
+
+function onSelectionChange() {
+  $('#delete-btn').hidden = overlay.selection.size === 0;
+  render();
+}
+
+// ---------- Acciones ----------
+function deleteSelection() {
+  if (!overlay.selection.size) return;
+  const tx = ctx.begin();
+  for (const id of overlay.selection) tx.update(id, { isDeleted: true });
+  tx.commit();
+  ctx.select([]);
+}
+
+function zoomBy(factor) {
+  viewport.zoomAt(renderer.width / 2, renderer.height / 2, factor);
+  afterViewChange();
+}
+
+function fitToContent() {
+  const b = scene.bounds();
+  if (b) viewport.fit(b, renderer.width, renderer.height, 60, 2);
+  afterViewChange();
+}
+
+function afterViewChange() {
+  $('#zoom-label').textContent = `${Math.round(viewport.zoom * 100)}%`;
+  textEditor.reposition();
+  render();
+}
+
+async function clearBoard() {
+  if (!scene.alive().length) return;
+  const ok = await confirmDialog('¿Borrar todo el contenido de la pizarra? Podrás deshacerlo.', {
+    okLabel: 'Limpiar',
+    danger: true,
+  });
+  if (!ok) return;
+  const tx = ctx.begin();
+  for (const el of scene.alive()) tx.update(el.id, { isDeleted: true });
+  tx.commit();
+  ctx.select([]);
+}
+
+async function doExport() {
+  const ok = await exportPng(scene, `trazo-${room}.png`);
+  if (!ok) toast('La pizarra está vacía');
+}
+
+function updateHistoryButtons() {
+  $('#undo-btn').disabled = !history.canUndo;
+  $('#redo-btn').disabled = !history.canRedo;
+}
+
+// ---------- Eventos de la escena ----------
+scene.on('change', () => {
+  for (const id of overlay.selection) {
+    const el = scene.get(id);
+    if (!el || el.isDeleted) overlay.selection.delete(id);
+  }
+  $('#delete-btn').hidden = overlay.selection.size === 0;
+  render();
+});
+history.on('change', updateHistoryButtons);
+
+// ---------- Botones fijos ----------
+const bind = (sel, icon, fn) => {
+  const el = $(sel);
+  if (icon) el.innerHTML = ICONS[icon];
+  el.addEventListener('click', fn);
+};
+bind('#undo-btn', 'undo', () => history.undo());
+bind('#redo-btn', 'redo', () => history.redo());
+bind('#zoom-in', 'zoomIn', () => zoomBy(1.2));
+bind('#zoom-out', 'zoomOut', () => zoomBy(1 / 1.2));
+bind('#zoom-label', null, () => zoomBy(1 / viewport.zoom));
+bind('#fit-btn', 'fit', fitToContent);
+bind('#delete-btn', 'trash', deleteSelection);
+bind('#share-btn', null, () => shareDialog({ room, hasPin: roomHasPin }));
+$('#share-btn').insertAdjacentHTML('afterbegin', ICONS.share);
+
+const menu = $('#menu');
+bind('#menu-btn', 'menu', (e) => {
+  e.stopPropagation();
+  menu.hidden = !menu.hidden;
+});
+document.addEventListener('pointerdown', (e) => {
+  if (!menu.hidden && !menu.contains(e.target) && e.target !== $('#menu-btn')) menu.hidden = true;
+});
+const menuItem = (icon, label, fn) =>
+  h('button', { class: 'menu-item', onclick: () => ((menu.hidden = true), fn()) }, h('span', { html: ICONS[icon] }), label);
+menu.append(
+  menuItem('home', 'Inicio', () => (location.href = '/')),
+  menuItem('download', 'Exportar imagen PNG', doExport),
+  menuItem('fit', 'Ajustar a la pantalla', fitToContent),
+  menuItem('trash', 'Limpiar pizarra', clearBoard),
+);
+
+$('#room-code').textContent = room.toUpperCase();
+document.title = `Trazo · ${room.toUpperCase()}`;
+updateHistoryButtons();
+afterViewChange();
+
+// ---------- Teclado ----------
+const TOOL_KEYS = new Map(TOOL_DEFS.map((d) => [d.key, d.name]));
+window.addEventListener('keydown', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const mod = e.ctrlKey || e.metaKey;
+  const key = e.key.toLowerCase();
+  if (e.code === 'Space') {
+    spaceDown = true;
+    e.preventDefault();
+  } else if (mod && key === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) history.redo();
+    else history.undo();
+  } else if (mod && key === 'y') {
+    e.preventDefault();
+    history.redo();
+  } else if (key === 'delete' || key === 'backspace') {
+    deleteSelection();
+  } else if (key === 'escape') {
+    ctx.select([]);
+  } else if (!mod && !e.altKey && TOOL_KEYS.has(key)) {
+    setTool(TOOL_KEYS.get(key));
+  }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') spaceDown = false;
+});
+
+// ---------- Entrada de puntero ----------
+attachPointerInput(canvas, {
+  viewport,
+  getTool: () => tool,
+  render: () => {
+    $('#zoom-label').textContent = `${Math.round(viewport.zoom * 100)}%`;
+    textEditor.reposition();
+    render();
+  },
+  onCursor: (p) => sync?.sendCursor(p),
+  isSpaceDown: () => spaceDown,
+});
+
+const onResize = () => {
+  renderer.resize();
+  textEditor.reposition();
+};
+window.addEventListener('resize', onResize);
+window.visualViewport?.addEventListener('resize', onResize);
+
+// Los cursores remotos se desvanecen: redibujar de vez en cuando.
+setInterval(() => overlay.cursors.size && render(), 2000);
+
+// ---------- Conexión ----------
+async function start() {
+  let info;
+  try {
+    info = await api.getRoom(room);
+  } catch (err) {
+    fatalDialog(
+      err.status === 404
+        ? `La sala ${room.toUpperCase()} no existe. Revisa el código o crea una nueva.`
+        : 'No se pudo contactar con el servidor. ¿Está encendido el PC?',
+    );
+    return;
+  }
+  roomHasPin = info.hasPin;
+  rememberRoom(room);
+
+  let name = savedName();
+  let pin = info.hasPin ? savedPin(room) : null;
+  if (!name || (info.hasPin && !pin)) {
+    const answer = await askJoin({ room, defaultName: name, needPin: info.hasPin && !pin });
+    name = answer.name;
+    pin = answer.pin ?? pin;
+  }
+  saveName(name);
+  if (pin) savePin(room, pin);
+
+  const connection = new Connection({ room, getJoin: () => ({ name, pin }) });
+  const presence = new Presence($('#presence'), { overlay, render });
+  sync = new Sync({ scene, connection, presence });
+
+  let firstWelcome = true;
+  connection.on('message', (msg) => {
+    if (msg.t === 'welcome' && firstWelcome) {
+      firstWelcome = false;
+      if (scene.alive().length) fitToContent();
+    }
+    if (msg.t === 'error') toast(msg.message);
+  });
+
+  let offlineToast = null;
+  const statusEl = $('#status');
+  connection.on('status', (status) => {
+    statusEl.dataset.state = status;
+    statusEl.title = { online: 'Conectado', connecting: 'Conectando…', offline: 'Sin conexión' }[status];
+    if (status === 'online') {
+      offlineToast?.();
+      offlineToast = null;
+    } else if (status === 'offline' && !offlineToast) {
+      offlineToast = toast('Sin conexión. Reintentando… (puedes seguir dibujando)', { sticky: true });
+    }
+  });
+
+  connection.on('fatal', async (err) => {
+    if (err.code === 'pin_invalid' || err.code === 'pin_required') {
+      forgetPin(room);
+      const answer = await askJoin({ room, defaultName: name, needPin: true, error: err.message });
+      name = answer.name;
+      pin = answer.pin;
+      saveName(name);
+      savePin(room, pin);
+      connection.connect();
+    } else {
+      fatalDialog(err.message);
+    }
+  });
+
+  connection.connect();
+}
+
+start();

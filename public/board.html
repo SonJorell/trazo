@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Trazo</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body class="board-page">
+    <canvas id="board" aria-label="Pizarra"></canvas>
+    <div id="editor-layer" class="editor-layer"></div>
+
+    <header class="topbar">
+      <div class="cluster">
+        <button id="menu-btn" class="icon-btn" title="Menú" aria-label="Menú"></button>
+        <div id="menu" class="popover" hidden></div>
+        <span class="room-badge" title="Código de la sala">
+          <span id="status" class="status" data-state="connecting" title="Conectando…"></span>
+          <span id="room-code"></span>
+        </span>
+      </div>
+      <div class="cluster">
+        <div id="presence" class="presence" aria-label="Participantes"></div>
+        <button id="share-btn" class="btn primary small" title="Invitar desde el celular u otro equipo">Compartir</button>
+      </div>
+    </header>
+
+    <nav id="toolbar" class="toolbar" aria-label="Herramientas"></nav>
+    <aside id="style-panel" class="style-panel" aria-label="Estilo"></aside>
+
+    <footer class="bottombar">
+      <div class="group">
+        <button id="zoom-out" class="icon-btn" title="Alejar" aria-label="Alejar"></button>
+        <button id="zoom-label" class="zoom-label" title="Restablecer al 100%">100%</button>
+        <button id="zoom-in" class="icon-btn" title="Acercar" aria-label="Acercar"></button>
+        <button id="fit-btn" class="icon-btn hide-mobile" title="Ajustar a la pantalla" aria-label="Ajustar a la pantalla"></button>
+      </div>
+      <div class="group">
+        <button id="undo-btn" class="icon-btn" title="Deshacer (Ctrl+Z)" aria-label="Deshacer"></button>
+        <button id="redo-btn" class="icon-btn" title="Rehacer (Ctrl+Y)" aria-label="Rehacer"></button>
+      </div>
+      <div class="group">
+        <button id="delete-btn" class="icon-btn danger" title="Eliminar selección (Supr)" aria-label="Eliminar selección" hidden></button>
+      </div>
+    </footer>
+
+    <script type="module" src="/js/board/main.js"></script>
+  </body>
+</html>

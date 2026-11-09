@@ -1,0 +1,85 @@
+import { shouldReplace } from '/shared/elements.js';
+import { hitTest, getBounds } from '/shared/geometry.js';
+import { Emitter } from '../util/emitter.js';
+
+/**
+ * Colección de elementos de la pizarra.
+ * Eventos: `change` (algo cambió) y `local` (cambio hecho por este usuario, para sincronizar).
+ */
+export class Scene extends Emitter {
+  constructor() {
+    super();
+    this.map = new Map();
+    this._alive = null;
+  }
+
+  get(id) {
+    return this.map.get(id) ?? null;
+  }
+
+  all() {
+    return [...this.map.values()];
+  }
+
+  /** Elementos visibles ordenados de atrás hacia adelante. */
+  alive() {
+    if (!this._alive) {
+      this._alive = [...this.map.values()]
+        .filter((el) => !el.isDeleted)
+        .sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : 1));
+    }
+    return this._alive;
+  }
+
+  /** Aplica cambios llegados de la red con la regla LWW. */
+  applyRemote(list) {
+    let changed = false;
+    for (const el of list) {
+      if (shouldReplace(this.map.get(el.id), el)) {
+        this.map.set(el.id, el);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this._alive = null;
+      this.emit('change');
+    }
+    return changed;
+  }
+
+  /** Aplica un cambio propio (ya con la versión incrementada) y lo anuncia para sincronizar. */
+  applyLocal(el) {
+    this.map.set(el.id, el);
+    this._alive = null;
+    this.emit('change');
+    this.emit('local', el);
+  }
+
+  /** Elemento visible más al frente bajo el punto. */
+  hitTop(x, y, tol) {
+    const list = this.alive();
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (hitTest(list[i], x, y, tol)) return list[i];
+    }
+    return null;
+  }
+
+  /** Caja que abarca todos los elementos visibles. */
+  bounds() {
+    const list = this.alive();
+    if (!list.length) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const el of list) {
+      const b = getBounds(el);
+      const pad = el.strokeWidth || 0;
+      minX = Math.min(minX, b.x - pad);
+      minY = Math.min(minY, b.y - pad);
+      maxX = Math.max(maxX, b.x + b.w + pad);
+      maxY = Math.max(maxY, b.y + b.h + pad);
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+}
