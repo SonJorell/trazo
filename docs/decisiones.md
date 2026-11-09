@@ -63,3 +63,35 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 
 - **Contexto**: Excalidraw ya usa 3001 y su MCP 3000 en este equipo.
 - **Decisión**: puerto 3080 por defecto, configurable con la variable `PORT`.
+
+## ADR-010 — Electron para dibujar sobre la pantalla
+
+- **Contexto**: se pidió marcar encima de cualquier programa. Un navegador no puede crear ventanas
+  transparentes, siempre encima y que dejen pasar los clics.
+- **Decisión**: una app Electron mínima (`overlay/`) que abre la página de Trazo con
+  `?overlay=1` en una ventana transparente, sin marco y siempre encima. Alterna con
+  `setIgnoreMouseEvents` entre «dibujar» y «usar el PC», y reenvía el movimiento del ratón para que
+  la píldora de control siga siendo clicable.
+- **Consecuencias**: reutiliza el 100 % del cliente y del protocolo. Electron se instala aparte
+  (~100 MB) para que el servidor siga siendo liviano. Si el servidor no corre, la app lo inicia
+  dentro de su propio proceso.
+
+## ADR-011 — Pantalla compartida como JPEG por WebSocket (no WebRTC)
+
+- **Contexto**: el celular debe ver la pantalla del PC para saber dónde marca.
+- **Decisión**: el overlay captura la pantalla (`getDisplayMedia` sin diálogo vía
+  `setDisplayMediaRequestHandler`), la reduce a ≤1600 px y envía JPEG a ~6 cuadros/s por el mismo
+  WebSocket. La calidad se adapta para quedar bajo ~300 KB por cuadro. Se salta cuadros si nadie
+  mira o si la red va atrasada, y el servidor descarta cuadros para clientes lentos (`volatile`).
+- **Alternativa descartada**: WebRTC da más fluidez, pero requiere señalización, ICE y tiene
+  particularidades en Safari sobre HTTP. Queda en el backlog.
+- **Consecuencias**: implementación simple y robusta en la red local; ~6 fps es suficiente para
+  señalar y explicar.
+
+## ADR-012 — Coordenadas 1:1 y exclusión de la captura
+
+- **Decisión**: en modo overlay la vista se fija en zoom 1 y origen (0,0), así las coordenadas del
+  mundo son píxeles lógicos de la pantalla. Los visores dibujan la pantalla recibida en
+  `(0,0,ancho,alto)` del mundo, por lo que una marca hecha en el celular cae en el mismo punto de la
+  pantalla del PC. La ventana usa `setContentProtection(true)` para no salir en su propia captura
+  y no duplicar las marcas.
