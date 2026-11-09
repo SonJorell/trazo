@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('trazoOverlay', {
   setInteractive: (on) => ipcRenderer.send('overlay:set-interactive', Boolean(on)),
   setSharing: (on) => ipcRenderer.send('overlay:sharing', Boolean(on)),
   hide: () => ipcRenderer.send('overlay:hide'),
+  pressKey: (action, style) => ipcRenderer.invoke('overlay:key', action, style),
   quit: () => ipcRenderer.send('overlay:quit'),
   onMode: (cb) => ipcRenderer.on('overlay:mode', (_e, mode) => cb(mode)),
   onCommand: (cb) => ipcRenderer.on('overlay:command', (_e, cmd) => cb(cmd)),

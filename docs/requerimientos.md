@@ -41,6 +41,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-18 | *(v1.2)* Al crear la sala, el anfitrión elige «En blanco» o «En directo»; en directo se le ofrece transmitir su pantalla desde el navegador del PC y ve una vista previa. |
 | RF-19 | *(v1.2)* En el celular, la transmisión ocupa toda la pantalla disponible, tiene modo pantalla completa y se reajusta al girar el teléfono. |
 | RF-20 | *(v1.2)* Una sala sin participantes se cierra y se borra pasado un plazo configurable (2 min por defecto). |
+| RF-21 | *(v1.3)* Control remoto desde el celular: siguiente, anterior, inicio, fin, pantalla negra o blanca, iniciar y salir en el programa de presentación del PC. |
+| RF-22 | *(v1.3)* Lupa: ampliar desde el celular una zona de la pantalla del PC (tocar, pellizcar, arrastrar, quitar). |
+| RF-23 | *(v1.3)* Solo quien tenga el QR de control (con clave secreta) puede controlar el PC. |
 
 ## 4. Reglas de negocio
 
@@ -54,6 +57,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 - RN-07: Una sala se cierra cuando lleva vacía el plazo configurado; tras reiniciar el servidor se
   concede ese mismo plazo de gracia para que la gente se reconecte.
 - RN-08: Una sala cerrada no se puede recuperar: su archivo se borra.
+- RN-09: El control remoto exige la clave del PC presentador; el servidor la compara en tiempo
+  constante, no la guarda en disco y nunca la reenvía. Las órdenes son de una lista blanca y se
+  entregan solo al PC registrado.
 
 ## 5. Requerimientos no funcionales y limitantes técnicos
 
@@ -104,6 +110,10 @@ y el linter pasa.
 | T-16 | Vista móvil de la transmisión | Encaje automático, pantalla completa, reajuste al girar | Terminado |
 | T-17 | Cierre de salas vacías | Barrido periódico con pruebas; recientes omite salas cerradas | Terminado |
 | T-18 | Guardado concurrente seguro | Cola por sala en FileStore con prueba | Terminado |
+| T-19 | Canal de control con clave | `control-register` / `control` con prueba de integración | Terminado |
+| T-20 | Teclas en Windows | `keys.ps1` persistente con lista blanca de teclas | Terminado |
+| T-21 | Lupa de Trazo | Ampliación con captura en vivo y marcas alineadas | Terminado |
+| T-22 | Página de control móvil | `/control`: botones, deslizar, teclas, lupa con vista previa | Terminado |
 
 ## 9. Backlog — Trabajo futuro
 

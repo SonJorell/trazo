@@ -51,6 +51,9 @@ test('sirve la página de inicio y los módulos compartidos', async () => {
   assert.match(home.headers.get('content-type'), /text\/html/);
   const shared = await fetch(`${base}/shared/elements.js`);
   assert.equal(shared.status, 200);
+  const control = await fetch(`${base}/control?room=abc`);
+  assert.equal(control.status, 200);
+  assert.match(await control.text(), /Control remoto/);
   const evil = await fetch(`${base}/shared/..%2f..%2fpackage.json`);
   assert.equal(evil.status, 404);
 });
@@ -163,4 +166,48 @@ test('retransmite la pantalla compartida y avisa al terminar', async () => {
   assert.equal((await cel.next('screen-stop')).from, frame.from);
   cel.ws.close();
   late.ws.close();
+});
+
+test('control remoto: solo con la clave correcta y solo llega al PC registrado', async () => {
+  const { id } = await createRoom();
+  const pc = connect();
+  const cel = connect();
+  const otro = connect();
+  await Promise.all([pc.opened, cel.opened, otro.opened]);
+  for (const [c, n] of [[pc, 'PC'], [cel, 'Cel'], [otro, 'Otro']]) {
+    c.send({ t: 'join', room: id, name: n });
+    await c.next('welcome');
+  }
+
+  // Sin PC registrado no hay a quién mandar.
+  cel.send({ t: 'control', key: 'x', action: 'next' });
+  assert.equal((await cel.next('error')).code, 'no_controller');
+
+  const key = 'ClaveSecreta1234567890';
+  pc.send({ t: 'control-register', key });
+  assert.equal((await cel.next('controller')).online, true);
+
+  // Clave incorrecta: rechazada.
+  cel.send({ t: 'control', key: 'ClaveMala1234567890xx', action: 'next' });
+  assert.equal((await cel.next('error')).code, 'control_denied');
+
+  // Clave correcta: llega al PC, sin la clave, y saneada.
+  cel.send({ t: 'control', key, action: 'zoom', nx: 0.5, ny: 0.25, scale: 99, extra: 'x' });
+  const order = await pc.next('control');
+  assert.deepEqual({ action: order.action, nx: order.nx, ny: order.ny, scale: order.scale }, { action: 'zoom', nx: 0.5, ny: 0.25, scale: 8 });
+  assert.equal('key' in order, false);
+  assert.equal('extra' in order, false);
+
+  // Acciones fuera de la lista blanca: rechazadas.
+  cel.send({ t: 'control', key, action: 'rm -rf' });
+  assert.equal((await cel.next('error')).code, 'bad_request');
+
+  // Un tercero nunca recibe órdenes ni la clave.
+  await assert.rejects(otro.next('control'));
+
+  // Si el PC se va, el control queda desconectado.
+  pc.ws.close();
+  assert.equal((await cel.next('controller')).online, false);
+  cel.ws.close();
+  otro.ws.close();
 });

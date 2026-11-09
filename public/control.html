@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#14171f" />
+    <title>Trazo · Control remoto</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body class="control-page">
+    <header class="ctl-header">
+      <div class="ctl-title">
+        <img src="/favicon.svg" alt="" width="28" height="28" />
+        <span>Control · <strong id="ctl-room" class="code"></strong></span>
+      </div>
+      <span id="ctl-status" class="ctl-status" data-state="waiting">Conectando…</span>
+    </header>
+
+    <main class="ctl-main">
+      <section class="ctl-slides" id="ctl-swipe" aria-label="Diapositivas (también puedes deslizar)">
+        <button class="ctl-big" data-action="prev" aria-label="Diapositiva anterior">
+          <span class="ctl-arrow">‹</span><span>Anterior</span>
+        </button>
+        <button class="ctl-big primary" data-action="next" aria-label="Diapositiva siguiente">
+          <span>Siguiente</span><span class="ctl-arrow">›</span>
+        </button>
+      </section>
+
+      <section class="ctl-row" aria-label="Más acciones">
+        <button class="ctl-small" data-action="start" title="Iniciar presentación (F5 en PowerPoint)">▶ Iniciar</button>
+        <button class="ctl-small" data-action="first" title="Primera diapositiva (Inicio)">⇤ Inicio</button>
+        <button class="ctl-small" data-action="last" title="Última diapositiva (Fin)">Fin ⇥</button>
+        <button class="ctl-small" data-action="black" title="Pantalla negra (B)">● Negro</button>
+        <button class="ctl-small" data-action="white" title="Pantalla blanca (W)">○ Blanco</button>
+        <button class="ctl-small" data-action="end" title="Salir de la presentación (Esc)">✕ Salir</button>
+      </section>
+
+      <section class="ctl-card">
+        <h2>Teclas para pasar diapositivas</h2>
+        <div class="ctl-seg" role="radiogroup" aria-label="Teclas">
+          <button data-style="arrows" role="radio">Flechas → ←</button>
+          <button data-style="pages" role="radio">AvPág / RePág</button>
+          <button data-style="space" role="radio">Espacio</button>
+        </div>
+        <p class="muted small">Flechas sirve para PowerPoint, Google Slides, Canva y la mayoría de presentaciones HTML. Si un visor de PDF no avanza, prueba AvPág.</p>
+      </section>
+
+      <section class="ctl-card">
+        <div class="ctl-card-head">
+          <h2>Lupa (zoom en la proyección)</h2>
+          <label class="check small"><input type="checkbox" id="ctl-preview-toggle" /> Ver pantalla</label>
+        </div>
+        <div id="ctl-pad" class="ctl-pad" aria-label="Toca para ampliar; pellizca para cambiar el zoom; arrastra para moverte">
+          <img id="ctl-preview" alt="" hidden />
+          <div class="ctl-pad-grid"></div>
+          <div id="ctl-zoom-rect" class="ctl-zoom-rect" hidden></div>
+          <span id="ctl-pad-hint" class="ctl-pad-hint">Toca un punto para ampliarlo</span>
+        </div>
+        <div class="ctl-zoom-bar">
+          <button class="ctl-small" id="ctl-zoom-out" aria-label="Menos zoom">−</button>
+          <span id="ctl-zoom-level" class="ctl-zoom-level">2×</span>
+          <button class="ctl-small" id="ctl-zoom-in" aria-label="Más zoom">+</button>
+          <button class="ctl-small danger" id="ctl-zoom-reset">Quitar zoom</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/js/control/main.js"></script>
+  </body>
+</html>

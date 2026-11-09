@@ -124,3 +124,36 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   único.
 - **Consecuencias**: no hay más choques. Una prueba lanza 20 guardados simultáneos y verifica el
   resultado.
+
+## ADR-016 — Control remoto: clave por sala y lista blanca de órdenes
+
+- **Contexto**: el celular debe poder pasar diapositivas en el PC, pero nadie más de la sala debe
+  poder manejarlo.
+- **Decisión**: el overlay genera una clave aleatoria de 24 caracteres por sala y la registra en el
+  servidor (`control-register`), que la guarda solo en memoria. El QR de control lleva la clave en
+  el fragmento (`#k=`), que el navegador no envía en las peticiones. Cada orden `control` se
+  compara con `timingSafeEqual` y se valida con `validateControl` (lista blanca y rangos). El
+  servidor la reenvía solo al PC registrado y sin la clave.
+- **Consecuencias**: un participante normal no puede mover diapositivas ni ver la clave. Si la
+  clave se filtra, basta con «Nueva sala».
+
+## ADR-017 — Teclas con un proceso PowerShell persistente
+
+- **Contexto**: Electron no puede simular teclas en otros programas, y los módulos nativos
+  (robotjs, nut.js) requieren compilación.
+- **Decisión**: al arrancar, el overlay lanza `powershell -File keys.ps1`, que compila un
+  envoltorio mínimo de `keybd_event` y lee de su entrada estándar líneas `«código» «extendida»`.
+  `main.js` traduce cada acción con un mapa fijo (`KEYMAP`), así que nunca se envía texto
+  arbitrario.
+- **Consecuencias**: no hay dependencias nativas y la latencia es baja, porque el proceso queda
+  abierto. Solo funciona en Windows, que es la plataforma objetivo.
+
+## ADR-018 — Lupa propia en lugar de la Lupa de Windows
+
+- **Decisión**: la lupa captura la pantalla en vivo y la dibuja como fondo de la capa (que está
+  excluida de la captura). Luego acerca la vista con una animación suave. Las marcas comparten
+  coordenadas con la pantalla, así que se amplían alineadas.
+- **Alternativa descartada**: la Lupa de Windows sigue al puntero y obligaría a mover el ratón
+  del usuario.
+- **Consecuencias**: el zoom funciona sobre cualquier programa sin tocar el ratón ni la
+  configuración del sistema. La captura se libera 15 s después de quitar la lupa.

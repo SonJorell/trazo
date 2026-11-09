@@ -38,7 +38,7 @@ trazo/
 │   ├── elements.js         Modelo, saneo y regla LWW
 │   ├── geometry.js         Límites y pruebas de impacto
 │   └── protocol.js         Tipos de mensaje, errores y validaciones
-├── overlay/                App de escritorio (Electron): main.js, preload.cjs, icon.png
+├── overlay/                App de escritorio (Electron): main.js, preload.cjs, keys.ps1, icon.png
 ├── public/                 Cliente (HTML/CSS/JS nativo, sin compilación)
 │   ├── index.html          Inicio: crear / unirse / recientes
 │   ├── board.html          Pizarra
@@ -50,7 +50,8 @@ trazo/
 │       ├── tools/          select, pen, shape (rect/elipse/línea/flecha), text, eraser, hand
 │       ├── input/          pointer.js (ratón, lápiz, táctil, pellizco, rueda)
 │       ├── net/            connection.js (reconexión), sync.js (puente escena ↔ red)
-│       ├── overlay/        overlayMode.js (modo sobre la pantalla), screenShare.js (captura)
+│       ├── overlay/        overlayMode.js, screenShare.js, magnifier.js (lupa), remoteControl.js
+│       ├── control/        main.js (página /control del celular)
 │       ├── ui/             barra, panel de estilo, presencia, diálogos, editor de texto, avisos
 │       └── util/           api.js, storage.js, emitter.js
 ├── tests/                  Pruebas con node:test (unitarias + integración)
@@ -111,6 +112,10 @@ stateDiagram-v2
 | C → S | `screen` | `w`, `h`, `data` (JPEG en data URL, ≤480 000 caracteres) |
 | S → C | `screen` | `from`, `w`, `h`, `data` (descartable si el cliente va atrasado) |
 | C ↔ S | `screen-stop` | fin de la transmisión (también al desconectarse quien transmite) |
+| C → S | `control-register` | `key` (el overlay se ofrece como destino del control remoto) |
+| C → S | `control` | `key`, `action`, `style?`, `nx?`, `ny?`, `scale?` |
+| S → C | `control` | orden validada, sin la clave, **solo al PC registrado** |
+| S → C | `controller` | `online` (hay o no un PC que acepta control) |
 | S → C | `error` | `code`, `message`; los de sala/PIN cierran la conexión |
 
 ### Flujo de una edición
@@ -161,6 +166,26 @@ flowchart LR
 - Los visores guardan el último cuadro en `overlay.screen` y el renderizador lo dibuja bajo los
   elementos en `(0,0,w,h)`.
 
+### Control remoto (v1.3)
+
+```mermaid
+sequenceDiagram
+  participant C as Celular (/control)
+  participant S as Servidor
+  participant O as Overlay (página)
+  participant M as Electron (main)
+  participant P as PowerPoint / Slides / PDF
+  O->>S: control-register { key }
+  C->>S: control { key, action: next, style: arrows }
+  S->>S: timingSafeEqual(key) + validateControl
+  S->>O: control { action: next, style: arrows }
+  O->>M: pressKey('next','arrows')
+  M->>P: keys.ps1 → keybd_event(→)
+  C->>S: control { action: zoom, nx, ny, scale }
+  S->>O: control { zoom }
+  O->>O: Magnifier: captura en vivo + vista ampliada
+```
+
 ## 6. Seguridad
 
 | Riesgo | Mitigación |
@@ -173,6 +198,7 @@ flowchart LR
 | QR abierto | `/api/qr.svg` solo genera códigos de URLs de este mismo servidor |
 | Conexiones colgadas | latido ping/pong cada 30 s |
 | Cuadros de pantalla falsos | solo `data:image/jpeg;base64`, tamaño y dimensiones acotados |
+| Control remoto no autorizado | clave aleatoria por sala, solo en memoria, comparación en tiempo constante; órdenes en lista blanca; teclas desde un mapa fijo |
 | Overlay navegando a otro sitio | Electron bloquea navegación fuera de Trazo y ventanas nuevas; `contextIsolation` + `sandbox` |
 
 ## 7. Stack tecnológico y justificación
