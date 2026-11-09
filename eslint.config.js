@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/', 'data/'] },
+  { ignores: ['node_modules/', 'data/', 'overlay/node_modules/'] },
   js.configs.recommended,
   {
     languageOptions: { ecmaVersion: 2023, sourceType: 'module' },
@@ -14,7 +14,8 @@ export default [
       curly: ['error', 'multi-line'],
     },
   },
-  { files: ['server/**', 'tests/**', 'eslint.config.js'], languageOptions: { globals: globals.node } },
+  { files: ['server/**', 'tests/**', 'overlay/**', 'eslint.config.js'], languageOptions: { globals: globals.node } },
+  { files: ['**/*.cjs'], languageOptions: { sourceType: 'commonjs' } },
   { files: ['public/**'], languageOptions: { globals: globals.browser } },
   { files: ['shared/**'], languageOptions: { globals: { ...globals.browser, ...globals.node } } },
 ];
