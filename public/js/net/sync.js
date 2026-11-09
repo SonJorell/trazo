@@ -12,8 +12,9 @@ const CHUNK = 400;
  * - Al (re)conectar fusiona el estado del servidor y reenvía lo hecho sin conexión.
  */
 export class Sync {
-  constructor({ scene, connection, presence }) {
+  constructor({ scene, connection, presence, onScreen = () => {} }) {
     this.scene = scene;
+    this.onScreen = onScreen; // (frame | null) => void
     this.conn = connection;
     this.presence = presence;
     this.pending = new Map();
@@ -63,8 +64,15 @@ export class Sync {
         }
         this.flush();
         this.presence.reset(msg.you, msg.peers);
+        this.onScreen(msg.screen && msg.screen.from !== msg.you.id ? msg.screen : null);
         break;
       }
+      case MSG.SCREEN:
+        this.onScreen(msg);
+        break;
+      case MSG.SCREEN_STOP:
+        this.onScreen(null);
+        break;
       case MSG.OPS:
         this.scene.applyRemote(msg.ops);
         break;

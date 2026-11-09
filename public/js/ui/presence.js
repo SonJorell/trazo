@@ -21,6 +21,10 @@ export class Presence {
     this.peers = new Map();
   }
 
+  get peerCount() {
+    return this.peers.size;
+  }
+
   reset(me, peers) {
     this.me = me;
     this.peers = new Map(peers.map((p) => [p.id, p]));

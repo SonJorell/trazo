@@ -128,3 +128,36 @@ test('no se aceptan operaciones antes de unirse', async () => {
   assert.equal((await c.next('error')).code, 'not_joined');
   c.ws.close();
 });
+
+test('retransmite la pantalla compartida y avisa al terminar', async () => {
+  const { id } = await createRoom();
+  const pc = connect();
+  const cel = connect();
+  await Promise.all([pc.opened, cel.opened]);
+  pc.send({ t: 'join', room: id, name: 'PC' });
+  await pc.next('welcome');
+  cel.send({ t: 'join', room: id, name: 'Cel' });
+  await cel.next('welcome');
+
+  const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD';
+  pc.send({ t: 'screen', w: 1920, h: 1080, data });
+  const frame = await cel.next('screen');
+  assert.equal(frame.w, 1920);
+  assert.equal(frame.data, data);
+
+  // Quien entra después recibe el último cuadro en el welcome.
+  const late = connect();
+  await late.opened;
+  late.send({ t: 'join', room: id, name: 'Tarde' });
+  assert.equal((await late.next('welcome')).screen.h, 1080);
+
+  // Cuadros inválidos se rechazan.
+  pc.send({ t: 'screen', w: 10, h: 10, data: 'data:text/html,<script>' });
+  assert.equal((await pc.next('error')).code, 'bad_request');
+
+  // Al desconectarse quien transmite, los demás reciben screen-stop.
+  pc.ws.close();
+  assert.equal((await cel.next('screen-stop')).from, frame.from);
+  cel.ws.close();
+  late.ws.close();
+});

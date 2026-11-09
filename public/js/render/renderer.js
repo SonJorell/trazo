@@ -12,9 +12,12 @@ const GRID = 24;
 export class Renderer {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ scene, viewport, overlay }} deps  overlay = { selection:Set, marquee, cursors:Map, editingId }
+   * @param {{ scene, viewport, overlay, transparent? }} deps
+   *   overlay = { selection:Set, marquee, cursors:Map, editingId, screen: { img, w, h } | null }
+   *   transparent = true en el modo «sobre la pantalla»: sin fondo ni cuadrícula.
    */
-  constructor(canvas, { scene, viewport, overlay }) {
+  constructor(canvas, { scene, viewport, overlay, transparent = false }) {
+    this.transparent = transparent;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.scene = scene;
@@ -50,13 +53,18 @@ export class Renderer {
     const dpr = window.devicePixelRatio || 1;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, this.width, this.height);
-    this._drawGrid(dpr);
+    if (this.transparent) {
+      ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, this.width, this.height);
+      this._drawGrid(dpr);
+    }
 
     const z = vp.zoom * dpr;
     ctx.setTransform(z, 0, 0, z, -vp.x * z, -vp.y * z);
     const view = vp.visibleRect(this.width, this.height);
+    this._drawScreen();
     for (const el of this.scene.alive()) {
       if (el.id === overlay.editingId) continue;
       const b = getBounds(el);
@@ -69,6 +77,18 @@ export class Renderer {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._drawCursors();
+  }
+
+  /** Pantalla compartida en vivo: se dibuja en (0,0) con el tamaño de la pantalla de origen. */
+  _drawScreen() {
+    const s = this.overlay.screen;
+    if (!s?.img) return;
+    const { ctx, viewport: vp } = this;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 12 / vp.zoom;
+    ctx.drawImage(s.img, 0, 0, s.w, s.h);
+    ctx.restore();
   }
 
   _drawGrid() {
