@@ -45,7 +45,11 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     'div',
     { class: 'overlay-bar ov-hit', role: 'toolbar', 'aria-label': 'Control de la pantalla' },
     modeBtn,
-    h('span', { class: 'ov-room code', title: 'Código de la sala' }, room.toUpperCase()),
+    h(
+      'span',
+      { class: 'ov-room code', title: 'Presentación principal de la sala (recibe cámaras y control)' },
+      `★ ${room.toUpperCase()}`,
+    ),
     shareBtn,
     zoomBtn,
     h('button', { class: 'ov-btn', title: 'Invitar (QR)', html: ICONS.share, onclick: actions.invite }),

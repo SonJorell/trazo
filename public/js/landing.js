@@ -1,5 +1,5 @@
 import { api, parseRoomCode } from './util/api.js';
-import { recentRooms, savedName, saveName, savePin, markHost, forgetRoom } from './util/storage.js';
+import { recentRooms, savedName, saveName, savePin, saveHostKey, hostKeyOf, forgetRoom } from './util/storage.js';
 import { h } from './ui/dom.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -36,7 +36,7 @@ $('#create-form').addEventListener('submit', async (e) => {
   button.disabled = true;
   try {
     const room = await api.createRoom({ pin: pin || undefined, mode });
-    markHost(room.id);
+    saveHostKey(room.id, room.hostKey);
     if (pin) savePin(room.id, pin);
     goTo(room.id);
   } catch (err) {
@@ -93,6 +93,7 @@ async function showRecent() {
           'a',
           { href: `/sala?room=${r.id}` },
           h('strong', { class: 'code' }, r.id.toUpperCase()),
+          hostKeyOf(r.id) ? h('span', { class: 'tag-host' }, 'Anfitrión') : null,
           r.info.mode === 'live' ? h('span', { class: 'tag-live' }, r.info.live ? '● En vivo' : 'En directo') : null,
           h('span', { class: 'muted' }, fmt.format(r.at)),
         ),
