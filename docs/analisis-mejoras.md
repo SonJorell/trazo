@@ -93,6 +93,9 @@ clasificó cada fricción por **impacto** (cuánto corta el ritmo de la presenta
 
 ## Escalabilidad y trabajo futuro (priorizado)
 
+Estado tras la versión 2.0: las prioridades 1 a 8 están **implementadas**. Quedan pendientes la 9
+y la 10.
+
 | Prioridad | Mejora | Impacto | Esfuerzo |
 |-----------|--------|---------|----------|
 | 1 | **Páginas por diapositiva**: guardar las marcas de cada diapositiva y recuperarlas al volver (en vez de borrarlas) | Alto | Medio |

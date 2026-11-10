@@ -241,7 +241,7 @@ export function grantDialog(name) {
 }
 
 /** Lista de personas con permiso para pasar diapositivas, con botón para quitarlo. */
-export function permissionsDialog(grants, onRevoke) {
+export function permissionsDialog(grants, onRevoke, everyone = null) {
   const list = h('ul', { class: 'perm-list' });
   const paint = () => {
     list.replaceChildren(
@@ -263,6 +263,18 @@ export function permissionsDialog(grants, onRevoke) {
       'div',
       { class: 'stack' },
       h('h2', {}, 'Quién puede pasar diapositivas'),
+      everyone
+        ? h(
+            'label',
+            { class: 'check' },
+            h('input', {
+              type: 'checkbox',
+              checked: everyone.all() || undefined,
+              onchange: (e) => everyone.setAll(e.target.checked),
+            }),
+            'Permitir a todos (sin aprobar uno por uno)',
+          )
+        : null,
       list,
       h('button', { class: 'btn primary', onclick: () => close() }, 'Listo'),
     ),

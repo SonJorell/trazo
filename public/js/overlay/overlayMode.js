@@ -2,6 +2,7 @@ import { h } from '../ui/dom.js';
 import { ICONS } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
 import { local } from '../util/storage.js';
+import { api } from '../util/api.js';
 import { Magnifier } from './magnifier.js';
 import { setupRemoteControl } from './remoteControl.js';
 
@@ -34,30 +35,71 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     render,
     onChange: (on) => (zoomBtn.hidden = !on),
   });
-  // Borrar las marcas al pasar de diapositiva (opcional, recordado en este PC).
-  let autoClear = local.get('trazo:autoclear', false);
-  const autoClearBtn = h('button', {
+  // Qué pasa con las marcas al pasar de diapositiva (desde el control remoto o con permiso):
+  //   keep  → se quedan     pages → cada diapositiva tiene su propia página     clear → se borran
+  const MARK_MODES = {
+    keep: { next: 'pages', label: 'Marcas: se quedan' },
+    pages: { next: 'clear', label: 'Marcas: por diapositiva' },
+    clear: { next: 'keep', label: 'Marcas: se borran' },
+  };
+  let markMode = local.get('trazo:markmode', 'pages');
+  if (!MARK_MODES[markMode]) markMode = 'pages';
+  const markModeBtn = h('button', {
     class: 'ov-btn',
-    title: 'Borrar las marcas al pasar de diapositiva desde el control remoto',
+    title: 'Qué hacer con las marcas al pasar de diapositiva',
     onclick: () => {
-      autoClear = !autoClear;
-      local.set('trazo:autoclear', autoClear);
-      paintAutoClear();
-      toast(autoClear ? 'Las marcas se borrarán al pasar de diapositiva' : 'Las marcas se mantienen al pasar de diapositiva');
+      markMode = MARK_MODES[markMode].next;
+      local.set('trazo:markmode', markMode);
+      paintMarkMode();
+      toast(MARK_MODES[markMode].label);
     },
   });
-  const paintAutoClear = () => {
-    autoClearBtn.classList.toggle('on', autoClear);
-    autoClearBtn.innerHTML = `${ICONS.autoClear}<span>${autoClear ? 'Auto-limpiar: sí' : 'Auto-limpiar'}</span>`;
+  const paintMarkMode = () => {
+    markModeBtn.classList.toggle('on', markMode !== 'keep');
+    markModeBtn.innerHTML = `${ICONS.pages}<span>${MARK_MODES[markMode].label}</span>`;
   };
-  paintAutoClear();
+  paintMarkMode();
+  const onSlideChange = (action) => {
+    if (markMode === 'clear') actions.clearAll();
+    if (markMode !== 'pages') return;
+    const page = actions.currentPage();
+    if (action === 'next') actions.goToPage(page + 1);
+    else if (action === 'prev') actions.goToPage(Math.max(0, page - 1));
+    else if (action === 'first') actions.goToPage(0);
+  };
+
+  // QR grande de invitación para el público (visible en el proyector, no en la transmisión).
+  const inviteCard = h('div', { class: 'invite-card ov-hit', hidden: true });
+  const showInvite = async (on) => {
+    inviteCard.hidden = !on;
+    if (!on) return;
+    let base = location.origin;
+    try {
+      const info = await api.info();
+      base = info.secureUrls?.[0] ?? info.lanUrls?.[0] ?? base;
+    } catch {
+      /* dirección actual */
+    }
+    const link = `${base}/sala?room=${room}`;
+    inviteCard.replaceChildren(
+      h('button', { class: 'invite-close', title: 'Ocultar', 'aria-label': 'Ocultar', html: ICONS.close, onclick: () => showInvite(false) }),
+      h('div', { class: 'invite-title' }, 'Únete a la presentación'),
+      h('img', { src: api.qrUrl(link), alt: 'QR para unirse', width: 260, height: 260 }),
+      h('div', { class: 'invite-code' }, room.toUpperCase()),
+      h('div', { class: 'invite-url' }, link.replace(/^https?:\/\//, '')),
+    );
+  };
+  document.body.append(inviteCard);
+  const inviteBtn = h('button', { class: 'ov-btn', title: 'Mostrar el QR grande para el público', html: ICONS.qr, onclick: () => showInvite(inviteCard.hidden) });
+  showInvite(true); // al empezar, el QR queda a la vista para que todos se unan
+
   const remote = setupRemoteControl({
     room,
     connection,
     bridge,
     magnifier,
     sharer,
-    onSlideChange: () => autoClear && actions.clearAll(),
+    onSlideChange,
   });
 
   const modeBtn = h('button', { class: 'ov-btn ov-mode' });
@@ -77,7 +119,10 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     ),
     shareBtn,
     zoomBtn,
-    autoClearBtn,
+    markModeBtn,
+    inviteBtn,
+    h('button', { class: 'ov-btn', title: 'Temporizador', html: ICONS.timer, onclick: () => actions.timerDialog() }),
+    h('button', { class: 'ov-btn', title: 'Votación rápida', html: ICONS.poll, onclick: () => actions.pollDialog() }),
     h('button', { class: 'ov-btn', title: 'Invitar (QR)', html: ICONS.share, onclick: actions.invite }),
     h('button', {
       class: 'ov-btn',

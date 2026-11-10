@@ -7,7 +7,7 @@ export function createTextTool(ctx) {
     move() {},
     up(p) {
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(4));
-      if (hit && hit.type === 'text') ctx.editText(hit);
+      if (hit && (hit.type === 'text' || hit.type === 'note')) ctx.editText(hit);
       else ctx.editText(null, p);
     },
     cancel() {},

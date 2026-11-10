@@ -22,7 +22,7 @@ export class TextEditor {
     this.commit();
     this.state = state;
     const area = document.createElement('textarea');
-    area.className = 'text-editor';
+    area.className = state.width ? 'text-editor wrap' : 'text-editor';
     area.value = state.text;
     area.spellcheck = false;
     area.setAttribute('aria-label', 'Texto');
@@ -31,6 +31,7 @@ export class TextEditor {
     this.host.append(area);
 
     const grow = () => {
+      if (state.width) return; // las notas tienen tamaño fijo
       area.style.height = 'auto';
       area.style.height = `${area.scrollHeight}px`;
       area.style.width = 'auto';
@@ -54,9 +55,10 @@ export class TextEditor {
 
   reposition() {
     if (!this.area) return;
-    const { x, y, fontSize, color } = this.state;
-    const p = this.viewport.toScreen(x, y);
-    const size = fontSize * this.viewport.zoom;
+    const { x, y, fontSize, color, width, height, padding = 0 } = this.state;
+    const z = this.viewport.zoom;
+    const p = this.viewport.toScreen(x + padding, y + padding);
+    const size = fontSize * z;
     Object.assign(this.area.style, {
       left: `${p.x}px`,
       top: `${p.y}px`,
@@ -64,6 +66,10 @@ export class TextEditor {
       lineHeight: String(LINE_HEIGHT),
       color,
     });
+    if (width) {
+      this.area.style.width = `${(width - padding * 2) * z}px`;
+      this.area.style.height = `${(height - padding * 2) * z}px`;
+    }
   }
 
   commit() {

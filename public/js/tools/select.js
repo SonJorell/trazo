@@ -39,7 +39,7 @@ export function createSelectTool(ctx) {
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(6));
       if (hit) {
         const now = Date.now();
-        if (hit.type === 'text' && lastTap.id === hit.id && now - lastTap.at < DOUBLE_TAP_MS) {
+        if ((hit.type === 'text' || hit.type === 'note') && lastTap.id === hit.id && now - lastTap.at < DOUBLE_TAP_MS) {
           lastTap = { id: null, at: 0 };
           mode = null;
           ctx.editText(hit);

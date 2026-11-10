@@ -1,7 +1,7 @@
 import { normalizeRect } from '/shared/geometry.js';
 
 /** Tipos que se pueden redimensionar con el tirador. */
-export const RESIZABLE = new Set(['rect', 'ellipse']);
+export const RESIZABLE = new Set(['rect', 'ellipse', 'note']);
 
 /** Posición del tirador de redimensión (esquina inferior derecha) en el mundo. */
 export function resizeHandle(el, zoom) {

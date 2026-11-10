@@ -38,10 +38,11 @@ export function setupRemoteControl({ room, connection, bridge, magnifier, sharer
     if (msg.t === MSG.WELCOME) {
       connection.send({ t: MSG.CONTROL_REGISTER, key });
       grants.clear(); // tras reconectar, el servidor ya no recuerda los permisos
+      grantAll = false;
     }
     if (msg.t === MSG.PEER_LEAVE) grants.delete(msg.id);
     if (msg.t === MSG.CONTROL_REQUEST) {
-      if (grants.has(msg.from)) return;
+      if (grants.has(msg.from) || grantAll) return;
       const ok = await grantDialog(msg.name);
       if (ok) {
         grants.set(msg.from, msg.name);
@@ -69,7 +70,7 @@ export function setupRemoteControl({ room, connection, bridge, magnifier, sharer
         default:
           if (!bridge?.pressKey) toast('Las teclas remotas solo funcionan en la app de overlay');
           else await bridge.pressKey(msg.action, msg.style);
-          if (SLIDE_ACTIONS.has(msg.action)) onSlideChange();
+          if (SLIDE_ACTIONS.has(msg.action)) onSlideChange(msg.action);
       }
     } catch (err) {
       toast(`No se pudo ejecutar la orden: ${err.message}`);
@@ -107,7 +108,14 @@ export function setupRemoteControl({ room, connection, bridge, magnifier, sharer
     document.body.append(backdrop);
   }
 
-  const showPermissions = () => permissionsDialog(grants, (id) => setGrant(id, false));
+  let grantAll = false;
+  const setGrantAll = (on) => {
+    grantAll = on;
+    connection.send({ t: MSG.CONTROL_GRANT, all: on });
+    toast(on ? 'Todos pueden pasar diapositivas' : 'Solo quienes tú apruebes pueden pasar diapositivas');
+  };
+  const showPermissions = () =>
+    permissionsDialog(grants, (id) => setGrant(id, false), { all: () => grantAll, setAll: setGrantAll });
 
   return { showControlQr, showPermissions };
 }

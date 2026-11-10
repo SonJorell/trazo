@@ -5,6 +5,8 @@ import { createTextTool } from './text.js';
 import { createEraserTool } from './eraser.js';
 import { createHandTool } from './hand.js';
 import { createLaserTool } from './laser.js';
+import { createNoteTool } from './note.js';
+import { createStampTool } from './stamp.js';
 
 /** Catálogo de herramientas: nombre, etiqueta, atajo de teclado y fábrica. */
 export const TOOL_DEFS = [
@@ -17,6 +19,8 @@ export const TOOL_DEFS = [
   { name: 'arrow', label: 'Flecha', key: 'a', create: (ctx) => createShapeTool(ctx, 'arrow') },
   { name: 'line', label: 'Línea', key: 'l', create: (ctx) => createShapeTool(ctx, 'line') },
   { name: 'text', label: 'Texto', key: 't', create: (ctx) => createTextTool(ctx) },
+  { name: 'note', label: 'Nota adhesiva', key: 'n', create: (ctx) => createNoteTool(ctx) },
+  { name: 'stamp', label: 'Sello (✓ ✗ ★ ①…)', key: 's', create: (ctx) => createStampTool(ctx) },
   { name: 'eraser', label: 'Borrador', key: 'e', create: (ctx) => createEraserTool(ctx) },
 ];
 
