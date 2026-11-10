@@ -21,13 +21,26 @@ try {
   process.exit(1);
 }
 
-const lan = getLanAddresses().map((ip) => `http://${ip}:${config.port}`);
+let secure = null;
+if (config.httpsPort) {
+  try {
+    secure = await app.listenSecure();
+  } catch (err) {
+    logger.warn(`HTTPS no disponible (${err.code ?? err.message}); las cámaras del celular no funcionarán.`);
+  }
+}
+
+const ips = getLanAddresses();
+const lan = ips.map((ip) => `http://${ip}:${config.port}`);
+const lanSecure = secure ? ips.map((ip) => `https://${ip}:${config.httpsPort}`) : [];
 console.log('\n  Trazo — pizarra colaborativa\n');
 console.log(`  En este PC:        http://localhost:${config.port}`);
 for (const url of lan) console.log(`  Desde el celular:  ${url}`);
-if (lan[0]) {
+for (const url of lanSecure) console.log(`  Con cámara:        ${url}  (acepta la advertencia la primera vez)`);
+const qrUrl = lanSecure[0] ?? lan[0];
+if (qrUrl) {
   console.log('\n  Escanea con el celular (misma Wi-Fi):\n');
-  console.log(await QRCode.toString(lan[0], { type: 'terminal', small: true }));
+  console.log(await QRCode.toString(qrUrl, { type: 'terminal', small: true }));
 } else {
   console.log('\n  No se detectó una red local. Conecta el PC a la Wi-Fi para usarlo desde el celular.\n');
 }
