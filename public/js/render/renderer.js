@@ -1,4 +1,5 @@
 import { getBounds, rectsIntersect } from '/shared/geometry.js';
+import { effectiveWidth } from '/shared/elements.js';
 import { drawElement } from './draw.js';
 import { RESIZABLE, resizeHandle } from '../core/handles.js';
 
@@ -71,12 +72,14 @@ export class Renderer {
     for (const el of this.scene.alive()) {
       if (el.id === overlay.editingId) continue;
       const b = getBounds(el);
-      const pad = el.strokeWidth * 2 + 16;
+      const pad = effectiveWidth(el) * 2 + 40; // incluye el halo del neón
       if (!rectsIntersect(view, { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 })) continue;
       drawElement(ctx, el);
     }
     this._drawSelection();
     this._drawMarquee();
+    // Puntero láser: mientras haya estelas, se sigue animando.
+    if (overlay.laser?.draw(ctx, vp.zoom)) this.requestRender();
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._drawCursors();

@@ -23,7 +23,9 @@ function controlKey(room) {
  * Lado del PC presentador: se registra como destino del control remoto y ejecuta
  * las órdenes que llegan del celular (teclas para las diapositivas, lupa, transmisión).
  */
-export function setupRemoteControl({ room, connection, bridge, magnifier, sharer }) {
+const SLIDE_ACTIONS = new Set(['next', 'prev', 'first', 'last']);
+
+export function setupRemoteControl({ room, connection, bridge, magnifier, sharer, onSlideChange = () => {} }) {
   const key = controlKey(room);
   const grants = new Map(); // id → nombre de quienes pueden pasar diapositivas
 
@@ -67,6 +69,7 @@ export function setupRemoteControl({ room, connection, bridge, magnifier, sharer
         default:
           if (!bridge?.pressKey) toast('Las teclas remotas solo funcionan en la app de overlay');
           else await bridge.pressKey(msg.action, msg.style);
+          if (SLIDE_ACTIONS.has(msg.action)) onSlideChange();
       }
     } catch (err) {
       toast(`No se pudo ejecutar la orden: ${err.message}`);

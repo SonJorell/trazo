@@ -12,8 +12,7 @@ export function createPenTool(ctx) {
     down(p) {
       tx = ctx.begin();
       points = [[0, 0]];
-      const { stroke, strokeWidth } = ctx.style;
-      el = tx.add(createElement('pen', { x: p.x, y: p.y, points, stroke, strokeWidth }));
+      el = tx.add(createElement('pen', { x: p.x, y: p.y, points, ...ctx.strokeProps() }));
     },
     move(p) {
       if (!el) return;
