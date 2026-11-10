@@ -91,6 +91,27 @@ Notas:
 - Para depurar, `set TRAZO_OVERLAY_CAPTURABLE=1` deja la capa visible en capturas.
 - La transmisión es para la red local: no la uses en redes públicas.
 
+## Roles: presentación principal y participantes
+
+| | **Presentación principal (anfitrión)** | **Participantes** |
+|---|---|---|
+| Qué es | La ventana del PC conectado al proyector o a la pantalla grande | Celulares, tablets u otros PC |
+| Cómo se abre | `iniciar-overlay.bat` (encima de PowerPoint o de lo que sea) **o** la pizarra que creaste desde el inicio | Escaneando el QR de **Invitar / Compartir** |
+| Puede | Proyectar, recibir cámaras, recibir el control de diapositivas, transmitir su pantalla, dar y quitar permisos | Dibujar y escribir, encender su cámara, pedir pasar diapositivas |
+| Se reconoce por | **★** junto al código de la sala («★ Principal») | — |
+
+Solo puede haber **una** presentación principal por sala: la de quien la **creó**. Al crearla,
+el servidor le entrega una clave de anfitrión que guarda ese PC; nadie más puede proyectar,
+transmitir ni registrarse para el control, aunque tenga el enlace.
+
+Flujo recomendado para presentar:
+
+1. En el PC del proyector abre tu presentación (PowerPoint, Slides, PDF…).
+2. Doble clic en `iniciar-overlay.bat`: crea la sala y esa capa queda como **★ presentación principal**.
+3. Pulsa **Invitar** en la barra del overlay y que los demás escaneen el QR.
+4. Ellos dibujan, encienden su cámara o piden pasar diapositivas; tú apruebas desde el PC.
+5. Para manejarlo tú desde tu celular, usa el QR de **Control remoto** (no lo muestres).
+
 ## Cámaras de los participantes
 
 El anfitrión proyecta (con la app de overlay o desde la pizarra que creó) y los demás pueden
