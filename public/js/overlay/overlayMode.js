@@ -51,6 +51,12 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     h('button', { class: 'ov-btn', title: 'Invitar (QR)', html: ICONS.share, onclick: actions.invite }),
     h('button', {
       class: 'ov-btn',
+      title: 'Quién puede pasar diapositivas',
+      html: ICONS.users,
+      onclick: () => remote.showPermissions(),
+    }),
+    h('button', {
+      class: 'ov-btn',
       title: 'Control remoto desde el celular (diapositivas y zoom)',
       html: ICONS.remote,
       onclick: () => remote.showControlQr(),

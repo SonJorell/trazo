@@ -7,6 +7,8 @@ import {
   validateScreenFrame,
   validateControl,
   CONTROL_KEY_RE,
+  GRANTED_ACTIONS,
+  MAX_RTC_CHARS,
 } from '../../shared/protocol.js';
 import { randomId } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
@@ -22,14 +24,17 @@ const MAX_BUFFERED_FOR_VOLATILE = 1024 * 1024; // si hay >1 MB pendiente, se sal
 export function attachSocketServer(httpServer, { rooms, config, logger }) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.maxPayloadBytes });
 
-  httpServer.on('upgrade', (req, socket, head) => {
-    const { pathname } = new URL(req.url, 'http://x');
-    if (pathname !== '/ws') {
-      socket.destroy();
-      return;
-    }
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
-  });
+  /** Acepta conexiones /ws de un servidor HTTP o HTTPS (se pueden sumar varios). */
+  wss.attach = (srv) =>
+    srv.on('upgrade', (req, socket, head) => {
+      const { pathname } = new URL(req.url, 'http://x');
+      if (pathname !== '/ws') {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    });
+  wss.attach(httpServer);
 
   wss.on('connection', (ws) => {
     const client = {
@@ -37,6 +42,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       room: null,
       peer: null,
       bucket: new TokenBucket(config.rateLimit),
+      lastControlRequest: 0,
     };
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
@@ -74,6 +80,9 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (msg.t === MSG.SCREEN_STOP) stopScreen();
         else if (msg.t === MSG.CONTROL_REGISTER) registerController(msg);
         else if (msg.t === MSG.CONTROL) handleControl(msg);
+        else if (msg.t === MSG.CONTROL_REQUEST) requestControl();
+        else if (msg.t === MSG.CONTROL_GRANT) grantControl(msg);
+        else if (msg.t === MSG.RTC) relayRtc(msg);
       } catch (err) {
         logger.error('Error procesando mensaje:', err);
         fail(ERR.BAD_REQUEST, 'Error procesando el mensaje');
@@ -90,8 +99,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       }
       if (ws.readyState !== ws.OPEN) return;
       client.room = room;
-      client.peer = room.addPeer({ id: client.id, name: cleanName(msg.name), send });
-      const { id, name, color } = client.peer;
+      client.peer = room.addPeer({ id: client.id, name: cleanName(msg.name), send, display: msg.display === true });
+      const { id, name, color, display } = client.peer;
       send({
         t: MSG.WELCOME,
         you: { id, name, color },
@@ -100,7 +109,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         screen: room.screen,
         controller: Boolean(room.controller),
       });
-      room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color } }, id);
+      room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color, display } }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
     }
 
@@ -142,14 +151,47 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     function handleControl(msg) {
       const ctl = client.room.controller;
       if (!ctl) return fail(ERR.NO_CONTROLLER, 'El PC presentador no está conectado');
-      const given = Buffer.from(typeof msg.key === 'string' ? msg.key : '');
-      const expected = Buffer.from(ctl.key);
-      if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
-        return fail(ERR.CONTROL_DENIED, 'Clave de control incorrecta: vuelve a escanear el QR de control');
-      }
       const order = validateControl(msg);
       if (!order) return fail(ERR.BAD_REQUEST, 'Orden de control inválida');
+      const given = Buffer.from(typeof msg.key === 'string' ? msg.key : '');
+      const expected = Buffer.from(ctl.key);
+      const hasKey = given.length === expected.length && crypto.timingSafeEqual(given, expected);
+      // Sin clave, solo quien recibió permiso del anfitrión, y solo para pasar diapositivas.
+      const granted = client.room.grants.has(client.id) && GRANTED_ACTIONS.includes(order.action);
+      if (!hasKey && !granted) {
+        return fail(ERR.CONTROL_DENIED, msg.key ? 'Clave de control incorrecta: vuelve a escanear el QR de control' : 'No tienes permiso para controlar la presentación');
+      }
       client.room.peers.get(ctl.id)?.send(JSON.stringify({ t: MSG.CONTROL, from: client.id, ...order }));
+    }
+
+    function requestControl() {
+      const ctl = client.room.controller;
+      if (!ctl) return fail(ERR.NO_CONTROLLER, 'El PC presentador no está conectado');
+      const now = Date.now();
+      if (now - client.lastControlRequest < 5000) return; // evita insistir en ráfaga
+      client.lastControlRequest = now;
+      client.room.peers
+        .get(ctl.id)
+        ?.send(JSON.stringify({ t: MSG.CONTROL_REQUEST, from: client.id, name: client.peer.name }));
+    }
+
+    function grantControl(msg) {
+      const room = client.room;
+      if (room.controller?.id !== client.id) return fail(ERR.CONTROL_DENIED, 'Solo el PC presentador da permisos');
+      const target = room.peers.get(msg.to);
+      if (!target) return;
+      if (msg.granted === true) room.grants.add(target.id);
+      else room.grants.delete(target.id);
+      target.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: room.grants.has(target.id) }));
+    }
+
+    /** Reenvía señalización WebRTC (ofertas, respuestas, candidatos) a un participante concreto. */
+    function relayRtc(msg) {
+      const target = client.room.peers.get(msg.to);
+      if (!target || target.id === client.id) return;
+      const data = JSON.stringify(msg.data ?? null);
+      if (data.length > MAX_RTC_CHARS) return fail(ERR.BAD_REQUEST, 'Señal WebRTC demasiado grande');
+      target.send(`{"t":"${MSG.RTC}","from":"${client.id}","data":${data}}`);
     }
 
     ws.on('close', () => {
@@ -158,6 +200,9 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       stopScreen();
       if (room.controller?.id === client.id) {
         room.controller = null;
+        // Sin presentador, los permisos dados dejan de valer.
+        for (const id of room.grants) room.peers.get(id)?.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: false }));
+        room.grants.clear();
         room.broadcast({ t: MSG.CONTROLLER, online: false }, client.id);
       }
       room.removePeer(client.id);

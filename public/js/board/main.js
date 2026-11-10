@@ -13,7 +13,16 @@ import { Sync } from '../net/sync.js';
 import { Presence } from '../ui/presence.js';
 import { TextEditor } from '../ui/textEditor.js';
 import { createStylePanel } from '../ui/stylePanel.js';
-import { askJoin, confirmDialog, fatalDialog, liveStartDialog, shareDialog } from '../ui/dialogs.js';
+import {
+  askJoin,
+  cameraHttpsDialog,
+  confirmDialog,
+  fatalDialog,
+  liveStartDialog,
+  shareDialog,
+} from '../ui/dialogs.js';
+import { CameraSender, CameraReceiver } from '../media/cameras.js';
+import { CameraBubbles } from '../ui/cameraBubbles.js';
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
@@ -441,6 +450,10 @@ exitImmersiveBtn.addEventListener('click', exitImmersive);
 const shareScreenItem = menuItem('screen', 'Transmitir mi pantalla', toggleHostShare);
 shareScreenItem.hidden = true;
 menu.insertBefore(shareScreenItem, menu.children[1]);
+let requestControl = () => {};
+const requestItem = menuItem('hand', 'Pedir pasar diapositivas', () => requestControl());
+requestItem.hidden = true;
+menu.insertBefore(requestItem, menu.children[1]);
 
 $('#room-code').textContent = room.toUpperCase();
 document.title = `Trazo · ${room.toUpperCase()}`;
@@ -534,7 +547,9 @@ async function start() {
   saveName(name);
   if (pin) savePin(room, pin);
 
-  const connection = new Connection({ room, getJoin: () => ({ name, pin }) });
+  // Quien proyecta (overlay o anfitrión) recibe las cámaras de los demás.
+  const isDisplay = OVERLAY || isHost;
+  const connection = new Connection({ room, getJoin: () => ({ name, pin, display: isDisplay }) });
   const presence = new Presence($('#presence'), { overlay, render });
   sync = new Sync({ scene, connection, presence, onScreen: showScreen });
 
@@ -584,6 +599,8 @@ async function start() {
     });
   }
 
+  setupCamerasAndControl({ connection, presence, isDisplay });
+
   let firstWelcome = true;
   connection.on('message', (msg) => {
     if (msg.t === 'welcome' && firstWelcome) {
@@ -626,6 +643,113 @@ async function start() {
   });
 
   connection.connect();
+}
+
+/**
+ * Cámaras (enviar la propia, o ver las de otros si se proyecta) y control de diapositivas
+ * con permiso del anfitrión.
+ */
+function setupCamerasAndControl({ connection, presence, isDisplay }) {
+  const getName = (id) => presence.peers.get(id)?.name ?? 'Invitado';
+
+  // ----- Recibir cámaras (overlay / anfitrión) -----
+  let receiver = null;
+  if (isDisplay) {
+    const bubbles = new CameraBubbles({ getName, onClose: (id) => receiver.close(id, true) });
+    receiver = new CameraReceiver({
+      connection,
+      onStream: (id, stream) => bubbles.show(id, stream),
+      onEnd: (id) => bubbles.remove(id),
+    });
+  }
+
+  // ----- Enviar mi cámara (participantes) -----
+  const camBtn = $('#cam-btn');
+  const selfView = $('#self-view');
+  const selfVideo = $('#self-video');
+  $('#cam-flip').innerHTML = ICONS.flip;
+  $('#cam-stop').innerHTML = ICONS.cameraOff;
+  const displays = () => [...presence.peers.values()].filter((p) => p.display).map((p) => p.id);
+  const camera = new CameraSender({
+    connection,
+    getDisplays: displays,
+    onState: (on) => {
+      camBtn.classList.toggle('on', on);
+      camBtn.title = on ? 'Apagar mi cámara' : 'Encender mi cámara';
+      camBtn.innerHTML = on ? ICONS.cameraOff : ICONS.camera;
+    },
+    onPreview: (stream) => {
+      selfView.hidden = !stream;
+      selfVideo.srcObject = stream;
+    },
+  });
+  camBtn.innerHTML = ICONS.camera;
+  camBtn.hidden = OVERLAY;
+  camBtn.addEventListener('click', async () => {
+    if (camera.active) return camera.stop();
+    if (!CameraSender.supported()) return cameraHttpsDialog(room);
+    try {
+      await camera.start();
+      toast(displays().length ? 'Tu cámara se ve en la presentación' : 'Cámara encendida: aparecerá cuando el anfitrión esté proyectando');
+    } catch (err) {
+      toast(err.name === 'NotAllowedError' ? 'Permiso de cámara denegado' : `No se pudo abrir la cámara: ${err.message}`);
+    }
+  });
+  $('#cam-flip').addEventListener('click', () => camera.switchCamera().catch((err) => toast(err.message)));
+  $('#cam-stop').addEventListener('click', () => camera.stop());
+
+  // ----- Control de diapositivas con permiso -----
+  let controllerOnline = false;
+  let granted = false;
+  const slidePad = $('#slide-pad');
+  const paintControl = () => {
+    requestItem.hidden = OVERLAY || !controllerOnline || granted;
+    slidePad.hidden = OVERLAY || !granted;
+  };
+  requestControl = () => {
+    connection.send({ t: 'control-request' });
+    toast('Solicitud enviada al anfitrión');
+  };
+  for (const btn of slidePad.querySelectorAll('[data-slide]')) {
+    btn.addEventListener('click', () => {
+      navigator.vibrate?.(10);
+      connection.send({ t: 'control', action: btn.dataset.slide, style: local.get('trazo:ctl:style', 'arrows') });
+    });
+  }
+
+  connection.on('message', (msg) => {
+    switch (msg.t) {
+      case 'welcome':
+        controllerOnline = msg.controller;
+        granted = false;
+        paintControl();
+        if (camera.active) {
+          for (const id of [...camera.pcs.keys()]) camera.disconnect(id);
+          for (const id of displays()) camera.connectTo(id);
+        }
+        break;
+      case 'controller':
+        controllerOnline = msg.online;
+        paintControl();
+        break;
+      case 'control-granted':
+        if (msg.granted !== granted) toast(msg.granted ? 'El anfitrión te dio control de las diapositivas' : 'Ya no tienes control de las diapositivas');
+        granted = msg.granted;
+        paintControl();
+        break;
+      case 'peer-join':
+        if (camera.active && msg.peer.display) camera.connectTo(msg.peer.id);
+        break;
+      case 'peer-leave':
+        camera.disconnect(msg.id);
+        receiver?.close(msg.id);
+        break;
+      case 'rtc':
+        if (camera.handles(msg.from) || !receiver) camera.handleSignal(msg.from, msg.data);
+        else receiver.handleSignal(msg.from, msg.data);
+        break;
+    }
+  });
 }
 
 start();

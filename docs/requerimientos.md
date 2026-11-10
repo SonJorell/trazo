@@ -44,6 +44,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-21 | *(v1.3)* Control remoto desde el celular: siguiente, anterior, inicio, fin, pantalla negra o blanca, iniciar y salir en el programa de presentación del PC. |
 | RF-22 | *(v1.3)* Lupa: ampliar desde el celular una zona de la pantalla del PC (tocar, pellizcar, arrastrar, quitar). |
 | RF-23 | *(v1.3)* Solo quien tenga el QR de control (con clave secreta) puede controlar el PC. |
+| RF-24 | *(v1.4)* Los participantes encienden su cámara (solo video) y aparece como burbuja en quien proyecta. |
+| RF-25 | *(v1.4)* Las burbujas se mueven, cambian de tamaño y se quitan; el participante puede cambiar de cámara. |
+| RF-26 | *(v1.4)* Un participante pide pasar diapositivas; el anfitrión aprueba, rechaza o quita el permiso. |
+| RF-27 | *(v1.4)* HTTPS local con certificado autogenerado para permitir la cámara en celulares. |
 
 ## 4. Reglas de negocio
 
@@ -57,6 +61,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 - RN-07: Una sala se cierra cuando lleva vacía el plazo configurado; tras reiniciar el servidor se
   concede ese mismo plazo de gracia para que la gente se reconecte.
 - RN-08: Una sala cerrada no se puede recuperar: su archivo se borra.
+- RN-10: Con permiso del anfitrión, un participante solo puede siguiente/anterior/inicio/fin/negro/
+  blanco; la lupa y la transmisión siguen reservadas al QR de control.
+- RN-11: Las cámaras se envían solo a quien proyecta (`display`), nunca a todos los participantes.
 - RN-09: El control remoto exige la clave del PC presentador; el servidor la compara en tiempo
   constante, no la guarda en disco y nunca la reenvía. Las órdenes son de una lista blanca y se
   entregan solo al PC registrado.
@@ -114,8 +121,16 @@ y el linter pasa.
 | T-20 | Teclas en Windows | `keys.ps1` persistente con lista blanca de teclas | Terminado |
 | T-21 | Lupa de Trazo | Ampliación con captura en vivo y marcas alineadas | Terminado |
 | T-22 | Página de control móvil | `/control`: botones, deslizar, teclas, lupa con vista previa | Terminado |
+| T-23 | HTTPS local | Certificado autogenerado con IPs de la red, puerto 3443, prueba de integración | Terminado |
+| T-24 | Señalización WebRTC | Mensajes `rtc` dirigidos con prueba | Terminado |
+| T-25 | Cámaras en el cliente | Emisor/receptor, burbujas, vista previa, cambio de cámara | Terminado |
+| T-26 | Permiso de diapositivas | Pedir/permitir/quitar con prueba y botones ‹ › | Terminado |
 
 ## 9. Backlog — Trabajo futuro
+
+- Varios proyectores en una sala (hoy el último overlay registrado recibe el control).
+- Audio opcional en las cámaras y silenciar por participante.
+- Compartir la pantalla del celular (requiere app nativa o scrcpy en Android).
 
 - Overlay en varios monitores (hoy cubre el monitor principal).
 - Marcas que se desvanecen solas (modo puntero láser).

@@ -3,6 +3,7 @@ import { h } from '../ui/dom.js';
 import { api } from '../util/api.js';
 import { local } from '../util/storage.js';
 import { toast } from '../ui/toast.js';
+import { grantDialog, permissionsDialog } from '../ui/dialogs.js';
 
 const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
@@ -24,9 +25,30 @@ function controlKey(room) {
  */
 export function setupRemoteControl({ room, connection, bridge, magnifier, sharer }) {
   const key = controlKey(room);
+  const grants = new Map(); // id → nombre de quienes pueden pasar diapositivas
+
+  const setGrant = (id, granted) => {
+    connection.send({ t: MSG.CONTROL_GRANT, to: id, granted });
+    if (!granted) grants.delete(id);
+  };
 
   connection.on('message', async (msg) => {
-    if (msg.t === MSG.WELCOME) connection.send({ t: MSG.CONTROL_REGISTER, key });
+    if (msg.t === MSG.WELCOME) {
+      connection.send({ t: MSG.CONTROL_REGISTER, key });
+      grants.clear(); // tras reconectar, el servidor ya no recuerda los permisos
+    }
+    if (msg.t === MSG.PEER_LEAVE) grants.delete(msg.id);
+    if (msg.t === MSG.CONTROL_REQUEST) {
+      if (grants.has(msg.from)) return;
+      const ok = await grantDialog(msg.name);
+      if (ok) {
+        grants.set(msg.from, msg.name);
+        setGrant(msg.from, true);
+        toast(`${msg.name} puede pasar las diapositivas`);
+      } else {
+        setGrant(msg.from, false);
+      }
+    }
     if (msg.t !== MSG.CONTROL) return;
     try {
       switch (msg.action) {
@@ -82,5 +104,7 @@ export function setupRemoteControl({ room, connection, bridge, magnifier, sharer
     document.body.append(backdrop);
   }
 
-  return { showControlQr };
+  const showPermissions = () => permissionsDialog(grants, (id) => setGrant(id, false));
+
+  return { showControlQr, showPermissions };
 }

@@ -47,6 +47,8 @@ let sharing = false;
 let room = null;
 
 if (!app.requestSingleInstanceLock()) app.quit();
+// Cámaras por WebRTC en la red local: usar IPs reales en vez de nombres mDNS ocultos.
+app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns');
 
 // ---------- Teclas para el programa de presentación ----------
 // [código virtual de Windows, ¿tecla extendida?]
@@ -113,9 +115,16 @@ async function ensureServer() {
   if (await serverIsUp()) return;
   const { loadConfig } = await import('../server/config.js');
   const { createApp } = await import('../server/app.js');
-  embedded = await createApp(loadConfig({ port: PORT }));
+  const config = loadConfig({ port: PORT });
+  embedded = await createApp(config);
   await embedded.listen();
   console.log(`Servidor de Trazo iniciado en ${BASE}`);
+  try {
+    await embedded.listenSecure();
+    console.log(`HTTPS local (cámaras del celular) en el puerto ${config.httpsPort}`);
+  } catch (err) {
+    console.warn('HTTPS no disponible:', err.message);
+  }
 }
 
 // ---------- Sala ----------

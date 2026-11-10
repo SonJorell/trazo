@@ -45,6 +45,8 @@ function readJson(req) {
  */
 export function createApiHandler({ rooms, config }) {
   const lanUrls = () => getLanAddresses().map((ip) => `http://${ip}:${config.port}`);
+  const secureUrls = () =>
+    config.httpsPort ? getLanAddresses().map((ip) => `https://${ip}:${config.httpsPort}`) : [];
 
   return async function handleApi(req, res, url) {
     const { pathname } = url;
@@ -55,6 +57,7 @@ export function createApiHandler({ rooms, config }) {
         sendJson(res, 200, {
           port: config.port,
           lanUrls: lanUrls(),
+          secureUrls: secureUrls(),
           emptyRoomTtlMin: Math.round(config.emptyRoomTtlMs / 60_000),
         });
         return true;
@@ -78,7 +81,13 @@ export function createApiHandler({ rooms, config }) {
       if (req.method === 'GET' && pathname === '/api/qr.svg') {
         const text = url.searchParams.get('text') ?? '';
         const host = req.headers.host ?? '';
-        const allowed = [...lanUrls(), `http://${host}`, `http://localhost:${config.port}`];
+        const allowed = [
+          ...lanUrls(),
+          ...secureUrls(),
+          `http://${host}`,
+          `https://${host}`,
+          `http://localhost:${config.port}`,
+        ];
         if (!allowed.some((u) => text.startsWith(`${u}/`) || text === u) || text.length > 300) {
           sendJson(res, 400, { error: 'Solo se generan QR de enlaces de este servidor' });
           return true;

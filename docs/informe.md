@@ -84,6 +84,18 @@ desde el PC y el celular en la misma red.
 | Cierre automático (plazo de prueba: 1 min) | Sala vacía → 404 a los ~70 s y su archivo se borró; la sala con gente siguió abierta |
 | Defecto encontrado en uso real | `ENOENT` al guardar la misma sala dos veces a la vez → corregido con una cola por sala |
 
+### Versiones 1.3 y 1.4 — Control remoto, cámaras y permisos
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 32/32 (nuevas: canal de control con clave, señalización `rtc` dirigida, pedir/permitir/usar/quitar control, HTTPS + WSS con certificado propio) |
+| Arranque en Windows | Certificado generado para `localhost, 127.0.0.1, 192.168.1.117`; consola muestra «Con cámara: https://192.168.1.117:3443» |
+| Cámara simulada (lienzo animado) → proyector | La burbuja «Ana celular» mostró el video en vivo por WebRTC |
+| Pedir control | El proyector mostró «Ana celular quiere pasar las diapositivas»; tras Permitir, el participante vio ‹ › y «Siguiente» llegó al proyector |
+| Quitar control | El participante recibió «Ya no tienes control» y desaparecieron los botones |
+| Página `/control` en 375×812 | Botones grandes, teclas, lupa con recuadro |
+| Pendiente | Probar teclas reales en PowerPoint/Slides y la lupa con la app de overlay, y la cámara real del celular sobre HTTPS |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

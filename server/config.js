@@ -11,6 +11,8 @@ export function loadConfig(overrides = {}) {
   const env = process.env;
   return {
     port: Number(env.PORT ?? 3080),
+    // HTTPS local (necesario para la cámara en celulares). 0 lo desactiva.
+    httpsPort: Number(env.HTTPS_PORT ?? 3443),
     host: env.HOST ?? '0.0.0.0',
     dataDir: path.resolve(ROOT, env.DATA_DIR ?? 'data'),
     publicDir: path.join(ROOT, 'public'),
