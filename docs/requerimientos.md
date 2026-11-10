@@ -49,6 +49,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-26 | *(v1.4)* Un participante pide pasar diapositivas; el anfitrión aprueba, rechaza o quita el permiso. |
 | RF-27 | *(v1.4)* HTTPS local con certificado autogenerado para permitir la cámara en celulares. |
 | RF-28 | *(v1.4)* Una sola presentación principal por sala: la de quien la creó (clave de anfitrión). |
+| RF-29 | *(v1.5)* Pinceles lápiz, marcador, resaltador y neón; colores neón; líneas discontinua/punteada; opacidad. |
+| RF-30 | *(v1.5)* Puntero láser efímero compartido. |
+| RF-31 | *(v1.5)* Reacciones con emojis visibles para todos. |
+| RF-32 | *(v1.5)* Borrar solo mis trazos; auto-limpiar marcas al pasar de diapositiva. |
 
 ## 4. Reglas de negocio
 
