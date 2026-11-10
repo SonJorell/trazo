@@ -20,19 +20,35 @@
           <span id="status" class="status" data-state="connecting" title="Conectando…"></span>
           <span id="room-code"></span>
         </span>
+        <span id="host-chip" class="host-chip" title="Esta ventana es la presentación principal: recibe las cámaras y el control de diapositivas" hidden>★ Principal</span>
         <button id="screen-badge" class="live-badge" title="Encajar la pantalla compartida" hidden>
           <span class="dot"></span> <span class="label">Pantalla en vivo</span>
         </button>
+        <button id="follow-btn" class="btn small follow-btn" title="Volver a seguir lo que muestra el presentador" hidden></button>
         <button id="fullscreen-btn" class="icon-btn" title="Ver a pantalla completa" aria-label="Ver a pantalla completa" hidden></button>
       </div>
       <div class="cluster">
         <div id="presence" class="presence" aria-label="Participantes"></div>
+        <button id="react-btn" class="icon-btn" title="Reaccionar" aria-label="Reaccionar"></button>
+        <button id="cam-btn" class="icon-btn" title="Encender mi cámara" aria-label="Encender mi cámara" hidden></button>
         <button id="share-btn" class="btn primary small" title="Invitar desde el celular u otro equipo">Compartir</button>
       </div>
     </header>
 
     <button id="exit-immersive" class="icon-btn exit-immersive" title="Salir de pantalla completa" aria-label="Salir de pantalla completa"></button>
     <nav id="toolbar" class="toolbar" aria-label="Herramientas"></nav>
+    <div id="self-view" class="self-view" hidden>
+      <video id="self-video" autoplay playsinline muted></video>
+      <div class="self-actions">
+        <button id="cam-flip" class="icon-btn" title="Cambiar de cámara" aria-label="Cambiar de cámara"></button>
+        <button id="cam-stop" class="icon-btn danger" title="Apagar mi cámara" aria-label="Apagar mi cámara"></button>
+      </div>
+    </div>
+    <div id="slide-pad" class="slide-pad" hidden>
+      <button class="slide-btn" data-slide="prev" aria-label="Diapositiva anterior">‹</button>
+      <span>Diapositivas</span>
+      <button class="slide-btn" data-slide="next" aria-label="Diapositiva siguiente">›</button>
+    </div>
     <aside id="style-panel" class="style-panel" aria-label="Estilo"></aside>
 
     <footer class="bottombar">

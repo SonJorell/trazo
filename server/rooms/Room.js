@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { sanitizeElement, shouldReplace, LIMITS } from '../../shared/elements.js';
 
 const PEER_COLORS = ['#e03131', '#1971c2', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#e8590c', '#5c940d'];
@@ -16,6 +17,7 @@ export class Room {
     this.createdAt = data.createdAt ?? Date.now();
     this.pin = data.pin ?? null; // { salt, hash } o null
     this.mode = data.mode === 'live' ? 'live' : 'blank';
+    this.hostKeyHash = typeof data.hostKey === 'string' ? data.hostKey : null; // sha256 de la clave de anfitrión
     this.lastActiveAt = data.lastActiveAt ?? this.createdAt; // última entrada o salida de alguien
     this.elements = new Map();
     for (const raw of data.elements ?? []) {
@@ -24,6 +26,13 @@ export class Room {
     }
     this.peers = new Map(); // id -> { id, name, color, send }
     this.screen = null; // { from, w, h, data } — pantalla compartida en vivo (no se guarda en disco)
+    this.controller = null; // { id, key } — PC que acepta control remoto (la clave solo vive en memoria)
+    this.grants = new Set(); // participantes a los que el anfitrión dejó pasar diapositivas
+    this.grantAll = false; // el anfitrión permitió a todos pasar diapositivas
+    this.page = Number.isInteger(data.page) ? data.page : 0; // página/diapositiva visible
+    this.view = null; // zona que muestra el anfitrión { x, y, w, h }
+    this.timer = null; // { endsAt }
+    this.poll = null; // { id, question, options, votes: Map(peerId → índice), open }
     this.onChange = hooks.onChange ?? (() => {});
     this._colorIndex = 0;
   }
@@ -37,9 +46,17 @@ export class Room {
     return [...this.elements.values()];
   }
 
-  addPeer({ id, name, send }) {
+  /** ¿Esta clave es la del anfitrión? (comparación en tiempo constante) */
+  isHostKey(key) {
+    if (!this.hostKeyHash || typeof key !== 'string' || !key) return false;
+    const given = Buffer.from(crypto.createHash('sha256').update(key).digest('hex'));
+    const expected = Buffer.from(this.hostKeyHash);
+    return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+  }
+
+  addPeer({ id, name, send, display = false, host = false }) {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
-    const peer = { id, name, color, send };
+    const peer = { id, name, color, send, display, host };
     this.peers.set(id, peer);
     this.lastActiveAt = Date.now();
     return peer;
@@ -47,6 +64,8 @@ export class Room {
 
   removePeer(id) {
     const removed = this.peers.delete(id);
+    this.grants.delete(id);
+    this.poll?.votes.delete(id);
     if (removed) this.lastActiveAt = Date.now();
     return removed;
   }
@@ -60,7 +79,7 @@ export class Room {
   }
 
   publicPeers() {
-    return [...this.peers.values()].map(({ id, name, color }) => ({ id, name, color }));
+    return [...this.peers.values()].map(({ id, name, color, display, host }) => ({ id, name, color, display, host }));
   }
 
   /**
@@ -104,6 +123,20 @@ export class Room {
     }
   }
 
+  /** ¿Puede este participante pasar diapositivas / cambiar de página? */
+  canSteer(peer) {
+    return Boolean(peer?.host || this.grantAll || this.grants.has(peer?.id));
+  }
+
+  /** Estado público de la votación (sin saber quién votó qué). */
+  publicPoll() {
+    if (!this.poll) return null;
+    const counts = this.poll.options.map(() => 0);
+    for (const i of this.poll.votes.values()) counts[i]++;
+    const { id, question, options, open } = this.poll;
+    return { id, question, options, open, counts, total: this.poll.votes.size };
+  }
+
   /** Guarda el último cuadro de la pantalla compartida por `from`. */
   setScreen(from, frame) {
     this.screen = { from, ...frame };
@@ -122,6 +155,8 @@ export class Room {
       createdAt: this.createdAt,
       lastActiveAt: this.lastActiveAt,
       mode: this.mode,
+      page: this.page,
+      hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),
     };

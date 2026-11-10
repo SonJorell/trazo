@@ -10,7 +10,12 @@
  *   Ctrl+Shift+X  limpiar marcas
  *   Ctrl+Shift+S  transmitir / detener pantalla
  *   Ctrl+Shift+H  ocultar / mostrar
+ *   Ctrl+Shift+0  quitar la lupa
  *   Ctrl+Shift+Q  salir
+ *
+ * Control remoto: el celular manda órdenes (diapositivas) que aquí se convierten en teclas
+ * mediante un proceso PowerShell persistente (`keys.ps1`). Solo se aceptan las teclas de
+ * la lista blanca `KEYMAP`; nunca texto arbitrario.
  */
 import {
   app,
@@ -24,6 +29,7 @@ import {
   screen,
   session,
 } from 'electron';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,8 +45,62 @@ let embedded = null;
 let mode = 'pass';
 let sharing = false;
 let room = null;
+let hostKey = null; // clave de anfitrión de la sala: hace de esta ventana la presentación principal
 
 if (!app.requestSingleInstanceLock()) app.quit();
+// Cámaras por WebRTC en la red local: usar IPs reales en vez de nombres mDNS ocultos.
+app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns');
+
+// ---------- Teclas para el programa de presentación ----------
+// [código virtual de Windows, ¿tecla extendida?]
+const VK = {
+  right: [0x27, 1],
+  left: [0x25, 1],
+  pageDown: [0x22, 1],
+  pageUp: [0x21, 1],
+  home: [0x24, 1],
+  end: [0x23, 1],
+  space: [0x20, 0],
+  backspace: [0x08, 0],
+  b: [0x42, 0],
+  w: [0x57, 0],
+  f5: [0x74, 0],
+  esc: [0x1b, 0],
+};
+const KEYMAP = {
+  next: { arrows: VK.right, pages: VK.pageDown, space: VK.space },
+  prev: { arrows: VK.left, pages: VK.pageUp, space: VK.backspace },
+  first: VK.home,
+  last: VK.end,
+  black: VK.b,
+  white: VK.w,
+  start: VK.f5,
+  end: VK.esc,
+};
+
+let keyHelper = null;
+function startKeyHelper() {
+  if (process.platform !== 'win32') return;
+  keyHelper = spawn(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(HERE, 'keys.ps1')],
+    { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
+  );
+  keyHelper.on('exit', () => (keyHelper = null));
+  keyHelper.stderr.on('data', (d) => console.error('keys.ps1:', d.toString().trim()));
+}
+
+function pressKey(action, style = 'arrows') {
+  const entry = KEYMAP[action];
+  const key = Array.isArray(entry) ? entry : entry?.[style] ?? entry?.arrows;
+  if (!key) return false;
+  if (!keyHelper) startKeyHelper();
+  if (!keyHelper) return false;
+  // Si la ventana de Trazo tiene el foco (modo dibujar), se lo devolvemos a la presentación.
+  if (win?.isFocused()) win.blur();
+  keyHelper.stdin.write(`${key[0]} ${key[1]}\n`);
+  return true;
+}
 
 // ---------- Servidor ----------
 async function serverIsUp() {
@@ -56,9 +116,16 @@ async function ensureServer() {
   if (await serverIsUp()) return;
   const { loadConfig } = await import('../server/config.js');
   const { createApp } = await import('../server/app.js');
-  embedded = await createApp(loadConfig({ port: PORT }));
+  const config = loadConfig({ port: PORT });
+  embedded = await createApp(config);
   await embedded.listen();
   console.log(`Servidor de Trazo iniciado en ${BASE}`);
+  try {
+    await embedded.listenSecure();
+    console.log(`HTTPS local (cámaras del celular) en el puerto ${config.httpsPort}`);
+  } catch (err) {
+    console.warn('HTTPS no disponible:', err.message);
+  }
 }
 
 // ---------- Sala ----------
@@ -85,19 +152,24 @@ async function createRoom() {
     body: JSON.stringify({ mode: 'live' }),
   });
   if (!res.ok) throw new Error(`No se pudo crear la sala (${res.status})`);
-  return (await res.json()).id;
+  const data = await res.json();
+  return { room: data.id, hostKey: data.hostKey };
 }
 
-/** Reutiliza la última sala del overlay si sigue existiendo; si no, crea una. */
+/**
+ * Reutiliza la última sala del overlay si sigue abierta (y tenemos su clave de anfitrión);
+ * si no, crea una nueva. Siempre devuelve { room, hostKey }.
+ */
 async function resolveRoom(forceNew = false) {
-  const argRoom = process.argv.find((a) => a.startsWith('--room='))?.slice(7);
-  const candidate = forceNew ? null : (argRoom ?? readState().room);
-  if (candidate) {
-    const res = await fetch(`${BASE}/api/rooms/${encodeURIComponent(candidate)}`).catch(() => null);
-    if (res?.ok) return candidate;
+  const saved = readState();
+  if (!forceNew && saved.room && saved.hostKey) {
+    const res = await fetch(`${BASE}/api/rooms/${encodeURIComponent(saved.room)}`).catch(() => null);
+    if (res?.ok) return { room: saved.room, hostKey: saved.hostKey };
   }
   return createRoom();
 }
+
+const roomUrl = () => `${BASE}/sala?room=${room}&overlay=1#host=${hostKey}`;
 
 // ---------- Ventana ----------
 function createWindow() {
@@ -143,11 +215,12 @@ function createWindow() {
 
   // Solo se permite navegar dentro de Trazo.
   win.webContents.on('will-navigate', (e, url) => {
+    // Solo se permite navegar dentro de Trazo.
     if (!url.startsWith(BASE)) e.preventDefault();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
-  win.loadURL(`${BASE}/sala?room=${room}&overlay=1`);
+  win.loadURL(roomUrl());
   win.once('ready-to-show', () => win.showInactive());
   win.on('closed', () => (win = null));
 }
@@ -179,9 +252,9 @@ function toggleVisible() {
 const command = (cmd) => win?.webContents.send('overlay:command', cmd);
 
 async function newRoom() {
-  room = await resolveRoom(true);
-  writeState({ room });
-  win?.loadURL(`${BASE}/sala?room=${room}&overlay=1`);
+  ({ room, hostKey } = await resolveRoom(true));
+  writeState({ room, hostKey });
+  win?.loadURL(roomUrl());
   refreshTray();
 }
 
@@ -198,6 +271,8 @@ function refreshTray() {
       { type: 'separator' },
       { label: 'Transmitir pantalla a la sala', type: 'checkbox', checked: sharing, accelerator: 'Ctrl+Shift+S', click: () => command('share-toggle') },
       { label: 'Invitar (mostrar QR)', click: () => (setMode('draw'), command('invite')) },
+      { label: 'Control remoto (QR para el celular)', click: () => (setMode('draw'), command('remote')) },
+      { label: 'Quitar zoom', accelerator: 'Ctrl+Shift+0', click: () => command('zoom-reset') },
       { label: 'Limpiar marcas', accelerator: 'Ctrl+Shift+X', click: () => command('clear') },
       { label: 'Nueva sala', click: () => newRoom().catch((err) => console.error(err)) },
       { type: 'separator' },
@@ -224,6 +299,7 @@ ipcMain.on('overlay:sharing', (_e, on) => {
   refreshTray();
 });
 ipcMain.on('overlay:hide', toggleVisible);
+ipcMain.handle('overlay:key', (_e, action, style) => pressKey(String(action), String(style)));
 ipcMain.on('overlay:quit', () => app.quit());
 
 // ---------- Ciclo de vida ----------
@@ -232,13 +308,14 @@ app.on('second-instance', () => setMode('draw'));
 app.whenReady().then(async () => {
   try {
     await ensureServer();
-    room = await resolveRoom();
-    writeState({ room });
+    ({ room, hostKey } = await resolveRoom());
+    writeState({ room, hostKey });
   } catch (err) {
     console.error('No se pudo iniciar Trazo:', err);
     app.quit();
     return;
   }
+  startKeyHelper();
   createWindow();
   setMode('pass'); // arranca dejando pasar los clics hasta que el usuario pida dibujar
   createTray();
@@ -248,6 +325,7 @@ app.whenReady().then(async () => {
     'CommandOrControl+Shift+X': () => command('clear'),
     'CommandOrControl+Shift+S': () => command('share-toggle'),
     'CommandOrControl+Shift+H': toggleVisible,
+    'CommandOrControl+Shift+0': () => command('zoom-reset'),
     'CommandOrControl+Shift+Q': () => app.quit(),
   };
   for (const [accel, fn] of Object.entries(shortcuts)) {
@@ -265,6 +343,9 @@ app.on('before-quit', (e) => {
   embedded.close().finally(() => app.quit());
 });
 
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  keyHelper?.kill();
+});
 
 app.on('window-all-closed', () => app.quit());

@@ -3,7 +3,17 @@
  * Compartido por el servidor (Node) y el cliente (navegador): no usar APIs específicas de ninguno.
  */
 
-export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text']);
+export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note']);
+export const MAX_PAGE = 999;
+
+/** Pinceles: cambian cómo se dibuja el trazo (grosor efectivo, transparencia, brillo). */
+export const BRUSHES = Object.freeze(['pen', 'marker', 'highlighter', 'neon']);
+/** Multiplicador de grosor de cada pincel (también para detectar clics sobre el trazo). */
+export const BRUSH_WIDTH = Object.freeze({ pen: 1, marker: 2.5, highlighter: 5, neon: 1.6 });
+export const DASHES = Object.freeze(['solid', 'dashed', 'dotted']);
+
+/** Grosor efectivo de un elemento según su pincel. */
+export const effectiveWidth = (el) => (el.strokeWidth || 0) * (BRUSH_WIDTH[el.brush] ?? 1);
 
 export const LIMITS = Object.freeze({
   maxPoints: 5000,
@@ -17,6 +27,7 @@ export const LIMITS = Object.freeze({
 
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const ID_RE = /^[A-Za-z0-9_-]{4,40}$/;
+const AUTHOR_RE = /^[A-Za-z0-9_-]{4,40}$/;
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
@@ -55,7 +66,12 @@ export function sanitizeElement(raw) {
     stroke: COLOR_RE.test(raw.stroke) ? raw.stroke : '#1e1e1e',
     fill: raw.fill === 'transparent' || COLOR_RE.test(raw.fill) ? raw.fill : 'transparent',
     strokeWidth: clamp(isNum(raw.strokeWidth) ? raw.strokeWidth : 2, 1, LIMITS.maxStrokeWidth),
+    brush: BRUSHES.includes(raw.brush) ? raw.brush : 'pen',
+    dash: DASHES.includes(raw.dash) ? raw.dash : 'solid',
+    opacity: clamp(isNum(raw.opacity) ? raw.opacity : 1, 0.05, 1),
+    page: Number.isInteger(raw.page) ? clamp(raw.page, 0, MAX_PAGE) : 0,
   };
+  if (typeof raw.author === 'string' && AUTHOR_RE.test(raw.author)) el.author = raw.author;
 
   if (el.type === 'rect' || el.type === 'ellipse') {
     el.w = coord(raw.w);
@@ -70,6 +86,14 @@ export function sanitizeElement(raw) {
     }
     if (pts.length === 0) return null;
     el.points = pts;
+  }
+
+  if (el.type === 'note') {
+    el.text = typeof raw.text === 'string' ? raw.text.slice(0, LIMITS.maxText) : '';
+    el.fontSize = clamp(isNum(raw.fontSize) ? raw.fontSize : 20, LIMITS.minFontSize, LIMITS.maxFontSize);
+    el.w = clamp(Math.abs(coord(raw.w)) || 200, 60, 2000);
+    el.h = clamp(Math.abs(coord(raw.h)) || 160, 40, 2000);
+    if (el.fill === 'transparent') el.fill = '#ffec99';
   }
 
   if (el.type === 'text') {
@@ -109,6 +133,9 @@ export function createElement(type, props) {
     stroke: '#1e1e1e',
     fill: 'transparent',
     strokeWidth: 2,
+    brush: 'pen',
+    dash: 'solid',
+    opacity: 1,
     x: 0,
     y: 0,
     ...props,

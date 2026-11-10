@@ -11,6 +11,30 @@ export class Scene extends Emitter {
     super();
     this.map = new Map();
     this._alive = null;
+    this.page = 0; // página/diapositiva visible
+  }
+
+  /** Cambia la página visible: solo se muestran (y se tocan) los elementos de esa página. */
+  setPage(n) {
+    if (n === this.page) return;
+    this.page = n;
+    this._alive = null;
+    this.emit('change');
+    this.emit('page', n);
+  }
+
+  /** Todos los elementos visibles de todas las páginas (para exportar). */
+  allAlive() {
+    return [...this.map.values()]
+      .filter((el) => !el.isDeleted)
+      .sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : 1));
+  }
+
+  /** Cantidad de páginas usadas (al menos hasta la actual). */
+  pageCount() {
+    let max = this.page;
+    for (const el of this.map.values()) if (!el.isDeleted && (el.page ?? 0) > max) max = el.page;
+    return max + 1;
   }
 
   get(id) {
@@ -25,7 +49,7 @@ export class Scene extends Emitter {
   alive() {
     if (!this._alive) {
       this._alive = [...this.map.values()]
-        .filter((el) => !el.isDeleted)
+        .filter((el) => !el.isDeleted && (el.page ?? 0) === this.page)
         .sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : 1));
     }
     return this._alive;

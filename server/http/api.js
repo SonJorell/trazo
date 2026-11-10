@@ -39,12 +39,15 @@ function readJson(req) {
 /**
  * Rutas de la API:
  *   GET  /api/info           → URLs de la red local y puerto.
- *   POST /api/rooms          → crea sala { pin?, mode? } → { id, hasPin, mode }
+ *   POST /api/rooms          → crea sala { pin?, mode? } → { id, hasPin, mode, hostKey }
+ *                              (hostKey solo se entrega aquí: identifica al anfitrión)
  *   GET  /api/rooms/:id      → { id, hasPin, mode, live } o 404 (no existe o se cerró)
  *   GET  /api/qr.svg?text=   → código QR en SVG (solo para URLs de este servidor)
  */
 export function createApiHandler({ rooms, config }) {
   const lanUrls = () => getLanAddresses().map((ip) => `http://${ip}:${config.port}`);
+  const secureUrls = () =>
+    config.httpsPort ? getLanAddresses().map((ip) => `https://${ip}:${config.httpsPort}`) : [];
 
   return async function handleApi(req, res, url) {
     const { pathname } = url;
@@ -55,6 +58,7 @@ export function createApiHandler({ rooms, config }) {
         sendJson(res, 200, {
           port: config.port,
           lanUrls: lanUrls(),
+          secureUrls: secureUrls(),
           emptyRoomTtlMin: Math.round(config.emptyRoomTtlMs / 60_000),
         });
         return true;
@@ -63,7 +67,8 @@ export function createApiHandler({ rooms, config }) {
       if (req.method === 'POST' && pathname === '/api/rooms') {
         const body = await readJson(req);
         const room = await rooms.create({ pin: body.pin, mode: body.mode ?? 'blank' });
-        sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode });
+        sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode, hostKey: room.issuedHostKey });
+        delete room.issuedHostKey;
         return true;
       }
 
@@ -78,7 +83,13 @@ export function createApiHandler({ rooms, config }) {
       if (req.method === 'GET' && pathname === '/api/qr.svg') {
         const text = url.searchParams.get('text') ?? '';
         const host = req.headers.host ?? '';
-        const allowed = [...lanUrls(), `http://${host}`, `http://localhost:${config.port}`];
+        const allowed = [
+          ...lanUrls(),
+          ...secureUrls(),
+          `http://${host}`,
+          `https://${host}`,
+          `http://localhost:${config.port}`,
+        ];
         if (!allowed.some((u) => text.startsWith(`${u}/`) || text === u) || text.length > 300) {
           sendJson(res, 400, { error: 'Solo se generan QR de enlaces de este servidor' });
           return true;

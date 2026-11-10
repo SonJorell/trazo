@@ -54,10 +54,10 @@ export const saveName = (name) => local.set('trazo:name', name);
 export const savedPin = (room) => session.get(`trazo:pin:${room}`, null);
 export const savePin = (room, pin) => session.set(`trazo:pin:${room}`, pin);
 export const forgetPin = (room) => session.remove(`trazo:pin:${room}`);
-/** Este navegador creó la sala (es el anfitrión). */
-export const markHost = (room) => local.set(`trazo:host:${room}`, true);
-export const isHostOf = (room) => local.get(`trazo:host:${room}`, false) === true;
+/** Clave de anfitrión: la recibe quien crea la sala y lo convierte en la presentación principal. */
+export const saveHostKey = (room, key) => local.set(`trazo:hostkey:${room}`, key);
+export const hostKeyOf = (room) => local.get(`trazo:hostkey:${room}`, null);
 export const forgetRoom = (id) => {
   local.set(RECENT_KEY, recentRooms().filter((r) => r.id !== id));
-  local.remove(`trazo:host:${id}`);
+  local.remove(`trazo:hostkey:${id}`);
 };

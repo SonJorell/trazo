@@ -1,4 +1,7 @@
 import http from 'node:http';
+import https from 'node:https';
+import { ensureCertificate } from './tls/certificate.js';
+import { getLanAddresses } from './util/network.js';
 import { createStaticHandler } from './http/static.js';
 import { createApiHandler } from './http/api.js';
 import { attachSocketServer } from './realtime/socketServer.js';
@@ -29,12 +32,15 @@ export async function createApp(config, deps = {}) {
   const servePublic = createStaticHandler(config.publicDir, '/');
   const handleApi = createApiHandler({ rooms, config });
 
-  const server = http.createServer(async (req, res) => {
+  const handler = async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     try {
       if (await handleApi(req, res, url)) return;
       if (url.pathname === '/sala' || url.pathname === '/board') {
         if (servePublic(req, res, '/board.html')) return;
+      }
+      if (url.pathname === '/control') {
+        if (servePublic(req, res, '/control.html')) return;
       }
       if (serveShared(req, res, url.pathname)) return;
       if (servePublic(req, res, url.pathname)) return;
@@ -45,25 +51,46 @@ export async function createApp(config, deps = {}) {
       if (!res.headersSent) res.writeHead(500);
       res.end();
     }
-  });
+  };
 
+  const server = http.createServer(handler);
   const wss = attachSocketServer(server, { rooms, config, logger });
+  let secureServer = null;
+
+  const listenOn = (srv, port, host) =>
+    new Promise((resolve, reject) => {
+      srv.once('error', reject);
+      srv.listen(port, host, () => resolve(srv.address()));
+    });
 
   return {
     server,
     rooms,
+    get secureServer() {
+      return secureServer;
+    },
     listen(port = config.port, host = config.host) {
-      return new Promise((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(port, host, () => resolve(server.address()));
-      });
+      return listenOn(server, port, host);
+    },
+    /**
+     * Inicia el servidor HTTPS local (mismo contenido y misma sala que HTTP).
+     * Devuelve la dirección o null si está desactivado.
+     */
+    async listenSecure(port = config.httpsPort, host = config.host) {
+      if (!port && port !== 0) return null;
+      const tls = await ensureCertificate(config.dataDir, getLanAddresses(), logger);
+      secureServer = https.createServer({ key: tls.key, cert: tls.cert }, handler);
+      wss.attach(secureServer);
+      return listenOn(secureServer, port, host);
     },
     async close() {
       clearInterval(sweeper);
       for (const ws of wss.clients) ws.terminate();
       wss.close();
       await rooms.flush();
-      await new Promise((resolve) => server.close(resolve));
+      await Promise.all(
+        [server, secureServer].filter(Boolean).map((srv) => new Promise((resolve) => srv.close(resolve))),
+      );
     },
   };
 }

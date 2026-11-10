@@ -13,7 +13,21 @@ import { Sync } from '../net/sync.js';
 import { Presence } from '../ui/presence.js';
 import { TextEditor } from '../ui/textEditor.js';
 import { createStylePanel } from '../ui/stylePanel.js';
-import { askJoin, confirmDialog, fatalDialog, liveStartDialog, shareDialog } from '../ui/dialogs.js';
+import {
+  askJoin,
+  cameraHttpsDialog,
+  confirmDialog,
+  fatalDialog,
+  liveStartDialog,
+  shareDialog,
+} from '../ui/dialogs.js';
+import { CameraSender, CameraReceiver } from '../media/cameras.js';
+import { CameraBubbles } from '../ui/cameraBubbles.js';
+import { Reactions } from '../ui/reactions.js';
+import { LaserLayer } from '../render/laser.js';
+import { exportPdf } from '../render/exportPdf.js';
+import { NOTE_PADDING } from '../render/draw.js';
+import { setupSession } from '../session/session.js';
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
@@ -29,7 +43,8 @@ import {
   savePin,
   forgetPin,
   forgetRoom,
-  isHostOf,
+  saveHostKey,
+  hostKeyOf,
 } from '../util/storage.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -39,20 +54,51 @@ const room = parseRoomCode(params.get('room'));
 if (!room) location.replace('/');
 /** Modo «sobre la pantalla»: fondo transparente y vista fija 1:1 con la pantalla del PC. */
 const OVERLAY = params.get('overlay') === '1';
+// La app de overlay pasa la clave de anfitrión en el fragmento (#host=…), que no viaja al servidor.
+{
+  const fromHash = new URLSearchParams(location.hash.slice(1)).get('host');
+  if (fromHash && room) {
+    saveHostKey(room, fromHash);
+    window.history.replaceState(null, '', location.pathname + location.search);
+  }
+}
 const STYLE_KEY = OVERLAY ? 'trazo:style:overlay' : 'trazo:style';
 
 // ---------- Estado ----------
 const scene = new Scene();
 const history = new History(scene);
 const viewport = new Viewport();
-const overlay = { selection: new Set(), marquee: null, cursors: new Map(), editingId: null, screen: null };
+const overlay = {
+  selection: new Set(),
+  marquee: null,
+  cursors: new Map(),
+  editingId: null,
+  screen: null,
+  laser: new LaserLayer(),
+};
+let myColor = '#ff2d55'; // color del láser propio (el de cada participante, al conectar)
 const style = {
   stroke: OVERLAY ? '#e03131' : '#1e1e1e',
   fill: 'transparent',
   strokeWidth: OVERLAY ? 4 : 2,
   fontSize: 28,
+  brush: 'pen',
+  dash: 'solid',
+  opacity: 1,
+  stamp: '✓',
+  noteColor: '#ffec99',
   ...local.get(STYLE_KEY, {}),
 };
+
+/** Identificador estable de este navegador: marca los trazos propios («Borrar mis trazos»). */
+const AUTHOR_ID = (() => {
+  let id = local.get('trazo:author', null);
+  if (!id) {
+    id = createElement('pen', {}).id; // reutiliza el generador de ids aleatorios
+    local.set('trazo:author', id);
+  }
+  return id;
+})();
 
 const canvas = $('#board');
 const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: OVERLAY });
@@ -63,6 +109,8 @@ if (!OVERLAY) {
 }
 
 let roomHasPin = false;
+let steerGranted = false; // el anfitrión me dejó pasar diapositivas / cambiar de página
+let overlaySession = null;
 let sync = null;
 let spaceDown = false;
 
@@ -78,6 +126,22 @@ const ctx = {
     return overlay.selection;
   },
   begin: () => new Transaction(scene, history),
+  /** Puntero láser: estela local inmediata + envío a la sala. */
+  laser(p, end) {
+    overlay.laser.add('me', myColor, [[p.x, p.y]], end);
+    render();
+    sync?.sendLaser(p, end, myColor);
+  },
+  /** Propiedades de trazo actuales para crear un elemento nuevo. */
+  strokeProps: () => ({
+    stroke: style.stroke,
+    strokeWidth: style.strokeWidth,
+    brush: style.brush,
+    dash: style.dash,
+    opacity: style.opacity,
+    author: AUTHOR_ID,
+    page: scene.page,
+  }),
   render,
   tol: (px) => px / viewport.zoom,
   hit: (el, p, tol) => hitTest(el, p.x, p.y, tol),
@@ -92,7 +156,21 @@ const ctx = {
     onSelectionChange();
   },
   editText(el, p) {
-    if (el) {
+    if (el?.type === 'note') {
+      overlay.editingId = el.id;
+      textEditor.open({
+        id: el.id,
+        note: true,
+        x: el.x,
+        y: el.y,
+        width: el.w,
+        height: el.h,
+        padding: NOTE_PADDING,
+        text: el.text,
+        fontSize: el.fontSize,
+        color: el.stroke,
+      });
+    } else if (el) {
       overlay.editingId = el.id;
       textEditor.open({ id: el.id, x: el.x, y: el.y, text: el.text, fontSize: el.fontSize, color: el.stroke });
     } else {
@@ -106,15 +184,26 @@ const ctx = {
 // ---------- Texto ----------
 const textEditor = new TextEditor($('#editor-layer'), {
   viewport,
-  onCommit({ id, x, y, text, fontSize, color }) {
+  onCommit({ id, x, y, text, fontSize, color, note }) {
     overlay.editingId = null;
     const tx = ctx.begin();
-    if (id) {
+    if (note) {
+      if (scene.get(id) && scene.get(id).text !== text) tx.update(id, { text });
+    } else if (id) {
       if (!scene.get(id)) return render();
       if (!text) tx.update(id, { isDeleted: true });
       else tx.update(id, { text, ...measureText(text, fontSize) });
     } else if (text) {
-      const el = createElement('text', { x, y, text, fontSize, stroke: color, ...measureText(text, fontSize) });
+      const el = createElement('text', {
+        x,
+        y,
+        text,
+        fontSize,
+        ...ctx.strokeProps(),
+        stroke: color,
+        dash: 'solid',
+        ...measureText(text, fontSize),
+      });
       tx.add(el);
     }
     tx.commit();
@@ -168,12 +257,17 @@ const STYLE_TARGETS = {
   fill: (el) => el.type === 'rect' || el.type === 'ellipse',
   strokeWidth: (el) => el.type !== 'text',
   fontSize: (el) => el.type === 'text',
+  brush: () => true,
+  dash: (el) => el.type !== 'text',
+  opacity: () => true,
 };
 
 const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
   Object.assign(style, partial);
   local.set(STYLE_KEY, style);
   stylePanel.refresh();
+  if (partial.stamp) return setTool('stamp');
+  if (partial.noteColor) return setTool('note');
   if (!overlay.selection.size) return;
   const tx = ctx.begin();
   for (const id of overlay.selection) {
@@ -232,6 +326,17 @@ async function clearBoard({ ask = true } = {}) {
   ctx.select([]);
 }
 
+/** Borra solo lo que dibujó este navegador (deshacible). */
+function clearMine() {
+  const mine = scene.alive().filter((el) => el.author === AUTHOR_ID);
+  if (!mine.length) return toast('No tienes trazos en la pizarra');
+  const tx = ctx.begin();
+  for (const el of mine) tx.update(el.id, { isDeleted: true });
+  tx.commit();
+  ctx.select([]);
+  toast(`Se borraron ${mine.length} trazos tuyos (puedes deshacer)`);
+}
+
 async function doExport() {
   const ok = await exportPng(scene, `trazo-${room}.png`);
   if (!ok) toast('La pizarra está vacía');
@@ -283,6 +388,12 @@ menu.append(
   menuItem('home', 'Inicio', () => (location.href = '/')),
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
+  menuItem('pdf', 'Exportar PDF (todas las páginas)', async () => {
+    const ok = await exportPdf(scene, `trazo-${room}.pdf`);
+    if (!ok) toast('La pizarra está vacía');
+  }),
+  menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
+  menuItem('eraser', 'Borrar mis trazos', clearMine),
   menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
 );
 
@@ -294,7 +405,8 @@ let roomMode = 'blank';
 let hostSharer = null;
 let previewTimer = null;
 const hosting = () => Boolean(hostSharer?.active);
-const canShareScreen = !OVERLAY && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+const canShareScreen =
+  !OVERLAY && Boolean(hostKeyOf(room)) && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
 const isNarrow = () => window.matchMedia('(max-width: 760px)').matches;
 const isImmersive = () => document.body.classList.contains('immersive');
 
@@ -312,11 +424,25 @@ function screenBox() {
   return { x: 8, y: top, w: renderer.width - 16, h: renderer.height - top - bottom };
 }
 
-function fitScreen() {
+/** Zona que muestra el anfitrión (o la pantalla transmitida): lo que «seguir» encuadra. */
+let presenterView = null;
+function followTarget() {
+  if (presenterView) return presenterView;
   const s = overlay.screen;
-  if (!s) return;
-  viewport.fitInto({ x: 0, y: 0, w: s.w, h: s.h }, screenBox());
+  return s ? { x: 0, y: 0, w: s.w, h: s.h } : null;
+}
+
+function fitScreen() {
+  const target = followTarget();
+  if (!target) return;
+  viewport.fitInto(target, screenBox());
   afterViewChange();
+  paintFollow();
+}
+
+const followBtn = $('#follow-btn');
+function paintFollow() {
+  followBtn.hidden = OVERLAY || !followTarget() || followScreen;
 }
 
 function updateScreenUi() {
@@ -441,6 +567,30 @@ exitImmersiveBtn.addEventListener('click', exitImmersive);
 const shareScreenItem = menuItem('screen', 'Transmitir mi pantalla', toggleHostShare);
 shareScreenItem.hidden = true;
 menu.insertBefore(shareScreenItem, menu.children[1]);
+let requestControl = () => {};
+let session = null;
+const timerItem = menuItem('timer', 'Temporizador', () => session?.timerDialog());
+const pollItem = menuItem('poll', 'Votación rápida', () => session?.pollDialog());
+timerItem.hidden = true;
+pollItem.hidden = true;
+menu.insertBefore(pollItem, menu.children[1]);
+menu.insertBefore(timerItem, menu.children[1]);
+
+/** Modo simple: solo las herramientas esenciales para anotar desde el celular. */
+function setSimple(on) {
+  document.body.classList.toggle('simple', on);
+  local.set('trazo:simple', on);
+  if (on && !['pen', 'laser', 'eraser', 'note', 'stamp'].includes(tool.name)) setTool('pen');
+}
+
+followBtn.innerHTML = `${ICONS.follow}<span>Seguir</span>`;
+followBtn.addEventListener('click', () => {
+  followScreen = true;
+  fitScreen();
+});
+const requestItem = menuItem('hand', 'Pedir pasar diapositivas', () => requestControl());
+requestItem.hidden = true;
+menu.insertBefore(requestItem, menu.children[1]);
 
 $('#room-code').textContent = room.toUpperCase();
 document.title = `Trazo · ${room.toUpperCase()}`;
@@ -488,7 +638,12 @@ attachPointerInput(canvas, {
   onCursor: (p) => sync?.sendCursor(p),
   isSpaceDown: () => spaceDown,
   lockView: OVERLAY,
-  onUserView: () => (followScreen = false),
+  onUserView: () => {
+    if (followScreen) {
+      followScreen = false;
+      paintFollow();
+    }
+  },
 });
 
 const onResize = () => {
@@ -520,7 +675,8 @@ async function start() {
   }
   roomHasPin = info.hasPin;
   roomMode = info.mode ?? 'blank';
-  const isHost = isHostOf(room);
+  const hostKey = hostKeyOf(room);
+  const isHost = Boolean(hostKey);
   updateScreenUi();
   rememberRoom(room);
 
@@ -534,9 +690,41 @@ async function start() {
   saveName(name);
   if (pin) savePin(room, pin);
 
-  const connection = new Connection({ room, getJoin: () => ({ name, pin }) });
+  // Quien proyecta (overlay o anfitrión) recibe las cámaras de los demás.
+  const isDisplay = isHost;
+  const connection = new Connection({ room, getJoin: () => ({ name, pin, hostKey, display: isDisplay }) });
+  const hostChip = $('#host-chip');
+  connection.on('message', (msg) => {
+    if (msg.t !== 'welcome') return;
+    hostChip.hidden = !msg.you.host || OVERLAY;
+    if (OVERLAY && !msg.you.host) {
+      fatalDialog(
+        'Esta ventana no es la presentación principal de la sala. Ábrela con iniciar-overlay.bat en el PC del anfitrión, o únete como participante desde el QR.',
+      );
+    }
+  });
   const presence = new Presence($('#presence'), { overlay, render });
-  sync = new Sync({ scene, connection, presence, onScreen: showScreen });
+  sync = new Sync({
+    scene,
+    connection,
+    presence,
+    onScreen: showScreen,
+    onLaser: (msg) => {
+      overlay.laser.add(msg.from, msg.c, msg.pts, msg.end);
+      render();
+    },
+  });
+
+  // Reacciones (emojis que flotan para todos).
+  const reactions = new Reactions({
+    button: $('#react-btn'),
+    onSend: (e) => connection.send({ t: 'reaction', e }),
+  });
+  $('#react-btn').innerHTML = ICONS.smile;
+  connection.on('message', (msg) => {
+    if (msg.t === 'reaction') reactions.show(msg.e, msg.name);
+    if (msg.t === 'welcome') myColor = msg.you.color;
+  });
 
   if (canShareScreen) {
     hostSharer = new ScreenSharer({
@@ -572,11 +760,63 @@ async function start() {
     setupOverlay({
       room,
       sharer,
+      connection,
+      viewport,
+      overlayState: overlay,
+      render,
       actions: {
         clear: () => clearBoard({ ask: false }),
+        clearAll: () => clearBoard({ ask: false }),
+        goToPage: (n) => overlaySession?.goTo(n),
+        currentPage: () => scene.page,
+        timerDialog: () => overlaySession?.timerDialog(),
+        pollDialog: () => overlaySession?.pollDialog(),
         invite: () => shareDialog({ room, hasPin: roomHasPin }),
         commitText: () => textEditor.active && textEditor.commit(),
       },
+    });
+  }
+
+  setupCamerasAndControl({ connection, presence, isDisplay });
+
+  // Páginas, temporizador y votación.
+  session = setupSession({
+    connection,
+    scene,
+    canSteer: () => isHost || steerGranted,
+    isHost: () => isHost,
+  });
+  timerItem.hidden = !isHost;
+  pollItem.hidden = !isHost;
+  overlaySession = session;
+
+  // Modo simple por defecto en celulares de participantes (se puede cambiar en el menú).
+  const simplePref = local.get('trazo:simple', null);
+  setSimple(simplePref ?? (!isHost && isNarrow()));
+
+  // El anfitrión comparte qué zona está mostrando; los demás pueden seguirla.
+  if (isHost) {
+    let lastView = '';
+    setInterval(() => {
+      if (!connection.online) return;
+      const r = OVERLAY
+        ? viewport.visibleRect(window.innerWidth, window.innerHeight)
+        : viewport.visibleRect(renderer.width, renderer.height);
+      const view = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) };
+      const key = JSON.stringify(view);
+      if (key !== lastView) {
+        lastView = key;
+        connection.send({ t: 'view', ...view });
+      }
+    }, 300);
+    connection.on('message', (msg) => msg.t === 'welcome' && (lastView = ''));
+  } else {
+    connection.on('message', (msg) => {
+      if ((msg.t === 'welcome' && msg.view) || msg.t === 'view') {
+        presenterView = msg.t === 'view' ? { x: msg.x, y: msg.y, w: msg.w, h: msg.h } : msg.view;
+        if (followScreen) fitScreen();
+        else paintFollow();
+      }
     });
   }
 
@@ -622,6 +862,116 @@ async function start() {
   });
 
   connection.connect();
+}
+
+/**
+ * Cámaras (enviar la propia, o ver las de otros si se proyecta) y control de diapositivas
+ * con permiso del anfitrión.
+ */
+function setupCamerasAndControl({ connection, presence, isDisplay }) {
+  const getName = (id) => presence.peers.get(id)?.name ?? 'Invitado';
+
+  // ----- Recibir cámaras (overlay / anfitrión) -----
+  let receiver = null;
+  if (isDisplay) {
+    const bubbles = new CameraBubbles({ getName, onClose: (id) => receiver.close(id, true) });
+    receiver = new CameraReceiver({
+      connection,
+      onStream: (id, stream) => bubbles.show(id, stream),
+      onEnd: (id) => bubbles.remove(id),
+    });
+  }
+
+  // ----- Enviar mi cámara (participantes) -----
+  const camBtn = $('#cam-btn');
+  const selfView = $('#self-view');
+  const selfVideo = $('#self-video');
+  $('#cam-flip').innerHTML = ICONS.flip;
+  $('#cam-stop').innerHTML = ICONS.cameraOff;
+  const displays = () => [...presence.peers.values()].filter((p) => p.display).map((p) => p.id);
+  const camera = new CameraSender({
+    connection,
+    getDisplays: displays,
+    onState: (on) => {
+      camBtn.classList.toggle('on', on);
+      camBtn.title = on ? 'Apagar mi cámara' : 'Encender mi cámara';
+      camBtn.innerHTML = on ? ICONS.cameraOff : ICONS.camera;
+    },
+    onPreview: (stream) => {
+      selfView.hidden = !stream;
+      selfVideo.srcObject = stream;
+    },
+  });
+  camBtn.innerHTML = ICONS.camera;
+  camBtn.hidden = OVERLAY;
+  camBtn.addEventListener('click', async () => {
+    if (camera.active) return camera.stop();
+    if (!CameraSender.supported()) return cameraHttpsDialog(room);
+    try {
+      await camera.start();
+      toast(displays().length ? 'Tu cámara se ve en la presentación' : 'Cámara encendida: aparecerá cuando el anfitrión esté proyectando');
+    } catch (err) {
+      toast(err.name === 'NotAllowedError' ? 'Permiso de cámara denegado' : `No se pudo abrir la cámara: ${err.message}`);
+    }
+  });
+  $('#cam-flip').addEventListener('click', () => camera.switchCamera().catch((err) => toast(err.message)));
+  $('#cam-stop').addEventListener('click', () => camera.stop());
+
+  // ----- Control de diapositivas con permiso -----
+  let controllerOnline = false;
+  let granted = false;
+  const slidePad = $('#slide-pad');
+  const paintControl = () => {
+    requestItem.hidden = OVERLAY || !controllerOnline || granted;
+    slidePad.hidden = OVERLAY || !granted;
+  };
+  requestControl = () => {
+    connection.send({ t: 'control-request' });
+    toast('Solicitud enviada al anfitrión');
+  };
+  for (const btn of slidePad.querySelectorAll('[data-slide]')) {
+    btn.addEventListener('click', () => {
+      navigator.vibrate?.(10);
+      connection.send({ t: 'control', action: btn.dataset.slide, style: local.get('trazo:ctl:style', 'arrows') });
+    });
+  }
+
+  connection.on('message', (msg) => {
+    switch (msg.t) {
+      case 'welcome':
+        controllerOnline = msg.controller;
+        granted = Boolean(msg.canSteer) && !msg.you.host;
+        steerGranted = granted;
+        paintControl();
+        if (camera.active) {
+          for (const id of [...camera.pcs.keys()]) camera.disconnect(id);
+          for (const id of displays()) camera.connectTo(id);
+        }
+        break;
+      case 'controller':
+        controllerOnline = msg.online;
+        paintControl();
+        break;
+      case 'control-granted':
+        if (msg.granted !== granted) toast(msg.granted ? 'El anfitrión te dio control de las diapositivas' : 'Ya no tienes control de las diapositivas');
+        granted = msg.granted;
+        steerGranted = granted;
+        paintControl();
+        session?.paintPages();
+        break;
+      case 'peer-join':
+        if (camera.active && msg.peer.display) camera.connectTo(msg.peer.id);
+        break;
+      case 'peer-leave':
+        camera.disconnect(msg.id);
+        receiver?.close(msg.id);
+        break;
+      case 'rtc':
+        if (camera.handles(msg.from) || !receiver) camera.handleSignal(msg.from, msg.data);
+        else receiver.handleSignal(msg.from, msg.data);
+        break;
+    }
+  });
 }
 
 start();

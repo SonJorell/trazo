@@ -124,3 +124,133 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   único.
 - **Consecuencias**: no hay más choques. Una prueba lanza 20 guardados simultáneos y verifica el
   resultado.
+
+## ADR-016 — Control remoto: clave por sala y lista blanca de órdenes
+
+- **Contexto**: el celular debe poder pasar diapositivas en el PC, pero nadie más de la sala debe
+  poder manejarlo.
+- **Decisión**: el overlay genera una clave aleatoria de 24 caracteres por sala y la registra en el
+  servidor (`control-register`), que la guarda solo en memoria. El QR de control lleva la clave en
+  el fragmento (`#k=`), que el navegador no envía en las peticiones. Cada orden `control` se
+  compara con `timingSafeEqual` y se valida con `validateControl` (lista blanca y rangos). El
+  servidor la reenvía solo al PC registrado y sin la clave.
+- **Consecuencias**: un participante normal no puede mover diapositivas ni ver la clave. Si la
+  clave se filtra, basta con «Nueva sala».
+
+## ADR-017 — Teclas con un proceso PowerShell persistente
+
+- **Contexto**: Electron no puede simular teclas en otros programas, y los módulos nativos
+  (robotjs, nut.js) requieren compilación.
+- **Decisión**: al arrancar, el overlay lanza `powershell -File keys.ps1`, que compila un
+  envoltorio mínimo de `keybd_event` y lee de su entrada estándar líneas `«código» «extendida»`.
+  `main.js` traduce cada acción con un mapa fijo (`KEYMAP`), así que nunca se envía texto
+  arbitrario.
+- **Consecuencias**: no hay dependencias nativas y la latencia es baja, porque el proceso queda
+  abierto. Solo funciona en Windows, que es la plataforma objetivo.
+
+## ADR-018 — Lupa propia en lugar de la Lupa de Windows
+
+- **Decisión**: la lupa captura la pantalla en vivo y la dibuja como fondo de la capa (que está
+  excluida de la captura). Luego acerca la vista con una animación suave. Las marcas comparten
+  coordenadas con la pantalla, así que se amplían alineadas.
+- **Alternativa descartada**: la Lupa de Windows sigue al puntero y obligaría a mover el ratón
+  del usuario.
+- **Consecuencias**: el zoom funciona sobre cualquier programa sin tocar el ratón ni la
+  configuración del sistema. La captura se libera 15 s después de quitar la lupa.
+
+## ADR-019 — HTTPS local con certificado autogenerado
+
+- **Contexto**: los navegadores móviles solo permiten `getUserMedia` (cámara) en contextos
+  seguros, y `http://192.168.x.x` no lo es.
+- **Decisión**: al arrancar, el servidor genera (o reutiliza) un certificado autofirmado EC P-256
+  válido por 2 años, con SAN para `localhost`, `127.0.0.1` y las IP de la red. Sirve la misma app y
+  el mismo WebSocket también en `https://…:3443`. Se regenera si cambian las IP. El QR de
+  «Compartir» apunta a HTTPS.
+- **Alternativas descartadas**: mkcert (sin advertencias, pero hay que instalar una CA en cada
+  celular) y un túnel público (necesita internet y saca el tráfico de la red local).
+- **Consecuencias**: cada celular acepta una advertencia la primera vez. HTTP sigue disponible
+  para quien no necesita cámara.
+
+## ADR-020 — Cámaras por WebRTC, solo hacia quien proyecta
+
+- **Decisión**: cada participante con cámara abre una `RTCPeerConnection` por cada participante
+  `display` (overlay o anfitrión). La señalización viaja por el WebSocket con mensajes `rtc`
+  dirigidos (máx. 64 KB), procesados en orden. No se usa STUN/TURN; el overlay desactiva la
+  ocultación de IP por mDNS para que las candidatas locales funcionen. Solo video, 640×480.
+- **Alternativa descartada**: JPEG por WebSocket, como la pantalla compartida. Para caras en
+  movimiento la fluidez y el ancho de banda de WebRTC son muy superiores.
+- **Consecuencias**: video fluido con poca carga para el servidor, que solo reenvía señales.
+  Depende de que la red local permita tráfico entre equipos (firewall en redes privadas).
+
+## ADR-021 — Permiso de diapositivas concedido por el anfitrión
+
+- **Decisión**: el servidor guarda en memoria qué participantes tienen permiso (`room.grants`).
+  Solo el PC registrado como controlador puede dar o quitar permisos. Un participante con permiso
+  puede enviar `control` sin clave, pero solo para acciones de `GRANTED_ACTIONS`. Los permisos se
+  borran si el participante o el controlador se desconectan.
+- **Consecuencias**: control compartido sin repartir la clave del QR de control. La lupa y la
+  transmisión quedan reservadas a quien tiene la clave.
+
+## ADR-022 — Clave de anfitrión: una sola presentación principal
+
+- **Contexto**: en las pruebas reales otro participante abrió la sala en modo proyector y empezó a
+  recibir las solicitudes de control. No quedaba claro cuál era la ventana «principal».
+- **Decisión**: `POST /api/rooms` entrega una `hostKey` aleatoria una sola vez; la sala guarda
+  solo su SHA-256. En `join`, quien presenta la clave queda como `host`. Solo el anfitrión puede
+  marcarse `display` (recibir cámaras), registrar el control remoto y transmitir su pantalla. Las
+  demás peticiones devuelven `not_host`. La app de overlay guarda la clave junto con la sala y se
+  la pasa a su página por el fragmento `#host=` (no viaja en peticiones HTTP). El navegador que
+  creó la sala desde el inicio la guarda en `localStorage`.
+- **Consecuencias**: un enlace o un QR filtrado no permite tomar el control de la presentación.
+  La interfaz marca la ventana principal con ★. Las salas creadas antes de este cambio no tienen
+  anfitrión: hay que crear una nueva.
+
+## ADR-023 — Pinceles como estilo del elemento
+
+- **Decisión**: el pincel (`brush`), el tipo de línea (`dash`) y la opacidad son propiedades de
+  cualquier elemento con trazo, no tipos nuevos. El renderizado aplica el pincel (grosor efectivo,
+  transparencia, *multiply* para el resaltador, halo y núcleo para el neón), y la geometría usa el
+  mismo grosor efectivo para detectar clics.
+- **Consecuencias**: todas las formas (líneas, flechas, rectángulos, elipses, trazos libres)
+  admiten los cuatro pinceles sin duplicar herramientas. Los elementos antiguos quedan como `pen`
+  continuo y opaco.
+
+## ADR-024 — Láser y reacciones efímeros
+
+- **Decisión**: el puntero láser y las reacciones viajan como mensajes que el servidor valida y
+  reenvía, pero no guarda en la sala. El láser se envía por trozos cada 40 ms y se descarta si la
+  red va atrasada. Las reacciones vienen de una lista cerrada, con un límite de frecuencia.
+- **Consecuencias**: señalar y reaccionar no ensucian la pizarra ni el historial, y no ocupan
+  disco.
+
+## ADR-025 — Páginas como campo del elemento y página activa compartida
+
+- **Decisión**: cada elemento lleva `page` (0–999) y la sala guarda la página activa (`room.page`,
+  persistida). Solo el anfitrión o quien tenga permiso la cambia (`page`), y todos la siguen. La
+  escena filtra por la página activa, así que dibujar, seleccionar, borrar y exportar PNG trabajan
+  sobre la página visible. El PDF recorre todas.
+- **Consecuencias**: «marcas por diapositiva» es solo cambiar de página al pasar diapositiva. Al
+  volver, las marcas siguen ahí. No hace falta conocer el programa de presentación.
+
+## ADR-026 — Seguir al presentador con la zona visible
+
+- **Decisión**: el anfitrión publica cada 300 ms (solo si cambió) el rectángulo del mundo que está
+  viendo (`view`). Los demás lo encajan en su pantalla mientras no muevan la vista a mano; si lo
+  hacen, aparece el botón **Seguir**.
+- **Consecuencias**: funciona igual en pizarra en blanco, en directo y con la lupa del overlay, y
+  en pantallas de cualquier tamaño.
+
+## ADR-027 — Temporizador y votación en el servidor
+
+- **Decisión**: el servidor guarda el temporizador (`endsAt`) y la votación (opciones y un voto
+  por participante, que se puede cambiar). Difunde solo los recuentos, nunca quién votó qué. Solo
+  el anfitrión los abre y cierra.
+- **Consecuencias**: quien entra tarde ve el estado actual. El anonimato del voto queda
+  garantizado por diseño.
+
+## ADR-028 — PDF sin dependencias
+
+- **Decisión**: cada página se dibuja en un lienzo, se comprime a JPEG y se inserta en un PDF 1.4
+  escrito a mano (`pdfWriter.js`, con tabla xref verificada por una prueba).
+- **Consecuencias**: no se agregan librerías al cliente. El PDF es de imágenes (no se puede
+  seleccionar texto), suficiente para compartir el resultado de una sesión.

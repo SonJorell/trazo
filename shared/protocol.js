@@ -7,11 +7,33 @@
  *   cursor  { x, y }                    Posición del puntero en coordenadas del mundo.
  *   screen  { w, h, data }              Cuadro JPEG (data URL) de la pantalla de quien transmite.
  *   screen-stop {}                      Deja de transmitir la pantalla.
+ *   control-register { key }            (PC presentador) Se registra como destino del control remoto.
+ *   control-request {}                  (participante) Pide permiso para pasar diapositivas.
+ *   control-grant { to, granted }       (PC presentador) Da o quita ese permiso.
+ *   rtc { to, data }                    Señalización WebRTC (cámaras) dirigida a un participante.
+ *   laser { pts, c, end? }              Estela del puntero láser (efímera).
+ *   reaction { e }                      Emoji de reacción (de una lista permitida).
+ *   page { n }                          Cambia la página/diapositiva visible (anfitrión o con permiso).
+ *   view { x, y, w, h }                 (anfitrión) Zona que está mostrando: los demás pueden seguirla.
+ *   timer { endsAt | null }             (anfitrión) Inicia o detiene una cuenta regresiva.
+ *   poll { question, options }          (anfitrión) Abre una votación rápida.
+ *   vote { option }                     (participante) Vota en la votación abierta.
+ *   poll-close { clear? }               (anfitrión) Cierra (o quita) la votación.
+ *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
  *   welcome { you, peers, elements, screen? }  Respuesta a `join` con el estado completo.
  *   screen  { from, w, h, data }        Último cuadro de la pantalla compartida.
  *   screen-stop { from }                La transmisión terminó.
+ *   controller  { online }              Hay (o ya no hay) un PC que acepta control remoto.
+ *   control { from, action, ... }       (solo al PC registrado) Orden validada.
+ *   control-request { from, name }      (solo al PC registrado) Alguien pide control.
+ *   control-granted { granted }         (al participante) Ahora puede / ya no puede pasar diapositivas.
+ *   rtc { from, data }                  Señalización WebRTC de otro participante.
+ *
+ * `join` acepta además `hostKey` (clave que recibe quien crea la sala) y `display: true`.
+ * Solo el anfitrión —quien tiene la clave— es la «presentación principal»: puede proyectar
+ * (recibir cámaras), registrarse para el control remoto y transmitir su pantalla.
  *   ops     { from, ops }               Cambios aceptados de otro participante.
  *   peer-join  { peer }                 Alguien entró.
  *   peer-leave { id }                   Alguien salió.
@@ -28,6 +50,21 @@ export const MSG = Object.freeze({
   PEER_LEAVE: 'peer-leave',
   SCREEN: 'screen',
   SCREEN_STOP: 'screen-stop',
+  CONTROL_REGISTER: 'control-register',
+  CONTROL: 'control',
+  CONTROLLER: 'controller',
+  CONTROL_REQUEST: 'control-request',
+  CONTROL_GRANT: 'control-grant',
+  CONTROL_GRANTED: 'control-granted',
+  RTC: 'rtc',
+  LASER: 'laser',
+  REACTION: 'reaction',
+  PAGE: 'page',
+  VIEW: 'view',
+  TIMER: 'timer',
+  POLL: 'poll',
+  VOTE: 'vote',
+  POLL_CLOSE: 'poll-close',
   ERROR: 'error',
 });
 
@@ -57,7 +94,80 @@ export const ERR = Object.freeze({
   NOT_JOINED: 'not_joined',
   RATE_LIMITED: 'rate_limited',
   ROOM_FULL: 'room_full',
+  CONTROL_DENIED: 'control_denied',
+  NOT_HOST: 'not_host',
+  NO_CONTROLLER: 'no_controller',
 });
+
+/**
+ * Control remoto: órdenes permitidas (lista blanca). Las de teclado se traducen a teclas
+ * en el PC; `zoom` usa coordenadas normalizadas (0–1) de la pantalla del PC.
+ */
+export const CONTROL_ACTIONS = Object.freeze([
+  'next', 'prev', 'first', 'last', 'black', 'white', 'start', 'end',
+  'zoom', 'zoom-reset', 'share-on', 'share-off',
+]);
+export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
+/** Lo único que puede hacer un participante al que el anfitrión le dio control. */
+export const GRANTED_ACTIONS = Object.freeze(['next', 'prev', 'first', 'last', 'black', 'white']);
+/** Valida una votación: pregunta corta y entre 2 y 6 opciones. */
+export function validatePoll(msg) {
+  const clean = (s, max) => (typeof s === 'string' ? s.replace(/[<>]/g, '').trim().slice(0, max) : '');
+  const question = clean(msg?.question, 120);
+  if (!Array.isArray(msg?.options)) return null;
+  const options = msg.options.map((o) => clean(o, 30)).filter(Boolean).slice(0, 6);
+  if (options.length < 2) return null;
+  return { question, options };
+}
+
+/** Valida la zona que muestra el anfitrión. */
+export function validateView(msg) {
+  const ok = (v) => Number.isFinite(v) && Math.abs(v) <= 1e7;
+  if (!ok(msg?.x) || !ok(msg?.y) || !ok(msg?.w) || !ok(msg?.h) || msg.w <= 0 || msg.h <= 0) return null;
+  return { x: msg.x, y: msg.y, w: msg.w, h: msg.h };
+}
+
+export const MAX_TIMER_MS = 3 * 60 * 60 * 1000;
+
+/** Reacciones permitidas (emojis que flotan sobre la presentación). */
+export const REACTIONS = Object.freeze(['👍', '👏', '❤️', '😂', '😮', '🎉', '❓', '✋']);
+const LASER_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Puntero láser: trozo de estela { pts: [[x,y],...], c: color, end?: true }.
+ * No se guarda en la sala: solo se reenvía y se desvanece.
+ */
+export function validateLaser(msg) {
+  if (!Array.isArray(msg?.pts) || msg.pts.length === 0 || msg.pts.length > 64) return null;
+  const pts = [];
+  for (const p of msg.pts) {
+    if (!Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
+    if (Math.abs(p[0]) > 1e7 || Math.abs(p[1]) > 1e7) return null;
+    pts.push([Math.round(p[0]), Math.round(p[1])]);
+  }
+  return { pts, c: LASER_COLOR_RE.test(msg.c) ? msg.c : '#ff2d55', end: msg.end === true };
+}
+
+/** Tamaño máximo de un mensaje de señalización WebRTC (SDP o candidato). */
+export const MAX_RTC_CHARS = 64_000;
+export const CONTROL_KEY_RE = /^[A-Za-z0-9]{16,64}$/;
+
+/** Valida una orden de control. Devuelve una copia limpia o null. */
+export function validateControl(msg) {
+  if (!msg || !CONTROL_ACTIONS.includes(msg.action)) return null;
+  const out = { action: msg.action };
+  if (msg.action === 'next' || msg.action === 'prev') {
+    out.style = KEY_STYLES.includes(msg.style) ? msg.style : 'arrows';
+  }
+  if (msg.action === 'zoom') {
+    const unit = (v) => Number.isFinite(v) && v >= 0 && v <= 1;
+    if (!unit(msg.nx) || !unit(msg.ny) || !Number.isFinite(msg.scale)) return null;
+    out.nx = msg.nx;
+    out.ny = msg.ny;
+    out.scale = Math.min(8, Math.max(1, msg.scale));
+  }
+  return out;
+}
 
 /** Códigos de sala: 6 caracteres sin letras ni números ambiguos. */
 export const ROOM_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
