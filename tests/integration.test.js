@@ -366,3 +366,67 @@ test('puntero láser y reacciones se reenvían validados', async () => {
   a.ws.close();
   b.ws.close();
 });
+
+test('páginas, vista, temporizador, votación y permitir a todos', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const ana = connect();
+  await Promise.all([host.opened, ana.opened]);
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey, display: true });
+  await host.next('welcome');
+  ana.send({ t: 'join', room: id, name: 'Ana' });
+  const wa = await ana.next('welcome');
+  assert.deepEqual([wa.page, wa.timer, wa.poll, wa.canSteer], [0, null, null, false]);
+
+  // Páginas: el anfitrión cambia; Ana sin permiso no puede.
+  host.send({ t: 'page', n: 3 });
+  assert.equal((await ana.next('page')).n, 3);
+  ana.send({ t: 'page', n: 1 });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+
+  // Vista del anfitrión: solo él la publica.
+  host.send({ t: 'view', x: 0, y: 0, w: 1920, h: 1080 });
+  assert.equal((await ana.next('view')).w, 1920);
+
+  // Temporizador.
+  const endsAt = Date.now() + 60_000;
+  host.send({ t: 'timer', endsAt });
+  assert.equal((await ana.next('timer')).timer.endsAt, endsAt);
+  ana.send({ t: 'timer', endsAt });
+  assert.equal((await ana.next('error')).code, 'not_host');
+
+  // Votación: un voto por persona, se cuenta y se cierra.
+  host.send({ t: 'poll', question: '¿Seguimos?', options: ['Sí', 'No', ''] });
+  const opened = await ana.next('poll');
+  assert.deepEqual(opened.poll.options, ['Sí', 'No']);
+  await host.next('poll'); // el anfitrión también recibe la apertura
+  ana.send({ t: 'vote', option: 0 });
+  assert.deepEqual((await host.next('poll')).poll.counts, [1, 0]);
+  ana.send({ t: 'vote', option: 1 }); // cambia su voto
+  assert.deepEqual((await host.next('poll')).poll.counts, [0, 1]);
+  host.send({ t: 'poll-close' });
+  for (let i = 0; i < 2; i++) await ana.next('poll'); // los dos recuentos anteriores
+  assert.equal((await ana.next('poll')).poll.open, false);
+  ana.send({ t: 'vote', option: 0 });
+  assert.equal((await ana.next('error')).code, 'bad_request');
+
+  // Permitir a todos: Ana puede cambiar de página y pasar diapositivas.
+  host.send({ t: 'control-register', key: 'ClaveSecreta1234567890' });
+  await ana.next('controller');
+  host.send({ t: 'control-grant', all: true });
+  assert.deepEqual(await ana.next('control-granted'), { t: 'control-granted', granted: true, all: true });
+  ana.send({ t: 'page', n: 4 });
+  assert.equal((await host.next('page')).n, 3); // el cambio anterior también le llegó al anfitrión
+  assert.equal((await host.next('page')).n, 4);
+  ana.send({ t: 'control', action: 'next' });
+  assert.equal((await host.next('control')).action, 'next');
+  host.ws.close();
+  ana.ws.close();
+});
+
+test('el tipo nota y la página se validan', async () => {
+  const { sanitizeElement } = await import('../shared/elements.js');
+  const note = sanitizeElement({ id: 'nota1234', type: 'note', version: 1, x: 0, y: 0, text: 'Hola', page: 2, w: 5, h: 5000 });
+  assert.deepEqual([note.page, note.w, note.h, note.fill], [2, 60, 2000, '#ffec99']);
+  assert.equal(sanitizeElement({ id: 'nota1234', type: 'note', version: 1, page: -3 }).page, 0);
+});

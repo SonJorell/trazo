@@ -13,6 +13,12 @@
  *   rtc { to, data }                    Señalización WebRTC (cámaras) dirigida a un participante.
  *   laser { pts, c, end? }              Estela del puntero láser (efímera).
  *   reaction { e }                      Emoji de reacción (de una lista permitida).
+ *   page { n }                          Cambia la página/diapositiva visible (anfitrión o con permiso).
+ *   view { x, y, w, h }                 (anfitrión) Zona que está mostrando: los demás pueden seguirla.
+ *   timer { endsAt | null }             (anfitrión) Inicia o detiene una cuenta regresiva.
+ *   poll { question, options }          (anfitrión) Abre una votación rápida.
+ *   vote { option }                     (participante) Vota en la votación abierta.
+ *   poll-close { clear? }               (anfitrión) Cierra (o quita) la votación.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
@@ -53,6 +59,12 @@ export const MSG = Object.freeze({
   RTC: 'rtc',
   LASER: 'laser',
   REACTION: 'reaction',
+  PAGE: 'page',
+  VIEW: 'view',
+  TIMER: 'timer',
+  POLL: 'poll',
+  VOTE: 'vote',
+  POLL_CLOSE: 'poll-close',
   ERROR: 'error',
 });
 
@@ -98,6 +110,25 @@ export const CONTROL_ACTIONS = Object.freeze([
 export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
 /** Lo único que puede hacer un participante al que el anfitrión le dio control. */
 export const GRANTED_ACTIONS = Object.freeze(['next', 'prev', 'first', 'last', 'black', 'white']);
+/** Valida una votación: pregunta corta y entre 2 y 6 opciones. */
+export function validatePoll(msg) {
+  const clean = (s, max) => (typeof s === 'string' ? s.replace(/[<>]/g, '').trim().slice(0, max) : '');
+  const question = clean(msg?.question, 120);
+  if (!Array.isArray(msg?.options)) return null;
+  const options = msg.options.map((o) => clean(o, 30)).filter(Boolean).slice(0, 6);
+  if (options.length < 2) return null;
+  return { question, options };
+}
+
+/** Valida la zona que muestra el anfitrión. */
+export function validateView(msg) {
+  const ok = (v) => Number.isFinite(v) && Math.abs(v) <= 1e7;
+  if (!ok(msg?.x) || !ok(msg?.y) || !ok(msg?.w) || !ok(msg?.h) || msg.w <= 0 || msg.h <= 0) return null;
+  return { x: msg.x, y: msg.y, w: msg.w, h: msg.h };
+}
+
+export const MAX_TIMER_MS = 3 * 60 * 60 * 1000;
+
 /** Reacciones permitidas (emojis que flotan sobre la presentación). */
 export const REACTIONS = Object.freeze(['👍', '👏', '❤️', '😂', '😮', '🎉', '❓', '✋']);
 const LASER_COLOR_RE = /^#[0-9a-fA-F]{6}$/;

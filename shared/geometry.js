@@ -112,6 +112,7 @@ export function hitTest(el, px, py, tol = 4) {
       return hitRect(el, px, py, t);
     case 'ellipse':
       return hitEllipse(el, px, py, t);
+    case 'note':
     case 'text': {
       const b = getBounds(el);
       return px >= b.x - t && px <= b.x + b.w + t && py >= b.y - t && py <= b.y + b.h + t;

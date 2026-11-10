@@ -28,6 +28,11 @@ export class Room {
     this.screen = null; // { from, w, h, data } — pantalla compartida en vivo (no se guarda en disco)
     this.controller = null; // { id, key } — PC que acepta control remoto (la clave solo vive en memoria)
     this.grants = new Set(); // participantes a los que el anfitrión dejó pasar diapositivas
+    this.grantAll = false; // el anfitrión permitió a todos pasar diapositivas
+    this.page = Number.isInteger(data.page) ? data.page : 0; // página/diapositiva visible
+    this.view = null; // zona que muestra el anfitrión { x, y, w, h }
+    this.timer = null; // { endsAt }
+    this.poll = null; // { id, question, options, votes: Map(peerId → índice), open }
     this.onChange = hooks.onChange ?? (() => {});
     this._colorIndex = 0;
   }
@@ -60,6 +65,7 @@ export class Room {
   removePeer(id) {
     const removed = this.peers.delete(id);
     this.grants.delete(id);
+    this.poll?.votes.delete(id);
     if (removed) this.lastActiveAt = Date.now();
     return removed;
   }
@@ -117,6 +123,20 @@ export class Room {
     }
   }
 
+  /** ¿Puede este participante pasar diapositivas / cambiar de página? */
+  canSteer(peer) {
+    return Boolean(peer?.host || this.grantAll || this.grants.has(peer?.id));
+  }
+
+  /** Estado público de la votación (sin saber quién votó qué). */
+  publicPoll() {
+    if (!this.poll) return null;
+    const counts = this.poll.options.map(() => 0);
+    for (const i of this.poll.votes.values()) counts[i]++;
+    const { id, question, options, open } = this.poll;
+    return { id, question, options, open, counts, total: this.poll.votes.size };
+  }
+
   /** Guarda el último cuadro de la pantalla compartida por `from`. */
   setScreen(from, frame) {
     this.screen = { from, ...frame };
@@ -135,6 +155,7 @@ export class Room {
       createdAt: this.createdAt,
       lastActiveAt: this.lastActiveAt,
       mode: this.mode,
+      page: this.page,
       hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),

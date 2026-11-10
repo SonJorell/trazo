@@ -11,8 +11,11 @@ import {
   MAX_RTC_CHARS,
   REACTIONS,
   validateLaser,
+  validatePoll,
+  validateView,
+  MAX_TIMER_MS,
 } from '../../shared/protocol.js';
-import { randomId } from '../../shared/elements.js';
+import { randomId, MAX_PAGE } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
 
 const HEARTBEAT_MS = 30_000;
@@ -88,6 +91,12 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (msg.t === MSG.RTC) relayRtc(msg);
         else if (msg.t === MSG.LASER) relayLaser(msg);
         else if (msg.t === MSG.REACTION) relayReaction(msg);
+        else if (msg.t === MSG.PAGE) setPage(msg);
+        else if (msg.t === MSG.VIEW) setView(msg);
+        else if (msg.t === MSG.TIMER) setTimer(msg);
+        else if (msg.t === MSG.POLL) openPoll(msg);
+        else if (msg.t === MSG.VOTE) vote(msg);
+        else if (msg.t === MSG.POLL_CLOSE) closePoll(msg);
       } catch (err) {
         logger.error('Error procesando mensaje:', err);
         fail(ERR.BAD_REQUEST, 'Error procesando el mensaje');
@@ -121,6 +130,11 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         elements: room.snapshot(),
         screen: room.screen,
         controller: Boolean(room.controller),
+        page: room.page,
+        view: room.view,
+        timer: room.timer,
+        poll: room.publicPoll(),
+        canSteer: room.canSteer(client.peer),
       });
       room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color, display, host } }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
@@ -174,7 +188,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       const expected = Buffer.from(ctl.key);
       const hasKey = given.length === expected.length && crypto.timingSafeEqual(given, expected);
       // Sin clave, solo quien recibió permiso del anfitrión, y solo para pasar diapositivas.
-      const granted = client.room.grants.has(client.id) && GRANTED_ACTIONS.includes(order.action);
+      const granted = client.room.canSteer(client.peer) && GRANTED_ACTIONS.includes(order.action);
       if (!hasKey && !granted) {
         return fail(ERR.CONTROL_DENIED, msg.key ? 'Clave de control incorrecta: vuelve a escanear el QR de control' : 'No tienes permiso para controlar la presentación');
       }
@@ -195,6 +209,15 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     function grantControl(msg) {
       const room = client.room;
       if (room.controller?.id !== client.id) return fail(ERR.CONTROL_DENIED, 'Solo el PC presentador da permisos');
+      if (msg.all === true || msg.all === false) {
+        // Permitir (o dejar de permitir) a todos los participantes.
+        room.grantAll = msg.all;
+        for (const peer of room.peers.values()) {
+          if (peer.host) continue;
+          peer.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: room.canSteer(peer), all: room.grantAll }));
+        }
+        return;
+      }
       const target = room.peers.get(msg.to);
       if (!target) return;
       if (msg.granted === true) room.grants.add(target.id);
@@ -216,6 +239,71 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       client.room.broadcast({ t: MSG.REACTION, from: client.id, name: client.peer.name, e: msg.e }, client.id);
     }
 
+    const requireHost = (what) => {
+      if (client.peer.host) return true;
+      fail(ERR.NOT_HOST, `Solo el anfitrión puede ${what}`);
+      return false;
+    };
+
+    function setPage(msg) {
+      const room = client.room;
+      if (!room.canSteer(client.peer)) return fail(ERR.CONTROL_DENIED, 'No tienes permiso para cambiar de página');
+      if (!Number.isInteger(msg.n) || msg.n < 0 || msg.n > MAX_PAGE) return fail(ERR.BAD_REQUEST, 'Página inválida');
+      if (room.page === msg.n) return;
+      room.page = msg.n;
+      room.onChange(room);
+      room.broadcast({ t: MSG.PAGE, n: room.page, from: client.id });
+    }
+
+    function setView(msg) {
+      if (!client.peer.host) return;
+      const view = validateView(msg);
+      if (!view) return;
+      client.room.view = view;
+      client.room.broadcast({ t: MSG.VIEW, ...view }, client.id, { volatile: true });
+    }
+
+    function setTimer(msg) {
+      if (!requireHost('usar el temporizador')) return;
+      const now = Date.now();
+      let timer = null;
+      if (msg.endsAt !== null) {
+        if (!Number.isFinite(msg.endsAt) || msg.endsAt <= now || msg.endsAt > now + MAX_TIMER_MS) {
+          return fail(ERR.BAD_REQUEST, 'Temporizador inválido');
+        }
+        timer = { endsAt: Math.round(msg.endsAt) };
+      }
+      client.room.timer = timer;
+      client.room.broadcast({ t: MSG.TIMER, timer });
+    }
+
+    const broadcastPoll = () => client.room.broadcast({ t: MSG.POLL, poll: client.room.publicPoll() });
+
+    function openPoll(msg) {
+      if (!requireHost('abrir votaciones')) return;
+      const poll = validatePoll(msg);
+      if (!poll) return fail(ERR.BAD_REQUEST, 'La votación necesita al menos 2 opciones');
+      client.room.poll = { id: randomId(8), ...poll, votes: new Map(), open: true };
+      broadcastPoll();
+    }
+
+    function vote(msg) {
+      const poll = client.room.poll;
+      if (!poll || !poll.open) return fail(ERR.BAD_REQUEST, 'No hay una votación abierta');
+      if (!Number.isInteger(msg.option) || msg.option < 0 || msg.option >= poll.options.length) {
+        return fail(ERR.BAD_REQUEST, 'Opción inválida');
+      }
+      poll.votes.set(client.id, msg.option); // un voto por persona (se puede cambiar)
+      broadcastPoll();
+    }
+
+    function closePoll(msg) {
+      if (!requireHost('cerrar votaciones') || !client.room.poll) return;
+      if (msg.clear === true) client.room.poll = null;
+      else client.room.poll.open = false;
+      broadcastPoll();
+    }
+
     /** Reenvía señalización WebRTC (ofertas, respuestas, candidatos) a un participante concreto. */
     function relayRtc(msg) {
       const target = client.room.peers.get(msg.to);
@@ -232,8 +320,10 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       if (room.controller?.id === client.id) {
         room.controller = null;
         // Sin presentador, los permisos dados dejan de valer.
-        for (const id of room.grants) room.peers.get(id)?.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: false }));
+        const affected = room.grantAll ? [...room.peers.keys()] : [...room.grants];
+        for (const id of affected) room.peers.get(id)?.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: false, all: false }));
         room.grants.clear();
+        room.grantAll = false;
         room.broadcast({ t: MSG.CONTROLLER, online: false }, client.id);
       }
       room.removePeer(client.id);

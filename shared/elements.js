@@ -3,7 +3,8 @@
  * Compartido por el servidor (Node) y el cliente (navegador): no usar APIs específicas de ninguno.
  */
 
-export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text']);
+export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note']);
+export const MAX_PAGE = 999;
 
 /** Pinceles: cambian cómo se dibuja el trazo (grosor efectivo, transparencia, brillo). */
 export const BRUSHES = Object.freeze(['pen', 'marker', 'highlighter', 'neon']);
@@ -68,6 +69,7 @@ export function sanitizeElement(raw) {
     brush: BRUSHES.includes(raw.brush) ? raw.brush : 'pen',
     dash: DASHES.includes(raw.dash) ? raw.dash : 'solid',
     opacity: clamp(isNum(raw.opacity) ? raw.opacity : 1, 0.05, 1),
+    page: Number.isInteger(raw.page) ? clamp(raw.page, 0, MAX_PAGE) : 0,
   };
   if (typeof raw.author === 'string' && AUTHOR_RE.test(raw.author)) el.author = raw.author;
 
@@ -84,6 +86,14 @@ export function sanitizeElement(raw) {
     }
     if (pts.length === 0) return null;
     el.points = pts;
+  }
+
+  if (el.type === 'note') {
+    el.text = typeof raw.text === 'string' ? raw.text.slice(0, LIMITS.maxText) : '';
+    el.fontSize = clamp(isNum(raw.fontSize) ? raw.fontSize : 20, LIMITS.minFontSize, LIMITS.maxFontSize);
+    el.w = clamp(Math.abs(coord(raw.w)) || 200, 60, 2000);
+    el.h = clamp(Math.abs(coord(raw.h)) || 160, 40, 2000);
+    if (el.fill === 'transparent') el.fill = '#ffec99';
   }
 
   if (el.type === 'text') {
