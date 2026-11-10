@@ -8,6 +8,9 @@
  *   screen  { w, h, data }              Cuadro JPEG (data URL) de la pantalla de quien transmite.
  *   screen-stop {}                      Deja de transmitir la pantalla.
  *   control-register { key }            (PC presentador) Se registra como destino del control remoto.
+ *   control-request {}                  (participante) Pide permiso para pasar diapositivas.
+ *   control-grant { to, granted }       (PC presentador) Da o quita ese permiso.
+ *   rtc { to, data }                    Señalización WebRTC (cámaras) dirigida a un participante.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
@@ -16,6 +19,12 @@
  *   screen-stop { from }                La transmisión terminó.
  *   controller  { online }              Hay (o ya no hay) un PC que acepta control remoto.
  *   control { from, action, ... }       (solo al PC registrado) Orden validada.
+ *   control-request { from, name }      (solo al PC registrado) Alguien pide control.
+ *   control-granted { granted }         (al participante) Ahora puede / ya no puede pasar diapositivas.
+ *   rtc { from, data }                  Señalización WebRTC de otro participante.
+ *
+ * `join` acepta además `display: true` para quien proyecta (overlay o anfitrión): las cámaras
+ * de los participantes se envían a esos destinos.
  *   ops     { from, ops }               Cambios aceptados de otro participante.
  *   peer-join  { peer }                 Alguien entró.
  *   peer-leave { id }                   Alguien salió.
@@ -35,6 +44,10 @@ export const MSG = Object.freeze({
   CONTROL_REGISTER: 'control-register',
   CONTROL: 'control',
   CONTROLLER: 'controller',
+  CONTROL_REQUEST: 'control-request',
+  CONTROL_GRANT: 'control-grant',
+  CONTROL_GRANTED: 'control-granted',
+  RTC: 'rtc',
   ERROR: 'error',
 });
 
@@ -77,6 +90,10 @@ export const CONTROL_ACTIONS = Object.freeze([
   'zoom', 'zoom-reset', 'share-on', 'share-off',
 ]);
 export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
+/** Lo único que puede hacer un participante al que el anfitrión le dio control. */
+export const GRANTED_ACTIONS = Object.freeze(['next', 'prev', 'first', 'last', 'black', 'white']);
+/** Tamaño máximo de un mensaje de señalización WebRTC (SDP o candidato). */
+export const MAX_RTC_CHARS = 64_000;
 export const CONTROL_KEY_RE = /^[A-Za-z0-9]{16,64}$/;
 
 /** Valida una orden de control. Devuelve una copia limpia o null. */

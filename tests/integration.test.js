@@ -2,6 +2,9 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { createApp } from '../server/app.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { loadConfig } from '../server/config.js';
 import { MemoryStore } from '../server/storage/MemoryStore.js';
 import { createLogger } from '../server/util/logger.js';
@@ -10,7 +13,13 @@ let app;
 let base;
 
 before(async () => {
-  const config = loadConfig({ port: 0, host: '127.0.0.1', saveDelayMs: 10, logLevel: 'silent' });
+  const config = loadConfig({
+    port: 0,
+    host: '127.0.0.1',
+    saveDelayMs: 10,
+    logLevel: 'silent',
+    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), 'trazo-it-')), // el certificado de prueba va aquí
+  });
   app = await createApp(config, { store: new MemoryStore(), logger: createLogger('silent') });
   const { port } = await app.listen(0, '127.0.0.1');
   config.port = port;
@@ -210,4 +219,97 @@ test('control remoto: solo con la clave correcta y solo llega al PC registrado',
   assert.equal((await cel.next('controller')).online, false);
   cel.ws.close();
   otro.ws.close();
+});
+
+test('señalización de cámaras: rtc se entrega solo al destinatario', async () => {
+  const { id } = await createRoom();
+  const pc = connect();
+  const cel = connect();
+  const otro = connect();
+  await Promise.all([pc.opened, cel.opened, otro.opened]);
+  pc.send({ t: 'join', room: id, name: 'Proyector', display: true });
+  const wpc = await pc.next('welcome');
+  cel.send({ t: 'join', room: id, name: 'Cel' });
+  const wcel = await cel.next('welcome');
+  assert.equal(wcel.peers.find((p) => p.id === wpc.you.id).display, true, 'el celular sabe quién proyecta');
+  otro.send({ t: 'join', room: id, name: 'Otro' });
+  await otro.next('welcome');
+
+  cel.send({ t: 'rtc', to: wpc.you.id, data: { type: 'offer', sdp: 'v=0...' } });
+  const sig = await pc.next('rtc');
+  assert.equal(sig.from, wcel.you.id);
+  assert.deepEqual(sig.data, { type: 'offer', sdp: 'v=0...' });
+  await assert.rejects(otro.next('rtc'));
+
+  cel.send({ t: 'rtc', to: wpc.you.id, data: { sdp: 'x'.repeat(70_000) } });
+  assert.equal((await cel.next('error')).code, 'bad_request');
+  for (const c of [pc, cel, otro]) c.ws.close();
+});
+
+test('permiso de diapositivas: pedir, aprobar, usar y quitar', async () => {
+  const { id } = await createRoom();
+  const pc = connect();
+  const ana = connect();
+  await Promise.all([pc.opened, ana.opened]);
+  pc.send({ t: 'join', room: id, name: 'PC', display: true });
+  await pc.next('welcome');
+  ana.send({ t: 'join', room: id, name: 'Ana' });
+  const wana = await ana.next('welcome');
+  pc.send({ t: 'control-register', key: 'ClaveSecreta1234567890' });
+  await ana.next('controller');
+
+  // Sin permiso: denegado.
+  ana.send({ t: 'control', action: 'next' });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+
+  // Pide control → le llega al PC con su nombre.
+  ana.send({ t: 'control-request' });
+  const req = await pc.next('control-request');
+  assert.deepEqual({ from: req.from, name: req.name }, { from: wana.you.id, name: 'Ana' });
+
+  // Un participante no puede darse permisos.
+  ana.send({ t: 'control-grant', to: wana.you.id, granted: true });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+
+  // El PC aprueba → puede pasar diapositivas, pero no usar la lupa.
+  pc.send({ t: 'control-grant', to: wana.you.id, granted: true });
+  assert.equal((await ana.next('control-granted')).granted, true);
+  ana.send({ t: 'control', action: 'next', style: 'arrows' });
+  assert.equal((await pc.next('control')).action, 'next');
+  ana.send({ t: 'control', action: 'zoom', nx: 0.5, ny: 0.5, scale: 2 });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+
+  // El PC quita el permiso.
+  pc.send({ t: 'control-grant', to: wana.you.id, granted: false });
+  assert.equal((await ana.next('control-granted')).granted, false);
+  ana.send({ t: 'control', action: 'prev' });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+
+  // Si el PC se va, se avisa que el permiso terminó.
+  pc.send({ t: 'control-grant', to: wana.you.id, granted: true });
+  await ana.next('control-granted');
+  pc.ws.close();
+  assert.equal((await ana.next('control-granted')).granted, false);
+  ana.ws.close();
+});
+
+test('HTTPS local: sirve la app y el WebSocket con certificado propio', async () => {
+  const { port } = await app.listenSecure(0, '127.0.0.1');
+  const { default: https } = await import('node:https');
+  const body = await new Promise((resolve, reject) => {
+    https
+      .get(`https://127.0.0.1:${port}/api/info`, { rejectUnauthorized: false }, (res) => {
+        let d = '';
+        res.on('data', (c) => (d += c));
+        res.on('end', () => resolve(JSON.parse(d)));
+      })
+      .on('error', reject);
+  });
+  assert.ok(Array.isArray(body.secureUrls));
+  const ws = new WebSocket(`wss://127.0.0.1:${port}/ws`, { rejectUnauthorized: false });
+  await new Promise((resolve, reject) => {
+    ws.on('open', resolve);
+    ws.on('error', reject);
+  });
+  ws.close();
 });

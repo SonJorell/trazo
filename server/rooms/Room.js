@@ -25,6 +25,7 @@ export class Room {
     this.peers = new Map(); // id -> { id, name, color, send }
     this.screen = null; // { from, w, h, data } — pantalla compartida en vivo (no se guarda en disco)
     this.controller = null; // { id, key } — PC que acepta control remoto (la clave solo vive en memoria)
+    this.grants = new Set(); // participantes a los que el anfitrión dejó pasar diapositivas
     this.onChange = hooks.onChange ?? (() => {});
     this._colorIndex = 0;
   }
@@ -38,9 +39,9 @@ export class Room {
     return [...this.elements.values()];
   }
 
-  addPeer({ id, name, send }) {
+  addPeer({ id, name, send, display = false }) {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
-    const peer = { id, name, color, send };
+    const peer = { id, name, color, send, display };
     this.peers.set(id, peer);
     this.lastActiveAt = Date.now();
     return peer;
@@ -48,6 +49,7 @@ export class Room {
 
   removePeer(id) {
     const removed = this.peers.delete(id);
+    this.grants.delete(id);
     if (removed) this.lastActiveAt = Date.now();
     return removed;
   }
@@ -61,7 +63,7 @@ export class Room {
   }
 
   publicPeers() {
-    return [...this.peers.values()].map(({ id, name, color }) => ({ id, name, color }));
+    return [...this.peers.values()].map(({ id, name, color, display }) => ({ id, name, color, display }));
   }
 
   /**
