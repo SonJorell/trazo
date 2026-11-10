@@ -1,4 +1,7 @@
 import { h } from './dom.js';
+import { STAMPS } from '../tools/stamp.js';
+
+export const NOTE_COLORS = ['#ffec99', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#d0bfff', '#ffd8a8'];
 
 /** Colores clásicos. */
 export const STROKE_COLORS = [
@@ -131,14 +134,29 @@ export function createStylePanel(container, style, onChange) {
 
   const fill = swatchGroup('Relleno', 'fill', FILL_COLORS);
 
+  const stampSection = () => {
+    const buttons = STAMPS.map((s) =>
+      h('button', { class: 'opt stamp-opt', title: `Sello ${s}`, 'aria-label': `Sello ${s}`, onclick: () => onChange({ stamp: s }) }, s),
+    );
+    refreshers.push(() => buttons.forEach((b, i) => b.classList.toggle('active', STAMPS[i] === style.stamp)));
+    return h('section', { class: 'sec-stamps' }, h('h3', {}, 'Sellos'), h('div', { class: 'opts stamps' }, buttons));
+  };
+  const noteSection = () => {
+    const g = swatchGroup('Notas', 'noteColor', NOTE_COLORS);
+    return h('section', { class: 'sec-notes' }, h('h3', {}, 'Notas adhesivas'), h('div', { class: 'swatches' }, g.buttons));
+  };
+
+  const tag = (node, cls) => (node.classList.add(cls), node);
   container.replaceChildren(
-    brushSection(),
-    colorSection(),
-    h('section', {}, h('h3', {}, 'Relleno'), h('div', { class: 'swatches' }, fill.buttons)),
-    optionGroup('Grosor', 'strokeWidth', WIDTHS, (o) => h('span', { class: 'bar', style: `height:${Math.min(o.value, 12)}px` })),
-    optionGroup('Línea', 'dash', DASH_OPTIONS, (o) => h('span', { class: `dash-sample ${o.value}` })),
-    opacitySection(),
-    optionGroup('Texto', 'fontSize', FONT_SIZES, (o) => o.label),
+    tag(brushSection(), 'sec-brush'),
+    tag(colorSection(), 'sec-color'),
+    tag(h('section', {}, h('h3', {}, 'Relleno'), h('div', { class: 'swatches' }, fill.buttons)), 'sec-fill'),
+    tag(optionGroup('Grosor', 'strokeWidth', WIDTHS, (o) => h('span', { class: 'bar', style: `height:${Math.min(o.value, 12)}px` })), 'sec-width'),
+    tag(optionGroup('Línea', 'dash', DASH_OPTIONS, (o) => h('span', { class: `dash-sample ${o.value}` })), 'sec-dash'),
+    tag(opacitySection(), 'sec-opacity'),
+    stampSection(),
+    noteSection(),
+    tag(optionGroup('Texto', 'fontSize', FONT_SIZES, (o) => o.label), 'sec-text'),
   );
 
   const refresh = () => refreshers.forEach((r) => r());

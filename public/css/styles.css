@@ -1669,3 +1669,272 @@ body.immersive .slide-pad {
     min-height: 36px;
   }
 }
+
+/* ===== Páginas ===== */
+.page-group {
+  align-items: center;
+}
+
+.page-label {
+  min-width: 82px;
+  height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+.page-group .icon-btn {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.page-group.readonly .icon-btn {
+  display: none;
+}
+
+.overlay-mode .bottombar .page-group {
+  display: flex;
+}
+
+/* ===== Seguir al presentador ===== */
+.follow-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.follow-btn svg {
+  width: 18px;
+}
+
+/* ===== Notas y sellos ===== */
+.text-editor.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  outline: none;
+  background: transparent;
+}
+
+.opts.stamps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.stamp-opt {
+  min-width: 0;
+  height: 32px;
+  font-size: 1.05rem;
+}
+
+/* ===== Temporizador ===== */
+.timer-chip {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 52px;
+  z-index: 45;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #212529;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.timer-chip.ending {
+  background: var(--danger);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.timer-chip.done {
+  background: var(--danger);
+}
+
+.overlay-mode .timer-chip {
+  margin-top: 0;
+  top: 64px;
+  font-size: 1.6rem;
+}
+
+.timer-presets,
+.poll-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+/* ===== Votación ===== */
+.poll-card {
+  position: fixed;
+  right: 12px;
+  bottom: calc(70px + var(--safe-bottom));
+  width: min(320px, calc(100vw - 24px));
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+
+.poll-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.poll-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font: inherit;
+  font-weight: 600;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.poll-opt:disabled {
+  cursor: default;
+  color: inherit;
+}
+
+.poll-opt.mine {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.poll-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-soft);
+  transition: width 0.3s;
+}
+
+.poll-text,
+.poll-count {
+  position: relative;
+}
+
+.overlay-mode .poll-card {
+  width: 380px;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 760px) {
+  .poll-card {
+    bottom: calc(124px + var(--safe-bottom));
+  }
+}
+
+/* ===== QR grande de invitación (proyector) ===== */
+.invite-card {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 48;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 22px 16px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.invite-card img {
+  width: 260px;
+  height: 260px;
+  image-rendering: pixelated;
+}
+
+.invite-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.invite-code {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.invite-url {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.invite-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Modo simple (celular) ===== */
+body.simple .tool:not([data-tool='pen']):not([data-tool='laser']):not([data-tool='eraser']):not([data-tool='note']):not([data-tool='stamp']):not(#style-toggle) {
+  display: none;
+}
+
+body.simple .style-panel .sec-fill,
+body.simple .style-panel .sec-dash,
+body.simple .style-panel .sec-opacity,
+body.simple .style-panel .sec-text {
+  display: none;
+}
+
+body.simple .bottombar .group:first-child {
+  display: none;
+}
+
+.overlay-mode .style-panel {
+  width: 228px;
+}
+
+.invite-card {
+  left: auto;
+  right: 24px;
+  top: 76px;
+  bottom: auto;
+}
+
+@media (max-width: 760px) {
+  .toasts {
+    top: calc(104px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+  }
+}

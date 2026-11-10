@@ -53,6 +53,25 @@ function drawArrowHead(ctx, el) {
   ctx.stroke();
 }
 
+export const NOTE_PADDING = 12;
+
+/** Parte un texto en líneas que quepan en `maxWidth` (respeta los saltos de línea). */
+export function wrapText(ctx, text, maxWidth) {
+  const out = [];
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const word of para.split(/(\s+)/)) {
+      const next = line + word;
+      if (line && ctx.measureText(next).width > maxWidth) {
+        out.push(line.trimEnd());
+        line = word.trimStart();
+      } else line = next;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 const BRUSH_ALPHA = { pen: 1, marker: 0.85, highlighter: 0.38, neon: 1 };
 
 function applyDash(ctx, el, width) {
@@ -109,6 +128,28 @@ function drawShape(ctx, el, width, color, { fill = true } = {}) {
       ctx.setLineDash([]);
       drawArrowHead(ctx, el);
       break;
+    case 'note': {
+      const r = normalizeRect(el.x, el.y, el.w, el.h);
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.18)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      ctx.fillStyle = el.fill;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, 6);
+      else ctx.rect(r.x, r.y, r.w, r.h);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = color;
+      ctx.font = fontFor(el.fontSize);
+      ctx.textBaseline = 'top';
+      const pad = NOTE_PADDING;
+      const lh = el.fontSize * LINE_HEIGHT;
+      wrapText(ctx, el.text, r.w - pad * 2).forEach((line, i) => {
+        if (pad + (i + 1) * lh <= r.h) ctx.fillText(line, r.x + pad, r.y + pad + i * lh);
+      });
+      break;
+    }
     case 'text': {
       ctx.fillStyle = color;
       ctx.font = fontFor(el.fontSize);
@@ -131,10 +172,11 @@ export function drawElement(ctx, el) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.globalAlpha = (el.opacity ?? 1) * (el.type === 'text' ? 1 : BRUSH_ALPHA[brush] ?? 1);
-  if (brush === 'highlighter' && el.type !== 'text') ctx.globalCompositeOperation = 'multiply';
+  const flat = el.type === 'text' || el.type === 'note';
+  ctx.globalAlpha = (el.opacity ?? 1) * (flat ? 1 : BRUSH_ALPHA[brush] ?? 1);
+  if (brush === 'highlighter' && !flat) ctx.globalCompositeOperation = 'multiply';
 
-  if (brush === 'neon') {
+  if (brush === 'neon' && el.type !== 'note') {
     ctx.shadowColor = el.stroke;
     ctx.shadowBlur = Math.max(10, el.strokeWidth * 5);
     drawShape(ctx, el, width, el.stroke);

@@ -25,6 +25,9 @@ import { CameraSender, CameraReceiver } from '../media/cameras.js';
 import { CameraBubbles } from '../ui/cameraBubbles.js';
 import { Reactions } from '../ui/reactions.js';
 import { LaserLayer } from '../render/laser.js';
+import { exportPdf } from '../render/exportPdf.js';
+import { NOTE_PADDING } from '../render/draw.js';
+import { setupSession } from '../session/session.js';
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
@@ -56,7 +59,7 @@ const OVERLAY = params.get('overlay') === '1';
   const fromHash = new URLSearchParams(location.hash.slice(1)).get('host');
   if (fromHash && room) {
     saveHostKey(room, fromHash);
-    history.replaceState(null, '', location.pathname + location.search);
+    window.history.replaceState(null, '', location.pathname + location.search);
   }
 }
 const STYLE_KEY = OVERLAY ? 'trazo:style:overlay' : 'trazo:style';
@@ -82,6 +85,8 @@ const style = {
   brush: 'pen',
   dash: 'solid',
   opacity: 1,
+  stamp: '✓',
+  noteColor: '#ffec99',
   ...local.get(STYLE_KEY, {}),
 };
 
@@ -104,6 +109,8 @@ if (!OVERLAY) {
 }
 
 let roomHasPin = false;
+let steerGranted = false; // el anfitrión me dejó pasar diapositivas / cambiar de página
+let overlaySession = null;
 let sync = null;
 let spaceDown = false;
 
@@ -133,6 +140,7 @@ const ctx = {
     dash: style.dash,
     opacity: style.opacity,
     author: AUTHOR_ID,
+    page: scene.page,
   }),
   render,
   tol: (px) => px / viewport.zoom,
@@ -148,7 +156,21 @@ const ctx = {
     onSelectionChange();
   },
   editText(el, p) {
-    if (el) {
+    if (el?.type === 'note') {
+      overlay.editingId = el.id;
+      textEditor.open({
+        id: el.id,
+        note: true,
+        x: el.x,
+        y: el.y,
+        width: el.w,
+        height: el.h,
+        padding: NOTE_PADDING,
+        text: el.text,
+        fontSize: el.fontSize,
+        color: el.stroke,
+      });
+    } else if (el) {
       overlay.editingId = el.id;
       textEditor.open({ id: el.id, x: el.x, y: el.y, text: el.text, fontSize: el.fontSize, color: el.stroke });
     } else {
@@ -162,10 +184,12 @@ const ctx = {
 // ---------- Texto ----------
 const textEditor = new TextEditor($('#editor-layer'), {
   viewport,
-  onCommit({ id, x, y, text, fontSize, color }) {
+  onCommit({ id, x, y, text, fontSize, color, note }) {
     overlay.editingId = null;
     const tx = ctx.begin();
-    if (id) {
+    if (note) {
+      if (scene.get(id) && scene.get(id).text !== text) tx.update(id, { text });
+    } else if (id) {
       if (!scene.get(id)) return render();
       if (!text) tx.update(id, { isDeleted: true });
       else tx.update(id, { text, ...measureText(text, fontSize) });
@@ -242,6 +266,8 @@ const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
   Object.assign(style, partial);
   local.set(STYLE_KEY, style);
   stylePanel.refresh();
+  if (partial.stamp) return setTool('stamp');
+  if (partial.noteColor) return setTool('note');
   if (!overlay.selection.size) return;
   const tx = ctx.begin();
   for (const id of overlay.selection) {
@@ -362,6 +388,11 @@ menu.append(
   menuItem('home', 'Inicio', () => (location.href = '/')),
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
+  menuItem('pdf', 'Exportar PDF (todas las páginas)', async () => {
+    const ok = await exportPdf(scene, `trazo-${room}.pdf`);
+    if (!ok) toast('La pizarra está vacía');
+  }),
+  menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
   menuItem('eraser', 'Borrar mis trazos', clearMine),
   menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
 );
@@ -393,11 +424,25 @@ function screenBox() {
   return { x: 8, y: top, w: renderer.width - 16, h: renderer.height - top - bottom };
 }
 
-function fitScreen() {
+/** Zona que muestra el anfitrión (o la pantalla transmitida): lo que «seguir» encuadra. */
+let presenterView = null;
+function followTarget() {
+  if (presenterView) return presenterView;
   const s = overlay.screen;
-  if (!s) return;
-  viewport.fitInto({ x: 0, y: 0, w: s.w, h: s.h }, screenBox());
+  return s ? { x: 0, y: 0, w: s.w, h: s.h } : null;
+}
+
+function fitScreen() {
+  const target = followTarget();
+  if (!target) return;
+  viewport.fitInto(target, screenBox());
   afterViewChange();
+  paintFollow();
+}
+
+const followBtn = $('#follow-btn');
+function paintFollow() {
+  followBtn.hidden = OVERLAY || !followTarget() || followScreen;
 }
 
 function updateScreenUi() {
@@ -523,6 +568,26 @@ const shareScreenItem = menuItem('screen', 'Transmitir mi pantalla', toggleHostS
 shareScreenItem.hidden = true;
 menu.insertBefore(shareScreenItem, menu.children[1]);
 let requestControl = () => {};
+let session = null;
+const timerItem = menuItem('timer', 'Temporizador', () => session?.timerDialog());
+const pollItem = menuItem('poll', 'Votación rápida', () => session?.pollDialog());
+timerItem.hidden = true;
+pollItem.hidden = true;
+menu.insertBefore(pollItem, menu.children[1]);
+menu.insertBefore(timerItem, menu.children[1]);
+
+/** Modo simple: solo las herramientas esenciales para anotar desde el celular. */
+function setSimple(on) {
+  document.body.classList.toggle('simple', on);
+  local.set('trazo:simple', on);
+  if (on && !['pen', 'laser', 'eraser', 'note', 'stamp'].includes(tool.name)) setTool('pen');
+}
+
+followBtn.innerHTML = `${ICONS.follow}<span>Seguir</span>`;
+followBtn.addEventListener('click', () => {
+  followScreen = true;
+  fitScreen();
+});
 const requestItem = menuItem('hand', 'Pedir pasar diapositivas', () => requestControl());
 requestItem.hidden = true;
 menu.insertBefore(requestItem, menu.children[1]);
@@ -573,7 +638,12 @@ attachPointerInput(canvas, {
   onCursor: (p) => sync?.sendCursor(p),
   isSpaceDown: () => spaceDown,
   lockView: OVERLAY,
-  onUserView: () => (followScreen = false),
+  onUserView: () => {
+    if (followScreen) {
+      followScreen = false;
+      paintFollow();
+    }
+  },
 });
 
 const onResize = () => {
@@ -697,6 +767,10 @@ async function start() {
       actions: {
         clear: () => clearBoard({ ask: false }),
         clearAll: () => clearBoard({ ask: false }),
+        goToPage: (n) => overlaySession?.goTo(n),
+        currentPage: () => scene.page,
+        timerDialog: () => overlaySession?.timerDialog(),
+        pollDialog: () => overlaySession?.pollDialog(),
         invite: () => shareDialog({ room, hasPin: roomHasPin }),
         commitText: () => textEditor.active && textEditor.commit(),
       },
@@ -704,6 +778,47 @@ async function start() {
   }
 
   setupCamerasAndControl({ connection, presence, isDisplay });
+
+  // Páginas, temporizador y votación.
+  session = setupSession({
+    connection,
+    scene,
+    canSteer: () => isHost || steerGranted,
+    isHost: () => isHost,
+  });
+  timerItem.hidden = !isHost;
+  pollItem.hidden = !isHost;
+  overlaySession = session;
+
+  // Modo simple por defecto en celulares de participantes (se puede cambiar en el menú).
+  const simplePref = local.get('trazo:simple', null);
+  setSimple(simplePref ?? (!isHost && isNarrow()));
+
+  // El anfitrión comparte qué zona está mostrando; los demás pueden seguirla.
+  if (isHost) {
+    let lastView = '';
+    setInterval(() => {
+      if (!connection.online) return;
+      const r = OVERLAY
+        ? viewport.visibleRect(window.innerWidth, window.innerHeight)
+        : viewport.visibleRect(renderer.width, renderer.height);
+      const view = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) };
+      const key = JSON.stringify(view);
+      if (key !== lastView) {
+        lastView = key;
+        connection.send({ t: 'view', ...view });
+      }
+    }, 300);
+    connection.on('message', (msg) => msg.t === 'welcome' && (lastView = ''));
+  } else {
+    connection.on('message', (msg) => {
+      if ((msg.t === 'welcome' && msg.view) || msg.t === 'view') {
+        presenterView = msg.t === 'view' ? { x: msg.x, y: msg.y, w: msg.w, h: msg.h } : msg.view;
+        if (followScreen) fitScreen();
+        else paintFollow();
+      }
+    });
+  }
 
   let firstWelcome = true;
   connection.on('message', (msg) => {
@@ -825,7 +940,8 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
     switch (msg.t) {
       case 'welcome':
         controllerOnline = msg.controller;
-        granted = false;
+        granted = Boolean(msg.canSteer) && !msg.you.host;
+        steerGranted = granted;
         paintControl();
         if (camera.active) {
           for (const id of [...camera.pcs.keys()]) camera.disconnect(id);
@@ -839,7 +955,9 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
       case 'control-granted':
         if (msg.granted !== granted) toast(msg.granted ? 'El anfitrión te dio control de las diapositivas' : 'Ya no tienes control de las diapositivas');
         granted = msg.granted;
+        steerGranted = granted;
         paintControl();
+        session?.paintPages();
         break;
       case 'peer-join':
         if (camera.active && msg.peer.display) camera.connectTo(msg.peer.id);
