@@ -50,3 +50,17 @@ test('bump incrementa la versión sin mutar el original', () => {
   assert.equal(next.x, 5);
   assert.ok(sanitizeElement(next));
 });
+
+test('pinceles, líneas, opacidad y autor se validan', () => {
+  const ok = sanitizeElement({ ...base, type: 'pen', points: [[0, 0]], brush: 'neon', dash: 'dotted', opacity: 0.5, author: 'yo123456' });
+  assert.deepEqual([ok.brush, ok.dash, ok.opacity, ok.author], ['neon', 'dotted', 0.5, 'yo123456']);
+  const bad = sanitizeElement({ ...base, brush: 'lanzallamas', dash: '<x>', opacity: 9, author: '../etc' });
+  assert.deepEqual([bad.brush, bad.dash, bad.opacity, 'author' in bad], ['pen', 'solid', 1, false]);
+});
+
+test('el grosor efectivo del pincel cuenta para tocar el trazo', async () => {
+  const { hitTest } = await import('../shared/geometry.js');
+  const line = { type: 'line', x: 0, y: 0, points: [[0, 0], [100, 0]], strokeWidth: 4 };
+  assert.equal(hitTest(line, 50, 8, 0), false);
+  assert.equal(hitTest({ ...line, brush: 'highlighter' }, 50, 8, 0), true);
+});

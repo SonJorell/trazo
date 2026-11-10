@@ -11,6 +11,8 @@
  *   control-request {}                  (participante) Pide permiso para pasar diapositivas.
  *   control-grant { to, granted }       (PC presentador) Da o quita ese permiso.
  *   rtc { to, data }                    Señalización WebRTC (cámaras) dirigida a un participante.
+ *   laser { pts, c, end? }              Estela del puntero láser (efímera).
+ *   reaction { e }                      Emoji de reacción (de una lista permitida).
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
@@ -49,6 +51,8 @@ export const MSG = Object.freeze({
   CONTROL_GRANT: 'control-grant',
   CONTROL_GRANTED: 'control-granted',
   RTC: 'rtc',
+  LASER: 'laser',
+  REACTION: 'reaction',
   ERROR: 'error',
 });
 
@@ -94,6 +98,25 @@ export const CONTROL_ACTIONS = Object.freeze([
 export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
 /** Lo único que puede hacer un participante al que el anfitrión le dio control. */
 export const GRANTED_ACTIONS = Object.freeze(['next', 'prev', 'first', 'last', 'black', 'white']);
+/** Reacciones permitidas (emojis que flotan sobre la presentación). */
+export const REACTIONS = Object.freeze(['👍', '👏', '❤️', '😂', '😮', '🎉', '❓', '✋']);
+const LASER_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Puntero láser: trozo de estela { pts: [[x,y],...], c: color, end?: true }.
+ * No se guarda en la sala: solo se reenvía y se desvanece.
+ */
+export function validateLaser(msg) {
+  if (!Array.isArray(msg?.pts) || msg.pts.length === 0 || msg.pts.length > 64) return null;
+  const pts = [];
+  for (const p of msg.pts) {
+    if (!Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
+    if (Math.abs(p[0]) > 1e7 || Math.abs(p[1]) > 1e7) return null;
+    pts.push([Math.round(p[0]), Math.round(p[1])]);
+  }
+  return { pts, c: LASER_COLOR_RE.test(msg.c) ? msg.c : '#ff2d55', end: msg.end === true };
+}
+
 /** Tamaño máximo de un mensaje de señalización WebRTC (SDP o candidato). */
 export const MAX_RTC_CHARS = 64_000;
 export const CONTROL_KEY_RE = /^[A-Za-z0-9]{16,64}$/;
