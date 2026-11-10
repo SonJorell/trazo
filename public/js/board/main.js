@@ -38,7 +38,8 @@ import {
   savePin,
   forgetPin,
   forgetRoom,
-  isHostOf,
+  saveHostKey,
+  hostKeyOf,
 } from '../util/storage.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -48,6 +49,14 @@ const room = parseRoomCode(params.get('room'));
 if (!room) location.replace('/');
 /** Modo «sobre la pantalla»: fondo transparente y vista fija 1:1 con la pantalla del PC. */
 const OVERLAY = params.get('overlay') === '1';
+// La app de overlay pasa la clave de anfitrión en el fragmento (#host=…), que no viaja al servidor.
+{
+  const fromHash = new URLSearchParams(location.hash.slice(1)).get('host');
+  if (fromHash && room) {
+    saveHostKey(room, fromHash);
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
 const STYLE_KEY = OVERLAY ? 'trazo:style:overlay' : 'trazo:style';
 
 // ---------- Estado ----------
@@ -303,7 +312,8 @@ let roomMode = 'blank';
 let hostSharer = null;
 let previewTimer = null;
 const hosting = () => Boolean(hostSharer?.active);
-const canShareScreen = !OVERLAY && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+const canShareScreen =
+  !OVERLAY && Boolean(hostKeyOf(room)) && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
 const isNarrow = () => window.matchMedia('(max-width: 760px)').matches;
 const isImmersive = () => document.body.classList.contains('immersive');
 
@@ -533,7 +543,8 @@ async function start() {
   }
   roomHasPin = info.hasPin;
   roomMode = info.mode ?? 'blank';
-  const isHost = isHostOf(room);
+  const hostKey = hostKeyOf(room);
+  const isHost = Boolean(hostKey);
   updateScreenUi();
   rememberRoom(room);
 
@@ -548,8 +559,18 @@ async function start() {
   if (pin) savePin(room, pin);
 
   // Quien proyecta (overlay o anfitrión) recibe las cámaras de los demás.
-  const isDisplay = OVERLAY || isHost;
-  const connection = new Connection({ room, getJoin: () => ({ name, pin, display: isDisplay }) });
+  const isDisplay = isHost;
+  const connection = new Connection({ room, getJoin: () => ({ name, pin, hostKey, display: isDisplay }) });
+  const hostChip = $('#host-chip');
+  connection.on('message', (msg) => {
+    if (msg.t !== 'welcome') return;
+    hostChip.hidden = !msg.you.host || OVERLAY;
+    if (OVERLAY && !msg.you.host) {
+      fatalDialog(
+        'Esta ventana no es la presentación principal de la sala. Ábrela con iniciar-overlay.bat en el PC del anfitrión, o únete como participante desde el QR.',
+      );
+    }
+  });
   const presence = new Presence($('#presence'), { overlay, render });
   sync = new Sync({ scene, connection, presence, onScreen: showScreen });
 

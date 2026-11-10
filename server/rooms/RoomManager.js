@@ -48,7 +48,16 @@ export class RoomManager {
     do id = this._newId();
     while (this.rooms.has(id) || (await this.store.exists(id)));
 
-    const room = this._wrap({ id, createdAt: Date.now(), mode, pin: pin ? hashPin(String(pin)) : null });
+    // Clave de anfitrión: se entrega una sola vez a quien crea la sala; en disco solo queda su hash.
+    const hostKey = crypto.randomBytes(18).toString('base64url');
+    const room = this._wrap({
+      id,
+      createdAt: Date.now(),
+      mode,
+      pin: pin ? hashPin(String(pin)) : null,
+      hostKey: crypto.createHash('sha256').update(hostKey).digest('hex'),
+    });
+    room.issuedHostKey = hostKey; // solo en memoria, para responder a quien la creó
     this.rooms.set(id, room);
     await this.store.save(id, room.toJSON());
     this.logger?.info(`Sala creada: ${id} (${mode === 'live' ? 'en directo' : 'en blanco'}${room.hasPin ? ', con PIN' : ''})`);

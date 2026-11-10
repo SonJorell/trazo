@@ -39,7 +39,8 @@ function readJson(req) {
 /**
  * Rutas de la API:
  *   GET  /api/info           → URLs de la red local y puerto.
- *   POST /api/rooms          → crea sala { pin?, mode? } → { id, hasPin, mode }
+ *   POST /api/rooms          → crea sala { pin?, mode? } → { id, hasPin, mode, hostKey }
+ *                              (hostKey solo se entrega aquí: identifica al anfitrión)
  *   GET  /api/rooms/:id      → { id, hasPin, mode, live } o 404 (no existe o se cerró)
  *   GET  /api/qr.svg?text=   → código QR en SVG (solo para URLs de este servidor)
  */
@@ -66,7 +67,8 @@ export function createApiHandler({ rooms, config }) {
       if (req.method === 'POST' && pathname === '/api/rooms') {
         const body = await readJson(req);
         const room = await rooms.create({ pin: body.pin, mode: body.mode ?? 'blank' });
-        sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode });
+        sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode, hostKey: room.issuedHostKey });
+        delete room.issuedHostKey;
         return true;
       }
 

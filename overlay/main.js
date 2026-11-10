@@ -45,6 +45,7 @@ let embedded = null;
 let mode = 'pass';
 let sharing = false;
 let room = null;
+let hostKey = null; // clave de anfitrión de la sala: hace de esta ventana la presentación principal
 
 if (!app.requestSingleInstanceLock()) app.quit();
 // Cámaras por WebRTC en la red local: usar IPs reales en vez de nombres mDNS ocultos.
@@ -151,19 +152,24 @@ async function createRoom() {
     body: JSON.stringify({ mode: 'live' }),
   });
   if (!res.ok) throw new Error(`No se pudo crear la sala (${res.status})`);
-  return (await res.json()).id;
+  const data = await res.json();
+  return { room: data.id, hostKey: data.hostKey };
 }
 
-/** Reutiliza la última sala del overlay si sigue existiendo; si no, crea una. */
+/**
+ * Reutiliza la última sala del overlay si sigue abierta (y tenemos su clave de anfitrión);
+ * si no, crea una nueva. Siempre devuelve { room, hostKey }.
+ */
 async function resolveRoom(forceNew = false) {
-  const argRoom = process.argv.find((a) => a.startsWith('--room='))?.slice(7);
-  const candidate = forceNew ? null : (argRoom ?? readState().room);
-  if (candidate) {
-    const res = await fetch(`${BASE}/api/rooms/${encodeURIComponent(candidate)}`).catch(() => null);
-    if (res?.ok) return candidate;
+  const saved = readState();
+  if (!forceNew && saved.room && saved.hostKey) {
+    const res = await fetch(`${BASE}/api/rooms/${encodeURIComponent(saved.room)}`).catch(() => null);
+    if (res?.ok) return { room: saved.room, hostKey: saved.hostKey };
   }
   return createRoom();
 }
+
+const roomUrl = () => `${BASE}/sala?room=${room}&overlay=1#host=${hostKey}`;
 
 // ---------- Ventana ----------
 function createWindow() {
@@ -209,11 +215,12 @@ function createWindow() {
 
   // Solo se permite navegar dentro de Trazo.
   win.webContents.on('will-navigate', (e, url) => {
+    // Solo se permite navegar dentro de Trazo.
     if (!url.startsWith(BASE)) e.preventDefault();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
-  win.loadURL(`${BASE}/sala?room=${room}&overlay=1`);
+  win.loadURL(roomUrl());
   win.once('ready-to-show', () => win.showInactive());
   win.on('closed', () => (win = null));
 }
@@ -245,9 +252,9 @@ function toggleVisible() {
 const command = (cmd) => win?.webContents.send('overlay:command', cmd);
 
 async function newRoom() {
-  room = await resolveRoom(true);
-  writeState({ room });
-  win?.loadURL(`${BASE}/sala?room=${room}&overlay=1`);
+  ({ room, hostKey } = await resolveRoom(true));
+  writeState({ room, hostKey });
+  win?.loadURL(roomUrl());
   refreshTray();
 }
 
@@ -301,8 +308,8 @@ app.on('second-instance', () => setMode('draw'));
 app.whenReady().then(async () => {
   try {
     await ensureServer();
-    room = await resolveRoom();
-    writeState({ room });
+    ({ room, hostKey } = await resolveRoom());
+    writeState({ room, hostKey });
   } catch (err) {
     console.error('No se pudo iniciar Trazo:', err);
     app.quit();

@@ -23,8 +23,9 @@
  *   control-granted { granted }         (al participante) Ahora puede / ya no puede pasar diapositivas.
  *   rtc { from, data }                  Señalización WebRTC de otro participante.
  *
- * `join` acepta además `display: true` para quien proyecta (overlay o anfitrión): las cámaras
- * de los participantes se envían a esos destinos.
+ * `join` acepta además `hostKey` (clave que recibe quien crea la sala) y `display: true`.
+ * Solo el anfitrión —quien tiene la clave— es la «presentación principal»: puede proyectar
+ * (recibir cámaras), registrarse para el control remoto y transmitir su pantalla.
  *   ops     { from, ops }               Cambios aceptados de otro participante.
  *   peer-join  { peer }                 Alguien entró.
  *   peer-leave { id }                   Alguien salió.
@@ -78,6 +79,7 @@ export const ERR = Object.freeze({
   RATE_LIMITED: 'rate_limited',
   ROOM_FULL: 'room_full',
   CONTROL_DENIED: 'control_denied',
+  NOT_HOST: 'not_host',
   NO_CONTROLLER: 'no_controller',
 });
 

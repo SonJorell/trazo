@@ -190,3 +190,17 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   borran si el participante o el controlador se desconectan.
 - **Consecuencias**: control compartido sin repartir la clave del QR de control. La lupa y la
   transmisión quedan reservadas a quien tiene la clave.
+
+## ADR-022 — Clave de anfitrión: una sola presentación principal
+
+- **Contexto**: en las pruebas reales otro participante abrió la sala en modo proyector y empezó a
+  recibir las solicitudes de control. No quedaba claro cuál era la ventana «principal».
+- **Decisión**: `POST /api/rooms` entrega una `hostKey` aleatoria una sola vez; la sala guarda
+  solo su SHA-256. En `join`, quien presenta la clave queda como `host`. Solo el anfitrión puede
+  marcarse `display` (recibir cámaras), registrar el control remoto y transmitir su pantalla. Las
+  demás peticiones devuelven `not_host`. La app de overlay guarda la clave junto con la sala y se
+  la pasa a su página por el fragmento `#host=` (no viaja en peticiones HTTP). El navegador que
+  creó la sala desde el inicio la guarda en `localStorage`.
+- **Consecuencias**: un enlace o un QR filtrado no permite tomar el control de la presentación.
+  La interfaz marca la ventana principal con ★. Las salas creadas antes de este cambio no tienen
+  anfitrión: hay que crear una nueva.
