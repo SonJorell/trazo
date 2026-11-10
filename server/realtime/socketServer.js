@@ -9,6 +9,8 @@ import {
   CONTROL_KEY_RE,
   GRANTED_ACTIONS,
   MAX_RTC_CHARS,
+  REACTIONS,
+  validateLaser,
 } from '../../shared/protocol.js';
 import { randomId } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
@@ -43,6 +45,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       peer: null,
       bucket: new TokenBucket(config.rateLimit),
       lastControlRequest: 0,
+      lastReaction: 0,
     };
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
@@ -83,6 +86,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (msg.t === MSG.CONTROL_REQUEST) requestControl();
         else if (msg.t === MSG.CONTROL_GRANT) grantControl(msg);
         else if (msg.t === MSG.RTC) relayRtc(msg);
+        else if (msg.t === MSG.LASER) relayLaser(msg);
+        else if (msg.t === MSG.REACTION) relayReaction(msg);
       } catch (err) {
         logger.error('Error procesando mensaje:', err);
         fail(ERR.BAD_REQUEST, 'Error procesando el mensaje');
@@ -195,6 +200,20 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       if (msg.granted === true) room.grants.add(target.id);
       else room.grants.delete(target.id);
       target.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: room.grants.has(target.id) }));
+    }
+
+    function relayLaser(msg) {
+      const laser = validateLaser(msg);
+      if (!laser) return;
+      client.room.broadcast({ t: MSG.LASER, from: client.id, ...laser }, client.id, { volatile: true });
+    }
+
+    function relayReaction(msg) {
+      if (!REACTIONS.includes(msg.e)) return fail(ERR.BAD_REQUEST, 'Reacción no permitida');
+      const now = Date.now();
+      if (now - client.lastReaction < 600) return; // sin lluvias de emojis
+      client.lastReaction = now;
+      client.room.broadcast({ t: MSG.REACTION, from: client.id, name: client.peer.name, e: msg.e }, client.id);
     }
 
     /** Reenvía señalización WebRTC (ofertas, respuestas, candidatos) a un participante concreto. */

@@ -342,3 +342,27 @@ test('solo el anfitrión es la presentación principal', async () => {
   intruso.ws.close();
   host.ws.close();
 });
+
+test('puntero láser y reacciones se reenvían validados', async () => {
+  const { id } = await createRoom();
+  const a = connect();
+  const b = connect();
+  await Promise.all([a.opened, b.opened]);
+  a.send({ t: 'join', room: id, name: 'Ana' });
+  await a.next('welcome');
+  b.send({ t: 'join', room: id, name: 'Beto' });
+  await b.next('welcome');
+
+  a.send({ t: 'laser', pts: [[1.4, 2.6], [10, 20]], c: '#00ff00' });
+  const laser = await b.next('laser');
+  assert.deepEqual(laser.pts, [[1, 3], [10, 20]]);
+  assert.equal(laser.c, '#00ff00');
+
+  a.send({ t: 'reaction', e: '👏' });
+  const r = await b.next('reaction');
+  assert.deepEqual({ e: r.e, name: r.name }, { e: '👏', name: 'Ana' });
+  a.send({ t: 'reaction', e: '<script>' });
+  assert.equal((await a.next('error')).code, 'bad_request');
+  a.ws.close();
+  b.ws.close();
+});

@@ -33,6 +33,9 @@ export const ICONS = {
   cameraOff: svg('<path d="M3 3l18 18"/><path d="M15 10l5-3v10l-5-3M9 6h4a2 2 0 0 1 2 2v4M15 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2"/>'),
   flip: svg('<path d="M4 7h11l-3-3M20 17H9l3 3"/>'),
   users: svg('<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5A5 5 0 0 1 21 19"/>'),
+  laser: svg('<circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>'),
+  smile: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>'),
+  autoClear: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13"/><path d="M9 4h6"/>'),
   close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
   copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
 };

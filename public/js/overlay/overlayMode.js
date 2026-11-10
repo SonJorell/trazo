@@ -1,6 +1,7 @@
 import { h } from '../ui/dom.js';
 import { ICONS } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
+import { local } from '../util/storage.js';
 import { Magnifier } from './magnifier.js';
 import { setupRemoteControl } from './remoteControl.js';
 
@@ -33,7 +34,31 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     render,
     onChange: (on) => (zoomBtn.hidden = !on),
   });
-  const remote = setupRemoteControl({ room, connection, bridge, magnifier, sharer });
+  // Borrar las marcas al pasar de diapositiva (opcional, recordado en este PC).
+  let autoClear = local.get('trazo:autoclear', false);
+  const autoClearBtn = h('button', {
+    class: 'ov-btn',
+    title: 'Borrar las marcas al pasar de diapositiva desde el control remoto',
+    onclick: () => {
+      autoClear = !autoClear;
+      local.set('trazo:autoclear', autoClear);
+      paintAutoClear();
+      toast(autoClear ? 'Las marcas se borrarán al pasar de diapositiva' : 'Las marcas se mantienen al pasar de diapositiva');
+    },
+  });
+  const paintAutoClear = () => {
+    autoClearBtn.classList.toggle('on', autoClear);
+    autoClearBtn.innerHTML = `${ICONS.autoClear}<span>${autoClear ? 'Auto-limpiar: sí' : 'Auto-limpiar'}</span>`;
+  };
+  paintAutoClear();
+  const remote = setupRemoteControl({
+    room,
+    connection,
+    bridge,
+    magnifier,
+    sharer,
+    onSlideChange: () => autoClear && actions.clearAll(),
+  });
 
   const modeBtn = h('button', { class: 'ov-btn ov-mode' });
   const shareBtn = h('button', {
@@ -52,6 +77,7 @@ export function setupOverlay({ room, sharer, actions, connection, viewport, over
     ),
     shareBtn,
     zoomBtn,
+    autoClearBtn,
     h('button', { class: 'ov-btn', title: 'Invitar (QR)', html: ICONS.share, onclick: actions.invite }),
     h('button', {
       class: 'ov-btn',

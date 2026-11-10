@@ -23,6 +23,8 @@ import {
 } from '../ui/dialogs.js';
 import { CameraSender, CameraReceiver } from '../media/cameras.js';
 import { CameraBubbles } from '../ui/cameraBubbles.js';
+import { Reactions } from '../ui/reactions.js';
+import { LaserLayer } from '../render/laser.js';
 import { toast } from '../ui/toast.js';
 import { ICONS } from '../ui/icons.js';
 import { h } from '../ui/dom.js';
@@ -63,14 +65,35 @@ const STYLE_KEY = OVERLAY ? 'trazo:style:overlay' : 'trazo:style';
 const scene = new Scene();
 const history = new History(scene);
 const viewport = new Viewport();
-const overlay = { selection: new Set(), marquee: null, cursors: new Map(), editingId: null, screen: null };
+const overlay = {
+  selection: new Set(),
+  marquee: null,
+  cursors: new Map(),
+  editingId: null,
+  screen: null,
+  laser: new LaserLayer(),
+};
+let myColor = '#ff2d55'; // color del láser propio (el de cada participante, al conectar)
 const style = {
   stroke: OVERLAY ? '#e03131' : '#1e1e1e',
   fill: 'transparent',
   strokeWidth: OVERLAY ? 4 : 2,
   fontSize: 28,
+  brush: 'pen',
+  dash: 'solid',
+  opacity: 1,
   ...local.get(STYLE_KEY, {}),
 };
+
+/** Identificador estable de este navegador: marca los trazos propios («Borrar mis trazos»). */
+const AUTHOR_ID = (() => {
+  let id = local.get('trazo:author', null);
+  if (!id) {
+    id = createElement('pen', {}).id; // reutiliza el generador de ids aleatorios
+    local.set('trazo:author', id);
+  }
+  return id;
+})();
 
 const canvas = $('#board');
 const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: OVERLAY });
@@ -96,6 +119,21 @@ const ctx = {
     return overlay.selection;
   },
   begin: () => new Transaction(scene, history),
+  /** Puntero láser: estela local inmediata + envío a la sala. */
+  laser(p, end) {
+    overlay.laser.add('me', myColor, [[p.x, p.y]], end);
+    render();
+    sync?.sendLaser(p, end, myColor);
+  },
+  /** Propiedades de trazo actuales para crear un elemento nuevo. */
+  strokeProps: () => ({
+    stroke: style.stroke,
+    strokeWidth: style.strokeWidth,
+    brush: style.brush,
+    dash: style.dash,
+    opacity: style.opacity,
+    author: AUTHOR_ID,
+  }),
   render,
   tol: (px) => px / viewport.zoom,
   hit: (el, p, tol) => hitTest(el, p.x, p.y, tol),
@@ -132,7 +170,16 @@ const textEditor = new TextEditor($('#editor-layer'), {
       if (!text) tx.update(id, { isDeleted: true });
       else tx.update(id, { text, ...measureText(text, fontSize) });
     } else if (text) {
-      const el = createElement('text', { x, y, text, fontSize, stroke: color, ...measureText(text, fontSize) });
+      const el = createElement('text', {
+        x,
+        y,
+        text,
+        fontSize,
+        ...ctx.strokeProps(),
+        stroke: color,
+        dash: 'solid',
+        ...measureText(text, fontSize),
+      });
       tx.add(el);
     }
     tx.commit();
@@ -186,6 +233,9 @@ const STYLE_TARGETS = {
   fill: (el) => el.type === 'rect' || el.type === 'ellipse',
   strokeWidth: (el) => el.type !== 'text',
   fontSize: (el) => el.type === 'text',
+  brush: () => true,
+  dash: (el) => el.type !== 'text',
+  opacity: () => true,
 };
 
 const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
@@ -250,6 +300,17 @@ async function clearBoard({ ask = true } = {}) {
   ctx.select([]);
 }
 
+/** Borra solo lo que dibujó este navegador (deshacible). */
+function clearMine() {
+  const mine = scene.alive().filter((el) => el.author === AUTHOR_ID);
+  if (!mine.length) return toast('No tienes trazos en la pizarra');
+  const tx = ctx.begin();
+  for (const el of mine) tx.update(el.id, { isDeleted: true });
+  tx.commit();
+  ctx.select([]);
+  toast(`Se borraron ${mine.length} trazos tuyos (puedes deshacer)`);
+}
+
 async function doExport() {
   const ok = await exportPng(scene, `trazo-${room}.png`);
   if (!ok) toast('La pizarra está vacía');
@@ -301,6 +362,7 @@ menu.append(
   menuItem('home', 'Inicio', () => (location.href = '/')),
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
+  menuItem('eraser', 'Borrar mis trazos', clearMine),
   menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
 );
 
@@ -572,7 +634,27 @@ async function start() {
     }
   });
   const presence = new Presence($('#presence'), { overlay, render });
-  sync = new Sync({ scene, connection, presence, onScreen: showScreen });
+  sync = new Sync({
+    scene,
+    connection,
+    presence,
+    onScreen: showScreen,
+    onLaser: (msg) => {
+      overlay.laser.add(msg.from, msg.c, msg.pts, msg.end);
+      render();
+    },
+  });
+
+  // Reacciones (emojis que flotan para todos).
+  const reactions = new Reactions({
+    button: $('#react-btn'),
+    onSend: (e) => connection.send({ t: 'reaction', e }),
+  });
+  $('#react-btn').innerHTML = ICONS.smile;
+  connection.on('message', (msg) => {
+    if (msg.t === 'reaction') reactions.show(msg.e, msg.name);
+    if (msg.t === 'welcome') myColor = msg.you.color;
+  });
 
   if (canShareScreen) {
     hostSharer = new ScreenSharer({
@@ -614,6 +696,7 @@ async function start() {
       render,
       actions: {
         clear: () => clearBoard({ ask: false }),
+        clearAll: () => clearBoard({ ask: false }),
         invite: () => shareDialog({ room, hasPin: roomHasPin }),
         commitText: () => textEditor.active && textEditor.commit(),
       },

@@ -12,8 +12,11 @@ const CHUNK = 400;
  * - Al (re)conectar fusiona el estado del servidor y reenvía lo hecho sin conexión.
  */
 export class Sync {
-  constructor({ scene, connection, presence, onScreen = () => {} }) {
+  constructor({ scene, connection, presence, onScreen = () => {}, onLaser = () => {} }) {
     this.scene = scene;
+    this.onLaser = onLaser;
+    this._laserBuf = [];
+    this._laserTimer = null;
     this.onScreen = onScreen; // (frame | null) => void
     this.conn = connection;
     this.presence = presence;
@@ -52,6 +55,19 @@ export class Sync {
     else this._cursorTimer = setTimeout(send, CURSOR_MS);
   }
 
+  /** Envía la estela del láser en trozos (cada 40 ms, o enseguida al soltar). */
+  sendLaser(p, end, color) {
+    this._laserBuf.push([p.x, p.y]);
+    const flush = () => {
+      clearTimeout(this._laserTimer);
+      this._laserTimer = null;
+      if (!this._laserBuf.length) return;
+      this.conn.send({ t: MSG.LASER, pts: this._laserBuf.splice(0, 64), c: color, end });
+    };
+    if (end) flush();
+    else if (!this._laserTimer) this._laserTimer = setTimeout(flush, 40);
+  }
+
   _onMessage(msg) {
     switch (msg.t) {
       case MSG.WELCOME: {
@@ -81,6 +97,9 @@ export class Sync {
         break;
       case MSG.PEER_LEAVE:
         this.presence.remove(msg.id);
+        break;
+      case MSG.LASER:
+        this.onLaser(msg);
         break;
       case MSG.CURSOR:
         this.presence.moveCursor(msg.id, msg.x, msg.y);

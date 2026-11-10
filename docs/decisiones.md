@@ -204,3 +204,21 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Consecuencias**: un enlace o un QR filtrado no permite tomar el control de la presentación.
   La interfaz marca la ventana principal con ★. Las salas creadas antes de este cambio no tienen
   anfitrión: hay que crear una nueva.
+
+## ADR-023 — Pinceles como estilo del elemento
+
+- **Decisión**: el pincel (`brush`), el tipo de línea (`dash`) y la opacidad son propiedades de
+  cualquier elemento con trazo, no tipos nuevos. El renderizado aplica el pincel (grosor efectivo,
+  transparencia, *multiply* para el resaltador, halo y núcleo para el neón), y la geometría usa el
+  mismo grosor efectivo para detectar clics.
+- **Consecuencias**: todas las formas (líneas, flechas, rectángulos, elipses, trazos libres)
+  admiten los cuatro pinceles sin duplicar herramientas. Los elementos antiguos quedan como `pen`
+  continuo y opaco.
+
+## ADR-024 — Láser y reacciones efímeros
+
+- **Decisión**: el puntero láser y las reacciones viajan como mensajes que el servidor valida y
+  reenvía, pero no guarda en la sala. El láser se envía por trozos cada 40 ms y se descarta si la
+  red va atrasada. Las reacciones vienen de una lista cerrada, con un límite de frecuencia.
+- **Consecuencias**: señalar y reaccionar no ensucian la pizarra ni el historial, y no ocupan
+  disco.

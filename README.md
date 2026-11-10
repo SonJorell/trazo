@@ -5,6 +5,9 @@ el celular, una tablet u otro computador conectado a la **misma red Wi-Fi**. Sin
 servicios externos y sin internet.
 
 - Lápiz, rectángulo, elipse, línea, flecha, texto y borrador
+- **Pinceles**: lápiz, marcador, resaltador y **neón**; 18 colores (6 neón) + personalizado;
+  líneas continuas, discontinuas y punteadas; opacidad regulable
+- **Puntero láser** que se desvanece solo y **reacciones** con emojis sobre la proyección
 - Seleccionar, mover, redimensionar y eliminar; colores, relleno y grosor
 - Zoom y desplazamiento con rueda, botones o **pellizco con dos dedos**
 - Deshacer / rehacer, exportar a PNG, limpiar pizarra
@@ -156,12 +159,25 @@ Requiere la app de overlay abierta en el PC (`iniciar-overlay.bat`).
 Las teclas se envían a la ventana que esté en primer plano. Si estabas dibujando, Trazo le
 devuelve el foco a la presentación antes de pulsar la tecla.
 
+## Herramientas para presentar en conjunto
+
+- **Puntero láser** (`K`): señala con una estela brillante que se borra sola en ~1 segundo. Cada
+  persona tiene su color.
+- **Reacciones** (botón 🙂 arriba a la derecha): 👍 👏 ❤️ 😂 😮 🎉 ❓ ✋ flotan sobre la pantalla de
+  todos, también sobre la proyección.
+- **Borrar mis trazos** (menú ☰): elimina solo lo que dibujaste tú; se puede deshacer.
+- **Auto-limpiar** (barra del overlay): al pasar de diapositiva desde el control remoto o con
+  permiso, las marcas se borran solas (también se puede deshacer).
+
+Análisis completo y hoja de ruta: [docs/analisis-mejoras.md](docs/analisis-mejoras.md).
+
 ### Atajos de teclado
 
 | Tecla | Acción | Tecla | Acción |
 |-------|--------|-------|--------|
 | `V` | Seleccionar | `T` | Texto |
 | `P` | Lápiz | `E` | Borrador |
+| `K` | Puntero láser | | |
 | `R` | Rectángulo | `H` | Mover vista |
 | `O` | Elipse | `Espacio` + arrastrar | Mover vista |
 | `A` | Flecha | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
@@ -217,6 +233,7 @@ Detalle completo en [docs/arquitectura.md](docs/arquitectura.md).
 - [Arquitectura y protocolo](docs/arquitectura.md)
 - [Bitácora de decisiones (ADR)](docs/decisiones.md)
 - [Informe del proyecto](docs/informe.md)
+- [Análisis de mejoras y hoja de ruta](docs/analisis-mejoras.md)
 
 ## Flujo de trabajo (contribuir)
 

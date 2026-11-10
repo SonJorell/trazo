@@ -2,6 +2,7 @@
  * Geometría de elementos: límites y pruebas de impacto.
  * Compartido por servidor, cliente y pruebas.
  */
+import { effectiveWidth } from './elements.js';
 
 /** Distancia de un punto P al segmento AB. */
 export function distToSegment(px, py, ax, ay, bx, by) {
@@ -101,7 +102,7 @@ function hitEllipse(el, px, py, tol) {
  * ¿El punto (px, py) toca el elemento? `tol` es la tolerancia en unidades del mundo.
  */
 export function hitTest(el, px, py, tol = 4) {
-  const t = tol + (el.strokeWidth || 0) / 2;
+  const t = tol + effectiveWidth(el) / 2;
   switch (el.type) {
     case 'pen':
     case 'line':
