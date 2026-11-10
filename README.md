@@ -15,6 +15,8 @@ servicios externos y sin internet.
 - Las salas **se cierran solas** cuando no queda nadie (2 minutos después, configurable)
 - **Control remoto desde el celular**: pasar diapositivas (PowerPoint, Google Slides, PDF, Canva,
   HTML) y **lupa** para ampliar una zona de la proyección
+- **Cámaras de los participantes** sobre la presentación (solo video, por WebRTC en la red local)
+- Los participantes pueden **pedir pasar diapositivas** y el anfitrión lo aprueba o lo quita
 - Se guarda sola en disco; si se corta la Wi-Fi puedes seguir dibujando y se sincroniza al volver
 - **Modo sobre la pantalla**: una capa transparente encima de todo para marcar sobre cualquier
   programa, y **transmisión de la pantalla del PC** a la sala para marcarla desde el celular
@@ -89,6 +91,30 @@ Notas:
 - Para depurar, `set TRAZO_OVERLAY_CAPTURABLE=1` deja la capa visible en capturas.
 - La transmisión es para la red local: no la uses en redes públicas.
 
+## Cámaras de los participantes
+
+El anfitrión proyecta (con la app de overlay o desde la pizarra que creó) y los demás pueden
+sumar su cámara, que aparece como una burbuja encima de la presentación.
+
+1. Comparte la sala con **Compartir**: el QR apunta a la dirección **HTTPS**
+   (`https://IP:3443`), porque el celular solo permite usar la cámara en páginas seguras.
+2. La primera vez el celular avisará que la conexión «no es privada»: es tu propio PC con un
+   certificado local. Toca **Avanzado → Continuar** (en iPhone: **Mostrar detalles → visitar el sitio**).
+3. El participante pulsa el botón de **cámara** (arriba a la derecha). Puede cambiar entre la cámara
+   frontal y la trasera, o apagarla desde su vista previa.
+4. En el proyector, las burbujas se **arrastran**, cambian de tamaño con **doble clic** y se
+   quitan con la **X**.
+
+Las cámaras van directo del celular al PC por la red local (WebRTC, sin audio). Si una cámara no
+llega, revisa que el firewall de Windows permita Node.js y Electron en redes privadas.
+
+## Pasar diapositivas desde la pizarra (con permiso)
+
+Con la app de overlay abierta, un participante puede elegir **☰ → Pedir pasar diapositivas**. En
+el PC aparece «X quiere pasar las diapositivas»: **Permitir** o **Rechazar**. Al permitirlo, el
+participante ve los botones **‹ ›**. El anfitrión quita el permiso desde el icono de
+**personas** de la barra del overlay. Los permisos se borran al cerrar el overlay.
+
 ## Control remoto desde el celular (presentaciones)
 
 Requiere la app de overlay abierta en el PC (`iniciar-overlay.bat`).
@@ -135,6 +161,7 @@ Variables de entorno (ver `.env.example`):
 | `DATA_DIR` | `data` | Carpeta donde se guardan las salas |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
 | `EMPTY_ROOM_TTL_MIN` | `2` | Minutos que una sala vacía sigue abierta antes de borrarse |
+| `HTTPS_PORT` | `3443` | Puerto HTTPS local (cámaras en el celular); `0` lo desactiva |
 | `SWEEP_INTERVAL_MS` | `30000` | Cada cuánto se revisan las salas vacías |
 
 Ejemplo en Windows: `set PORT=3090 && npm start`.
@@ -182,6 +209,8 @@ Detalle completo en [docs/arquitectura.md](docs/arquitectura.md).
 | Problema | Solución |
 |----------|----------|
 | El celular no abre la página | Misma Wi-Fi; permitir Node.js en el firewall (redes privadas); usar la IP que muestra la consola, no `localhost` |
+| «La conexión no es privada» | Normal con el certificado local: Avanzado → Continuar. Es necesario para la cámara |
+| La cámara no aparece en el proyector | Abrir la sala por `https://…:3443`; permitir la cámara en el celular; firewall en redes privadas |
 | «El puerto 3080 está ocupado» | Cierra la otra ventana de Trazo o usa `set PORT=3090` |
 | Varias IP en la consola | Usa la que empieza por `192.168.` (suele ser la Wi-Fi) |
 | Se perdió la conexión | Se reconecta sola; lo dibujado mientras tanto se envía al volver |

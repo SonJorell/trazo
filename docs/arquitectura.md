@@ -33,6 +33,7 @@ trazo/
 │   ├── realtime/           socketServer.js (protocolo), rateLimiter.js (token bucket)
 │   ├── rooms/              Room.js (estado), RoomManager.js (ciclo de vida), pin.js (scrypt)
 │   ├── storage/            FileStore.js (JSON en disco), MemoryStore.js (pruebas)
+│   ├── tls/                certificate.js (certificado HTTPS local autogenerado)
 │   └── util/               logger.js, network.js (IPs de la red local)
 ├── shared/                 Código usado por servidor Y navegador
 │   ├── elements.js         Modelo, saneo y regla LWW
@@ -52,6 +53,7 @@ trazo/
 │       ├── net/            connection.js (reconexión), sync.js (puente escena ↔ red)
 │       ├── overlay/        overlayMode.js, screenShare.js, magnifier.js (lupa), remoteControl.js
 │       ├── control/        main.js (página /control del celular)
+│       ├── media/          cameras.js (CameraSender / CameraReceiver, WebRTC)
 │       ├── ui/             barra, panel de estilo, presencia, diálogos, editor de texto, avisos
 │       └── util/           api.js, storage.js, emitter.js
 ├── tests/                  Pruebas con node:test (unitarias + integración)
@@ -116,6 +118,9 @@ stateDiagram-v2
 | C → S | `control` | `key`, `action`, `style?`, `nx?`, `ny?`, `scale?` |
 | S → C | `control` | orden validada, sin la clave, **solo al PC registrado** |
 | S → C | `controller` | `online` (hay o no un PC que acepta control) |
+| C → S | `control-request` | (participante) pide pasar diapositivas → llega solo al PC presentador |
+| C → S | `control-grant` | `to`, `granted` (solo el PC presentador) → `control-granted` al participante |
+| C ↔ S | `rtc` | `to` / `from`, `data` (oferta, respuesta, candidato, bye) — cámaras WebRTC |
 | S → C | `error` | `code`, `message`; los de sala/PIN cierran la conexión |
 
 ### Flujo de una edición
@@ -186,6 +191,26 @@ sequenceDiagram
   O->>O: Magnifier: captura en vivo + vista ampliada
 ```
 
+### Cámaras y permisos (v1.4)
+
+```mermaid
+sequenceDiagram
+  participant P as Participante (https://IP:3443)
+  participant S as Servidor
+  participant D as Proyector (overlay, display)
+  P->>S: rtc {to: D, offer}
+  S->>D: rtc {from: P, offer}
+  D->>S: rtc {to: P, answer}
+  S->>P: rtc {from: D, answer}
+  P-->>D: video WebRTC directo por la red local
+  P->>S: control-request
+  S->>D: control-request {from, name}
+  D->>S: control-grant {to: P, granted: true}
+  S->>P: control-granted {granted: true}
+  P->>S: control {action: next}
+  S->>D: control {action: next} → tecla →
+```
+
 ## 6. Seguridad
 
 | Riesgo | Mitigación |
@@ -198,6 +223,9 @@ sequenceDiagram
 | QR abierto | `/api/qr.svg` solo genera códigos de URLs de este mismo servidor |
 | Conexiones colgadas | latido ping/pong cada 30 s |
 | Cuadros de pantalla falsos | solo `data:image/jpeg;base64`, tamaño y dimensiones acotados |
+| Cámara en HTTP | HTTPS local en 3443 con certificado autofirmado (`server/tls`) |
+| Señalización abusiva | `rtc` solo a un destinatario de la misma sala, máx. 64 KB |
+| Permisos de diapositivas | solo el controlador concede; lista corta de acciones; se borran al desconectar |
 | Control remoto no autorizado | clave aleatoria por sala, solo en memoria, comparación en tiempo constante; órdenes en lista blanca; teclas desde un mapa fijo |
 | Overlay navegando a otro sitio | Electron bloquea navegación fuera de Trazo y ventanas nuevas; `contextIsolation` + `sandbox` |
 

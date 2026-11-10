@@ -157,3 +157,36 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   del usuario.
 - **Consecuencias**: el zoom funciona sobre cualquier programa sin tocar el ratón ni la
   configuración del sistema. La captura se libera 15 s después de quitar la lupa.
+
+## ADR-019 — HTTPS local con certificado autogenerado
+
+- **Contexto**: los navegadores móviles solo permiten `getUserMedia` (cámara) en contextos
+  seguros, y `http://192.168.x.x` no lo es.
+- **Decisión**: al arrancar, el servidor genera (o reutiliza) un certificado autofirmado EC P-256
+  válido por 2 años, con SAN para `localhost`, `127.0.0.1` y las IP de la red. Sirve la misma app y
+  el mismo WebSocket también en `https://…:3443`. Se regenera si cambian las IP. El QR de
+  «Compartir» apunta a HTTPS.
+- **Alternativas descartadas**: mkcert (sin advertencias, pero hay que instalar una CA en cada
+  celular) y un túnel público (necesita internet y saca el tráfico de la red local).
+- **Consecuencias**: cada celular acepta una advertencia la primera vez. HTTP sigue disponible
+  para quien no necesita cámara.
+
+## ADR-020 — Cámaras por WebRTC, solo hacia quien proyecta
+
+- **Decisión**: cada participante con cámara abre una `RTCPeerConnection` por cada participante
+  `display` (overlay o anfitrión). La señalización viaja por el WebSocket con mensajes `rtc`
+  dirigidos (máx. 64 KB), procesados en orden. No se usa STUN/TURN; el overlay desactiva la
+  ocultación de IP por mDNS para que las candidatas locales funcionen. Solo video, 640×480.
+- **Alternativa descartada**: JPEG por WebSocket, como la pantalla compartida. Para caras en
+  movimiento la fluidez y el ancho de banda de WebRTC son muy superiores.
+- **Consecuencias**: video fluido con poca carga para el servidor, que solo reenvía señales.
+  Depende de que la red local permita tráfico entre equipos (firewall en redes privadas).
+
+## ADR-021 — Permiso de diapositivas concedido por el anfitrión
+
+- **Decisión**: el servidor guarda en memoria qué participantes tienen permiso (`room.grants`).
+  Solo el PC registrado como controlador puede dar o quitar permisos. Un participante con permiso
+  puede enviar `control` sin clave, pero solo para acciones de `GRANTED_ACTIONS`. Los permisos se
+  borran si el participante o el controlador se desconectan.
+- **Consecuencias**: control compartido sin repartir la clave del QR de control. La lupa y la
+  transmisión quedan reservadas a quien tiene la clave.
