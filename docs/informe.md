@@ -96,6 +96,16 @@ desde el PC y el celular en la misma red.
 | Página `/control` en 375×812 | Botones grandes, teclas, lupa con recuadro |
 | Pendiente | Probar teclas reales en PowerPoint/Slides y la lupa con la app de overlay, y la cámara real del celular sobre HTTPS |
 
+### Versión 2.0 — Sesión completa
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 39/39 (nuevas: páginas con permisos, vista del presentador, temporizador, votación con cambio de voto y cierre, «permitir a todos», validación de notas y páginas, escritor de PDF con xref verificada) |
+| E2E `tests/e2e/sesion_completa.py` (Chrome, anfitrión 1280×800 + participante 390×844) | 11/11: principal ★, modo simple por defecto, seguir al presentador, cambio de página sin permiso bloqueado, temporizador, voto, reacción, PDF válido |
+| E2E `tests/e2e/proyector.py` (página del overlay 1366×768 + celular) | 8/8: QR grande al iniciar, clave retirada de la URL, «Permitir a todos», «Siguiente/Anterior» desde el celular cambian la página |
+| E2E `tests/e2e/sellos.py` | Sellos ✓ y ★ colocados; «Borrar mis trazos» quitó 2 |
+| Defectos encontrados y corregidos | (1) `history` local ocultaba `window.history` y la página del overlay no arrancaba desde v1.4; (2) «null» en la tarjeta de votación; (3) QR grande tapaba el panel; (4) avisos tapaban la votación en celulares |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

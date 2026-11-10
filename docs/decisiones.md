@@ -222,3 +222,35 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   red va atrasada. Las reacciones vienen de una lista cerrada, con un límite de frecuencia.
 - **Consecuencias**: señalar y reaccionar no ensucian la pizarra ni el historial, y no ocupan
   disco.
+
+## ADR-025 — Páginas como campo del elemento y página activa compartida
+
+- **Decisión**: cada elemento lleva `page` (0–999) y la sala guarda la página activa (`room.page`,
+  persistida). Solo el anfitrión o quien tenga permiso la cambia (`page`), y todos la siguen. La
+  escena filtra por la página activa, así que dibujar, seleccionar, borrar y exportar PNG trabajan
+  sobre la página visible. El PDF recorre todas.
+- **Consecuencias**: «marcas por diapositiva» es solo cambiar de página al pasar diapositiva. Al
+  volver, las marcas siguen ahí. No hace falta conocer el programa de presentación.
+
+## ADR-026 — Seguir al presentador con la zona visible
+
+- **Decisión**: el anfitrión publica cada 300 ms (solo si cambió) el rectángulo del mundo que está
+  viendo (`view`). Los demás lo encajan en su pantalla mientras no muevan la vista a mano; si lo
+  hacen, aparece el botón **Seguir**.
+- **Consecuencias**: funciona igual en pizarra en blanco, en directo y con la lupa del overlay, y
+  en pantallas de cualquier tamaño.
+
+## ADR-027 — Temporizador y votación en el servidor
+
+- **Decisión**: el servidor guarda el temporizador (`endsAt`) y la votación (opciones y un voto
+  por participante, que se puede cambiar). Difunde solo los recuentos, nunca quién votó qué. Solo
+  el anfitrión los abre y cierra.
+- **Consecuencias**: quien entra tarde ve el estado actual. El anonimato del voto queda
+  garantizado por diseño.
+
+## ADR-028 — PDF sin dependencias
+
+- **Decisión**: cada página se dibuja en un lienzo, se comprime a JPEG y se inserta en un PDF 1.4
+  escrito a mano (`pdfWriter.js`, con tabla xref verificada por una prueba).
+- **Consecuencias**: no se agregan librerías al cliente. El PDF es de imágenes (no se puede
+  seleccionar texto), suficiente para compartir el resultado de una sesión.

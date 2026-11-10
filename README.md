@@ -8,6 +8,11 @@ servicios externos y sin internet.
 - **Pinceles**: lápiz, marcador, resaltador y **neón**; 18 colores (6 neón) + personalizado;
   líneas continuas, discontinuas y punteadas; opacidad regulable
 - **Puntero láser** que se desvanece solo y **reacciones** con emojis sobre la proyección
+- **Páginas**: una por diapositiva (las marcas vuelven al regresar) o varias hojas de pizarra
+- **Seguir al presentador**: los participantes ven lo mismo que encuadra el anfitrión
+- **Notas adhesivas** y **sellos** (✓ ✗ ★ ① …), **temporizador** y **votación rápida**
+- **Exportar PDF** con todas las páginas y **modo simple** para celulares
+- **Presentar con un clic** (`presentar.bat`) con QR grande en el proyector
 - Seleccionar, mover, redimensionar y eliminar; colores, relleno y grosor
 - Zoom y desplazamiento con rueda, botones o **pellizco con dos dedos**
 - Deshacer / rehacer, exportar a PNG, limpiar pizarra
@@ -65,6 +70,19 @@ La consola muestra algo así:
 > **Firewall de Windows**: la primera vez Windows preguntará si permites a Node.js comunicarse.
 > Marca **Redes privadas** y acepta. Si no aparece el aviso y el celular no conecta, revisa que la
 > red Wi-Fi esté marcada como *privada* en la configuración de Windows.
+
+## Presentar con un clic
+
+1. Abre tu presentación en el PC del proyector.
+2. Doble clic en **`presentar.bat`**. Se abre la capa sobre la pantalla (y el servidor si no estaba
+   abierto), se crea la sala y aparece un **QR grande** para que el público se una.
+3. Durante la presentación, desde la barra del overlay:
+   - **Marcas: por diapositiva / se borran / se quedan**: qué pasa con lo dibujado al pasar de
+     diapositiva desde el control remoto o un participante con permiso. «Por diapositiva» guarda las
+     marcas de cada una y las muestra de nuevo al volver.
+   - **Temporizador** (1 a 15 min) y **Votación rápida** (Sí/No, A-D, 👍/👎, 1-5 o tus opciones).
+   - **Personas → Permitir a todos** para que cualquiera pase diapositivas sin aprobar uno por uno.
+   - **QR**: muestra u oculta el QR grande para el público.
 
 ## Dibujar sobre la pantalla (overlay)
 
@@ -161,6 +179,15 @@ devuelve el foco a la presentación antes de pulsar la tecla.
 
 ## Herramientas para presentar en conjunto
 
+- **Páginas** (abajo: ‹ Pág. 1/3 ›): el anfitrión, o quien tenga permiso, cambia de página para
+  todos. En una pizarra en blanco funcionan como hojas; con diapositivas, una página por diapositiva.
+- **Seguir al presentador**: tu vista acompaña lo que encuadra el anfitrión. Si la mueves a mano,
+  aparece **Seguir** para volver.
+- **Notas adhesivas** (`N`, 6 colores) y **sellos** (`S`: ✓ ✗ ★ ❤ ! ? ➜ ⚠ ① ② ③ ④).
+- **Modo simple** (menú ☰): en celulares de participantes viene activado; deja solo lápiz, láser,
+  notas, sellos y borrador.
+- **Exportar PDF** (menú ☰): una hoja por página, listo para compartir al terminar.
+
 - **Puntero láser** (`K`): señala con una estela brillante que se borra sola en ~1 segundo. Cada
   persona tiene su color.
 - **Reacciones** (botón 🙂 arriba a la derecha): 👍 👏 ❤️ 😂 😮 🎉 ❓ ✋ flotan sobre la pantalla de
@@ -177,7 +204,8 @@ Análisis completo y hoja de ruta: [docs/analisis-mejoras.md](docs/analisis-mejo
 |-------|--------|-------|--------|
 | `V` | Seleccionar | `T` | Texto |
 | `P` | Lápiz | `E` | Borrador |
-| `K` | Puntero láser | | |
+| `K` | Puntero láser | `N` | Nota adhesiva |
+| `S` | Sello | | |
 | `R` | Rectángulo | `H` | Mover vista |
 | `O` | Elipse | `Espacio` + arrastrar | Mover vista |
 | `A` | Flecha | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
@@ -213,6 +241,7 @@ Ejemplo en Windows: `set PORT=3090 && npm start`.
 | `npm run lint` | Revisa el estilo del código con ESLint |
 | `npm run check` | Lint + pruebas |
 | `npm run overlay` | Instala Electron (si falta) y abre el modo sobre la pantalla |
+| `python tests/e2e/sesion_completa.py` | Pruebas de punta a punta opcionales (Playwright; ver cabecera del archivo) |
 
 ## Estructura
 

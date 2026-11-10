@@ -53,6 +53,12 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-30 | *(v1.5)* Puntero láser efímero compartido. |
 | RF-31 | *(v1.5)* Reacciones con emojis visibles para todos. |
 | RF-32 | *(v1.5)* Borrar solo mis trazos; auto-limpiar marcas al pasar de diapositiva. |
+| RF-33 | *(v2.0)* Páginas compartidas; modo «marcas por diapositiva» en el overlay. |
+| RF-34 | *(v2.0)* Seguir al presentador (vista del anfitrión). |
+| RF-35 | *(v2.0)* Notas adhesivas y sellos. |
+| RF-36 | *(v2.0)* Temporizador y votación rápida con un voto por persona. |
+| RF-37 | *(v2.0)* Permitir a todos pasar diapositivas. |
+| RF-38 | *(v2.0)* Exportar PDF multipágina; modo simple para celulares; `presentar.bat` con QR grande. |
 
 ## 4. Reglas de negocio
 
