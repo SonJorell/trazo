@@ -145,11 +145,11 @@ test('no se aceptan operaciones antes de unirse', async () => {
 });
 
 test('retransmite la pantalla compartida y avisa al terminar', async () => {
-  const { id } = await createRoom();
+  const { id, hostKey } = await createRoom();
   const pc = connect();
   const cel = connect();
   await Promise.all([pc.opened, cel.opened]);
-  pc.send({ t: 'join', room: id, name: 'PC' });
+  pc.send({ t: 'join', room: id, name: 'PC', hostKey });
   await pc.next('welcome');
   cel.send({ t: 'join', room: id, name: 'Cel' });
   await cel.next('welcome');
@@ -178,13 +178,13 @@ test('retransmite la pantalla compartida y avisa al terminar', async () => {
 });
 
 test('control remoto: solo con la clave correcta y solo llega al PC registrado', async () => {
-  const { id } = await createRoom();
+  const { id, hostKey } = await createRoom();
   const pc = connect();
   const cel = connect();
   const otro = connect();
   await Promise.all([pc.opened, cel.opened, otro.opened]);
   for (const [c, n] of [[pc, 'PC'], [cel, 'Cel'], [otro, 'Otro']]) {
-    c.send({ t: 'join', room: id, name: n });
+    c.send({ t: 'join', room: id, name: n, hostKey: c === pc ? hostKey : undefined });
     await c.next('welcome');
   }
 
@@ -222,12 +222,12 @@ test('control remoto: solo con la clave correcta y solo llega al PC registrado',
 });
 
 test('señalización de cámaras: rtc se entrega solo al destinatario', async () => {
-  const { id } = await createRoom();
+  const { id, hostKey } = await createRoom();
   const pc = connect();
   const cel = connect();
   const otro = connect();
   await Promise.all([pc.opened, cel.opened, otro.opened]);
-  pc.send({ t: 'join', room: id, name: 'Proyector', display: true });
+  pc.send({ t: 'join', room: id, name: 'Proyector', display: true, hostKey });
   const wpc = await pc.next('welcome');
   cel.send({ t: 'join', room: id, name: 'Cel' });
   const wcel = await cel.next('welcome');
@@ -247,11 +247,11 @@ test('señalización de cámaras: rtc se entrega solo al destinatario', async ()
 });
 
 test('permiso de diapositivas: pedir, aprobar, usar y quitar', async () => {
-  const { id } = await createRoom();
+  const { id, hostKey } = await createRoom();
   const pc = connect();
   const ana = connect();
   await Promise.all([pc.opened, ana.opened]);
-  pc.send({ t: 'join', room: id, name: 'PC', display: true });
+  pc.send({ t: 'join', room: id, name: 'PC', display: true, hostKey });
   await pc.next('welcome');
   ana.send({ t: 'join', room: id, name: 'Ana' });
   const wana = await ana.next('welcome');
@@ -312,4 +312,33 @@ test('HTTPS local: sirve la app y el WebSocket con certificado propio', async ()
     ws.on('error', reject);
   });
   ws.close();
+});
+
+test('solo el anfitrión es la presentación principal', async () => {
+  const created = await createRoom();
+  assert.equal(typeof created.hostKey, 'string');
+  const info = await (await fetch(`${base}/api/rooms/${created.id}`)).json();
+  assert.equal('hostKey' in info, false, 'la clave no se vuelve a entregar');
+
+  const intruso = connect();
+  const host = connect();
+  await Promise.all([intruso.opened, host.opened]);
+
+  // Sin clave: entra como participante aunque pida ser proyector.
+  intruso.send({ t: 'join', room: created.id, name: 'Intruso', display: true, hostKey: 'inventada' });
+  const wi = await intruso.next('welcome');
+  assert.deepEqual({ host: wi.you.host, display: wi.you.display }, { host: false, display: false });
+  intruso.send({ t: 'control-register', key: 'ClaveSecreta1234567890' });
+  assert.equal((await intruso.next('error')).code, 'not_host');
+  intruso.send({ t: 'screen', w: 10, h: 10, data: 'data:image/jpeg;base64,/9j/4AAQ' });
+  assert.equal((await intruso.next('error')).code, 'not_host');
+
+  // Con la clave: es anfitrión y proyector.
+  host.send({ t: 'join', room: created.id, name: 'Anfitrión', display: true, hostKey: created.hostKey });
+  const wh = await host.next('welcome');
+  assert.deepEqual({ host: wh.you.host, display: wh.you.display }, { host: true, display: true });
+  const joined = await intruso.next('peer-join');
+  assert.equal(joined.peer.host, true);
+  intruso.ws.close();
+  host.ws.close();
 });

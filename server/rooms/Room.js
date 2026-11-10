@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { sanitizeElement, shouldReplace, LIMITS } from '../../shared/elements.js';
 
 const PEER_COLORS = ['#e03131', '#1971c2', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#e8590c', '#5c940d'];
@@ -16,6 +17,7 @@ export class Room {
     this.createdAt = data.createdAt ?? Date.now();
     this.pin = data.pin ?? null; // { salt, hash } o null
     this.mode = data.mode === 'live' ? 'live' : 'blank';
+    this.hostKeyHash = typeof data.hostKey === 'string' ? data.hostKey : null; // sha256 de la clave de anfitrión
     this.lastActiveAt = data.lastActiveAt ?? this.createdAt; // última entrada o salida de alguien
     this.elements = new Map();
     for (const raw of data.elements ?? []) {
@@ -39,9 +41,17 @@ export class Room {
     return [...this.elements.values()];
   }
 
-  addPeer({ id, name, send, display = false }) {
+  /** ¿Esta clave es la del anfitrión? (comparación en tiempo constante) */
+  isHostKey(key) {
+    if (!this.hostKeyHash || typeof key !== 'string' || !key) return false;
+    const given = Buffer.from(crypto.createHash('sha256').update(key).digest('hex'));
+    const expected = Buffer.from(this.hostKeyHash);
+    return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+  }
+
+  addPeer({ id, name, send, display = false, host = false }) {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
-    const peer = { id, name, color, send, display };
+    const peer = { id, name, color, send, display, host };
     this.peers.set(id, peer);
     this.lastActiveAt = Date.now();
     return peer;
@@ -63,7 +73,7 @@ export class Room {
   }
 
   publicPeers() {
-    return [...this.peers.values()].map(({ id, name, color, display }) => ({ id, name, color, display }));
+    return [...this.peers.values()].map(({ id, name, color, display, host }) => ({ id, name, color, display, host }));
   }
 
   /**
@@ -125,6 +135,7 @@ export class Room {
       createdAt: this.createdAt,
       lastActiveAt: this.lastActiveAt,
       mode: this.mode,
+      hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),
     };

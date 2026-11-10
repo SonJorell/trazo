@@ -99,17 +99,25 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       }
       if (ws.readyState !== ws.OPEN) return;
       client.room = room;
-      client.peer = room.addPeer({ id: client.id, name: cleanName(msg.name), send, display: msg.display === true });
+      // Solo el anfitrión (con su clave) puede ser la presentación principal.
+      const host = room.isHostKey(msg.hostKey);
+      client.peer = room.addPeer({
+        id: client.id,
+        name: cleanName(msg.name),
+        send,
+        host,
+        display: host && msg.display === true,
+      });
       const { id, name, color, display } = client.peer;
       send({
         t: MSG.WELCOME,
-        you: { id, name, color },
+        you: { id, name, color, host, display },
         peers: room.publicPeers().filter((p) => p.id !== id),
         elements: room.snapshot(),
         screen: room.screen,
         controller: Boolean(room.controller),
       });
-      room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color, display } }, id);
+      room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color, display, host } }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
     }
 
@@ -128,6 +136,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     }
 
     function handleScreen(msg) {
+      if (!client.peer.host) return fail(ERR.NOT_HOST, 'Solo el anfitrión puede transmitir su pantalla');
       const frame = validateScreenFrame(msg);
       if (!frame) return fail(ERR.BAD_REQUEST, 'Cuadro de pantalla inválido');
       client.room.setScreen(client.id, frame);
@@ -141,6 +150,9 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
     }
 
     function registerController(msg) {
+      if (!client.peer.host) {
+        return fail(ERR.NOT_HOST, 'Esta ventana no es la presentación principal: ábrela desde el PC del anfitrión');
+      }
       if (typeof msg.key !== 'string' || !CONTROL_KEY_RE.test(msg.key)) {
         return fail(ERR.BAD_REQUEST, 'Clave de control inválida');
       }
