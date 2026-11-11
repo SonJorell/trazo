@@ -112,6 +112,7 @@ desde el PC y el celular en la misma red.
 |-----------|-----------|
 | `npm test` | 46/46 (nuevas: subir/servir/borrar adjuntos, permiso por sala, límite de tamaño, descarga forzada de tipos peligrosos, conversión RTF→PDF con LibreOffice, validación de `image`/`doc`/`file` y anclajes, `stroke` retransmitido, `background` con permiso, `ping`) |
 | E2E `tests/e2e/adjuntos.py` (Chrome, anfitrión 1280×800 + celular 390×844) | 12/12: latencia visible, fondo sincronizado y bloqueado para la invitada, foto, PDF de 3 páginas como documento, trazo en vivo visto **antes** de soltar, anotación anclada que se oculta al pasar de página, PowerPoint convertido a 3 diapositivas, tarjeta descargable |
+| Prueba en el PC del usuario (Windows, v2.1.1) | Servidor con `iniciar.bat`; PowerPoint convertido con **Microsoft Office** (COM) y hojeado ‹ ›; anotación anclada oculta al cambiar de diapositiva; PDF en 3 páginas de Trazo; foto y tarjeta .zip; pizarra verde cuadriculada; latencia 1–2 ms. Corregido: la barra del documento tapaba las barras inferiores en pantallas angostas y la selección quedaba visible al cambiar de página |
 | Regresión E2E | `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) pdf.js 6 ya no tiene `destroy()` en el documento (se cierra la tarea de carga); (2) el campo `from` del trozo de trazo pisaba el id del autor al retransmitir (se renombró a `by`); (3) el botón 📎 quedaba oculto en el modo simple del celular |
 
