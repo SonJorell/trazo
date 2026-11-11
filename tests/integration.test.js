@@ -534,3 +534,67 @@ test('v2.2: fondo por página, títulos de página, cursor con página y sin eco
 
   for (const c of [host, guest, late, late2]) c.ws.close();
 });
+
+test('v2.3: roles (visita/editor/presentador), solicitud de permiso y avatares', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const ana = connect();
+  await Promise.all([host.opened, ana.opened]);
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey, clientId: 'host-cliente-1' });
+  const wh = await host.next('welcome');
+  assert.equal(wh.you.role, 'host');
+  assert.equal(wh.defaultRole, 'editor');
+
+  // La gente nueva entra como visita.
+  host.send({ t: 'role', default: 'visita' });
+  assert.equal((await host.next('room-roles')).defaultRole, 'visita');
+  ana.send({ t: 'join', room: id, name: 'Ana', clientId: 'ana-cliente-1' });
+  const wa = await ana.next('welcome');
+  assert.equal(wa.you.role, 'visita');
+  const joined = await host.next('peer-join');
+  assert.equal(joined.peer.role, 'visita');
+
+  // Una visita no dibuja, no usa láser ni avatar; sí vota y reacciona.
+  ana.send({ t: 'ops', ops: [{ id: 'visita0001', type: 'pen', version: 1, x: 0, y: 0, points: [[0, 0]] }] });
+  assert.equal((await ana.next('error')).code, 'read_only');
+  ana.send({ t: 'avatar', mode: 'body', color: '#ff0000' });
+  ana.send({ t: 'reaction', e: '👍' });
+  assert.equal((await host.next('reaction')).e, '👍');
+  ana.send({ t: 'role', to: ana.ws.id, role: 'editor' }); // no es anfitriona
+  assert.equal((await ana.next('error')).code, 'not_host');
+
+  // Pide permiso → le llega al anfitrión → la hace editora (y se recuerda al volver).
+  ana.send({ t: 'role-request' });
+  const req = await host.next('role-request');
+  assert.equal(req.name, 'Ana');
+  host.send({ t: 'role', to: req.from, role: 'editor' });
+  assert.equal((await ana.next('peer-role')).role, 'editor');
+  ana.send({ t: 'ops', ops: [{ id: 'editor0001', type: 'pen', version: 1, x: 0, y: 0, points: [[0, 0]] }] });
+  assert.equal((await host.next('ops')).ops[0].id, 'editor0001');
+
+  // Avatar monigote con posición.
+  ana.send({ t: 'avatar', mode: 'body', shape: 'circle', color: '#e03131', figure: 'mujer' });
+  const av = await host.next('avatar');
+  assert.deepEqual([av.mode, av.shape, av.figure, av.id], ['body', 'circle', 'mujer', req.from]);
+  ana.send({ t: 'avatar-pos', x: 10.4, y: 20, f: -1, w: 0.5, m: true, s: false, p: 0 });
+  const pos = await host.next('avatar-pos');
+  assert.deepEqual([pos.x, pos.f, pos.m], [10, -1, true]);
+  ana.send({ t: 'avatar', mode: 'volar' });
+  assert.equal((await ana.next('error')).code, 'bad_request');
+
+  // Todos a visita: el avatar se apaga.
+  host.send({ t: 'role', all: 'visita' });
+  assert.equal((await ana.next('peer-role')).role, 'visita');
+  assert.equal((await host.next('avatar')).mode, 'off');
+  ana.ws.close();
+  await host.next('peer-leave');
+
+  // Al volver con el mismo navegador conserva su rol.
+  host.send({ t: 'role', default: 'editor' });
+  await host.next('room-roles');
+  const again = connect();
+  await again.opened;
+  again.send({ t: 'join', room: id, name: 'Ana', clientId: 'ana-cliente-1' });
+  assert.equal((await again.next('welcome')).you.role, 'visita');
+  for (const c of [host, again]) c.ws.close();
+});
