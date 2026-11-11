@@ -64,3 +64,10 @@ test('el grosor efectivo del pincel cuenta para tocar el trazo', async () => {
   assert.equal(hitTest(line, 50, 8, 0), false);
   assert.equal(hitTest({ ...line, brush: 'highlighter' }, 50, 8, 0), true);
 });
+
+test('sellos vectoriales: solo íconos conocidos', () => {
+  const base = { id: 'sello0001', type: 'stamp', version: 1, x: 0, y: 0, w: 64, h: 64 };
+  assert.equal(sanitizeElement({ ...base, icon: 'star' }).icon, 'star');
+  assert.equal(sanitizeElement({ ...base, icon: '★' }), null);
+  assert.equal(sanitizeElement({ ...base, icon: 'check', w: 99999 }).w, 1200);
+});
