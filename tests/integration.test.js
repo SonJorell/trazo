@@ -416,7 +416,7 @@ test('páginas, vista, temporizador, votación y permitir a todos', async () => 
   host.send({ t: 'control-grant', all: true });
   assert.deepEqual(await ana.next('control-granted'), { t: 'control-granted', granted: true, all: true });
   ana.send({ t: 'page', n: 4 });
-  assert.equal((await host.next('page')).n, 3); // el cambio anterior también le llegó al anfitrión
+  // A quien cambia la página no se le devuelve su propio cambio; el de Ana sí le llega al anfitrión.
   assert.equal((await host.next('page')).n, 4);
   ana.send({ t: 'control', action: 'next' });
   assert.equal((await host.next('control')).action, 'next');
@@ -476,4 +476,61 @@ test('v2.1: trazos en vivo, fondo de hoja, ping y permiso de subida', async () =
   assert.deepEqual((await late.next('welcome')).background, { pattern: 'grid', color: 'dark' });
 
   for (const c of [host, guest, late]) c.ws.close();
+});
+
+test('v2.2: fondo por página, títulos de página, cursor con página y sin eco de página', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const guest = connect();
+  await Promise.all([host.opened, guest.opened]);
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey });
+  const wh = await host.next('welcome');
+  assert.deepEqual([wh.pageBackgrounds, wh.pageTitles], [{}, {}]);
+  guest.send({ t: 'join', room: id, name: 'Invitada' });
+  await guest.next('welcome');
+  await host.next('peer-join');
+
+  // Fondo solo para la página 2; luego uno general que reemplaza los propios.
+  host.send({ t: 'background', pattern: 'lines', color: 'cream', page: 2 });
+  assert.deepEqual(await guest.next('background'), { t: 'background', pattern: 'lines', color: 'cream', page: 2 });
+  await host.next('background');
+  host.send({ t: 'background', pattern: 'iso', color: 'dark', page: 5000 });
+  assert.equal((await host.next('error')).code, 'bad_request');
+
+  // Títulos: el anfitrión pone, la invitada no puede.
+  host.send({ t: 'page-title', n: 0, title: '  Introducción <b>  ' });
+  assert.deepEqual(await guest.next('page-title'), { t: 'page-title', n: 0, title: 'Introducción b' });
+  await host.next('page-title');
+  guest.send({ t: 'page-title', n: 0, title: 'x' });
+  assert.equal((await guest.next('error')).code, 'control_denied');
+
+  // Quien entra después recibe fondos y títulos por página.
+  const late = connect();
+  await late.opened;
+  late.send({ t: 'join', room: id, name: 'Tarde' });
+  const wl = await late.next('welcome');
+  assert.deepEqual(wl.pageBackgrounds, { 2: { pattern: 'lines', color: 'cream' } });
+  assert.deepEqual(wl.pageTitles, { 0: 'Introducción b' });
+
+  host.send({ t: 'background', pattern: 'grid', color: 'white' });
+  await guest.next('background');
+  const late2 = connect();
+  await late2.opened;
+  late2.send({ t: 'join', room: id, name: 'Más tarde' });
+  const wl2 = await late2.next('welcome');
+  assert.deepEqual([wl2.background, wl2.pageBackgrounds], [{ pattern: 'grid', color: 'white' }, {}]);
+
+  // El cursor viaja con su página.
+  host.send({ t: 'cursor', x: 10, y: 20, p: 3 });
+  const cur = await guest.next('cursor');
+  assert.deepEqual([cur.x, cur.y, cur.p], [10, 20, 3]);
+
+  // Cambio de página: llega a los demás, no vuelve a quien lo hizo.
+  host.send({ t: 'page', n: 1 });
+  assert.equal((await guest.next('page')).n, 1);
+  host.send({ t: 'ping', ts: 7 });
+  const first = await Promise.race([host.next('page').then(() => 'page', () => 'nada'), host.next('pong').then(() => 'pong')]);
+  assert.equal(first, 'pong');
+
+  for (const c of [host, guest, late, late2]) c.ws.close();
 });

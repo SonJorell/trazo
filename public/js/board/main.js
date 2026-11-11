@@ -4,7 +4,7 @@ import { Scene } from '../core/scene.js';
 import { History, Transaction } from '../core/history.js';
 import { Viewport } from '../core/viewport.js';
 import { Renderer } from '../render/renderer.js';
-import { measureText, LINE_HEIGHT } from '../render/draw.js';
+import { measureText, LINE_HEIGHT, drawElement } from '../render/draw.js';
 import { exportPng } from '../render/exportPng.js';
 import { attachPointerInput } from '../input/pointer.js';
 import { createTools, TOOL_DEFS } from '../tools/index.js';
@@ -32,6 +32,7 @@ import { onAssetLoad } from '../render/assets.js';
 import { drawPattern, paperColors, PATTERN_LABELS, COLOR_LABELS } from '../render/background.js';
 import { setupAttachments } from '../attach/attachments.js';
 import { createDocBar } from '../attach/docBar.js';
+import { createClipboard } from '../core/clipboard.js';
 import { getBounds } from '/shared/geometry.js';
 import { NOTE_PADDING } from '../render/draw.js';
 import { setupSession } from '../session/session.js';
@@ -116,8 +117,14 @@ onAssetLoad(render);
 if (params.has('e2e')) window.__trazo = { scene, live, viewport };
 scene.on('live', render);
 // Al cambiar de página no queda seleccionado nada de la página anterior.
-scene.on('page', () => overlay.selection.size && ctx.select([]));
+scene.on('page', () => {
+  if (overlay.selection.size) ctx.select([]);
+  paintBackground();
+});
+// Fondo de hoja: uno general y, opcionalmente, uno propio por página (igual para todos).
 let background = { pattern: 'dots', color: 'white' };
+let pageBackgrounds = {};
+const backgroundFor = (page) => pageBackgrounds[String(page)] ?? background;
 let uploadToken = null;
 if (!OVERLAY) {
   viewport.x = -renderer.width / 2;
@@ -228,6 +235,14 @@ function focusElement(el) {
   afterViewChange();
 }
 
+const clipboard = createClipboard({
+  scene,
+  begin: () => ctx.begin(),
+  select: (ids) => {
+    if (tool.name !== 'select') setTool('select');
+    ctx.select(ids);
+  },
+});
 const docBar = createDocBar({ scene, viewport, ctx, onFit: (el) => focusElement(el) });
 renderer.onDraw = () => docBar.update();
 
@@ -341,6 +356,7 @@ const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
 
 function onSelectionChange() {
   $('#delete-btn').hidden = overlay.selection.size === 0;
+  $('#dup-btn').hidden = overlay.selection.size === 0;
   // La barra del documento sigue al último documento seleccionado.
   if (overlay.selection.size === 1) {
     const el = scene.get([...overlay.selection][0]);
@@ -401,7 +417,7 @@ function clearMine() {
 }
 
 async function doExport() {
-  const ok = await exportPng(scene, `trazo-${room}.png`, background);
+  const ok = await exportPng(scene, `trazo-${room}.png`, backgroundFor(scene.page));
   if (!ok) toast('La pizarra está vacía');
 }
 
@@ -417,6 +433,7 @@ scene.on('change', () => {
     if (!el || el.isDeleted) overlay.selection.delete(id);
   }
   $('#delete-btn').hidden = overlay.selection.size === 0;
+  $('#dup-btn').hidden = overlay.selection.size === 0;
   render();
 });
 history.on('change', updateHistoryButtons);
@@ -434,6 +451,7 @@ bind('#zoom-out', 'zoomOut', () => zoomBy(1 / 1.2));
 bind('#zoom-label', null, () => zoomBy(1 / viewport.zoom));
 bind('#fit-btn', 'fit', fitToContent);
 bind('#delete-btn', 'trash', deleteSelection);
+bind('#dup-btn', 'copy', () => clipboard.duplicate(overlay.selection));
 bind('#share-btn', null, () => shareDialog({ room, hasPin: roomHasPin }));
 $('#share-btn').insertAdjacentHTML('afterbegin', ICONS.share);
 
@@ -452,7 +470,7 @@ menu.append(
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
   menuItem('pdf', 'Exportar PDF (todas las páginas)', async () => {
-    const ok = await exportPdf(scene, `trazo-${room}.pdf`, background);
+    const ok = await exportPdf(scene, `trazo-${room}.pdf`, { backgroundFor, titleFor: (n) => session?.titleOf(n) ?? '' });
     if (!ok) toast('La pizarra está vacía');
   }),
   menuItem('attach', 'Adjuntar archivo (foto, PDF, PowerPoint…)', () => attachments.pick()),
@@ -670,6 +688,7 @@ const attachments = setupAttachments({
   viewport,
   getViewSize: () => (OVERLAY ? { width: window.innerWidth, height: window.innerHeight } : { width: renderer.width, height: renderer.height }),
   goToPage: (n) => session?.goTo(n),
+  onPasteElements: () => clipboard.size > 0 && clipboard.paste() > 0,
   select: (ids) => {
     if (tool.name !== 'select') setTool('select');
     ctx.select(ids);
@@ -677,10 +696,46 @@ const attachments = setupAttachments({
 });
 
 let canEditBackground = () => false;
-function applyBackground(bg) {
-  background = bg;
+function paintBackground() {
+  const bg = backgroundFor(scene.page);
   renderer.setBackground(bg);
   document.body.dataset.paper = bg.color;
+  stylePanel.refresh(); // la vista previa del trazo usa el color del papel
+}
+/** Aplica un fondo recibido (o elegido): de una página o de todas. */
+function applyBackground(bg) {
+  const clean = { pattern: bg.pattern, color: bg.color };
+  if (Number.isInteger(bg.page)) pageBackgrounds = { ...pageBackgrounds, [String(bg.page)]: clean };
+  else {
+    background = clean;
+    pageBackgrounds = {};
+  }
+  paintBackground();
+}
+
+/** Miniatura de una página (con su fondo) para la vista de páginas. */
+function paintPageThumb(cnv, page) {
+  const c2d = cnv.getContext('2d');
+  const bg = backgroundFor(page);
+  c2d.fillStyle = paperColors(bg).paper;
+  c2d.fillRect(0, 0, cnv.width, cnv.height);
+  const els = scene.allAlive().filter((el) => (el.page ?? 0) === page && scene.anchorVisible(el));
+  let box = null;
+  for (const el of els) {
+    const b = getBounds(el);
+    box = box
+      ? { x: Math.min(box.x, b.x), y: Math.min(box.y, b.y), r: Math.max(box.r, b.x + b.w), b: Math.max(box.b, b.y + b.h) }
+      : { x: b.x, y: b.y, r: b.x + b.w, b: b.y + b.h };
+  }
+  if (!box) box = { x: -400, y: -250, r: 400, b: 250 };
+  const pad = 24;
+  const s = Math.min(cnv.width / (box.r - box.x + pad * 2), cnv.height / (box.b - box.y + pad * 2));
+  const ox = (cnv.width - (box.r - box.x) * s) / 2 - box.x * s;
+  const oy = (cnv.height - (box.b - box.y) * s) / 2 - box.y * s;
+  c2d.setTransform(s, 0, 0, s, ox, oy);
+  drawPattern(c2d, { x: -ox / s, y: -oy / s, w: cnv.width / s, h: cnv.height / s }, s, bg);
+  for (const el of els) drawElement(c2d, el);
+  c2d.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 /** Miniatura de un fondo para el selector. */
@@ -696,14 +751,17 @@ function paintBackgroundPreview(cnv, bg) {
 
 function openBackgroundDialog() {
   backgroundDialog({
-    current: background,
+    current: backgroundFor(scene.page),
+    page: scene.page,
+    pageHasOwn: Boolean(pageBackgrounds[String(scene.page)]),
     patterns: PATTERN_LABELS,
     colors: COLOR_LABELS,
     paint: paintBackgroundPreview,
     canEdit: canEditBackground(),
-    onPick: (bg) => {
-      applyBackground(bg);
-      sync?.conn.send({ t: 'background', ...bg });
+    onPick: (bg, onlyThisPage) => {
+      const msg = onlyThisPage ? { ...bg, page: scene.page } : { pattern: bg.pattern, color: bg.color };
+      applyBackground(msg);
+      sync?.conn.send({ t: 'background', ...msg });
     },
   });
 }
@@ -725,6 +783,20 @@ window.addEventListener('keydown', (e) => {
   } else if (mod && key === 'y') {
     e.preventDefault();
     history.redo();
+  } else if (mod && key === 'c' && overlay.selection.size) {
+    e.preventDefault();
+    toast(`Copiado (${clipboard.copy(overlay.selection)})`, { ms: 1200 });
+  } else if (mod && key === 'x' && overlay.selection.size) {
+    e.preventDefault();
+    clipboard.copy(overlay.selection);
+    deleteSelection();
+  } else if (mod && key === 'd' && overlay.selection.size) {
+    e.preventDefault();
+    clipboard.duplicate(overlay.selection);
+  } else if (mod && key === 'a') {
+    e.preventDefault();
+    setTool('select');
+    ctx.select(scene.alive().map((el) => el.id));
   } else if (key === 'delete' || key === 'backspace') {
     deleteSelection();
   } else if (key === 'escape') {
@@ -849,9 +921,11 @@ async function start() {
     if (msg.t === 'welcome') {
       myColor = msg.you.color;
       uploadToken = msg.uploadToken ?? null;
-      if (msg.background) applyBackground(msg.background);
+      if (msg.background) background = msg.background;
+      pageBackgrounds = msg.pageBackgrounds ?? {};
+      paintBackground();
     }
-    if (msg.t === 'background') applyBackground({ pattern: msg.pattern, color: msg.color });
+    if (msg.t === 'background') applyBackground(msg);
   });
   canEditBackground = () => isHost || steerGranted;
 
@@ -914,6 +988,7 @@ async function start() {
     scene,
     canSteer: () => isHost || steerGranted,
     isHost: () => isHost,
+    paintThumb: paintPageThumb,
   });
   timerItem.hidden = !isHost;
   pollItem.hidden = !isHost;

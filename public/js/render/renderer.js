@@ -66,7 +66,7 @@ export class Renderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (this.transparent) {
       ctx.clearRect(0, 0, this.width, this.height);
-    } else if (document.body.classList.contains('immersive')) {
+    } else if (this.overlay.screen && document.body.classList.contains('immersive')) {
       ctx.fillStyle = '#111111'; // pantalla completa: fondo oscuro alrededor de la transmisión
       ctx.fillRect(0, 0, this.width, this.height);
     } else {
@@ -77,7 +77,8 @@ export class Renderer {
     const z = vp.zoom * dpr;
     ctx.setTransform(z, 0, 0, z, -vp.x * z, -vp.y * z);
     const view = vp.visibleRect(this.width, this.height);
-    if (!this.transparent && !document.body.classList.contains('immersive')) {
+    // El fondo de hoja es el mismo para todos; solo se omite alrededor de una pantalla en vivo a pantalla completa.
+    if (!this.transparent && !(this.overlay.screen && document.body.classList.contains('immersive'))) {
       drawPattern(ctx, view, vp.zoom, this.background);
     }
     this._drawScreen();
@@ -163,6 +164,7 @@ export class Renderer {
     let moving = false;
     for (const c of overlay.cursors.values()) {
       if (now - c.at > 6000) continue;
+      if (c.page !== undefined && c.page !== this.scene.page) continue;
       // Interpolación suave hacia la última posición recibida.
       if (c.tx !== undefined && (Math.abs(c.tx - c.x) > 0.5 || Math.abs(c.ty - c.y) > 0.5)) {
         c.x += (c.tx - c.x) * 0.35;
