@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { sanitizeElement, shouldReplace, LIMITS } from '../../shared/elements.js';
+import { ROLES, CLIENT_ID_RE } from '../../shared/protocol.js';
 
 /** Copia un objeto «página → valor» descartando claves que no sean números de página. */
 function plainMap(obj) {
@@ -42,6 +43,10 @@ export class Room {
     this.background = data.background ?? { pattern: 'dots', color: 'white' }; // fondo de hoja (todas las páginas)
     this.pageBackgrounds = plainMap(data.pageBackgrounds); // fondo propio de algunas páginas { "2": {...} }
     this.pageTitles = plainMap(data.pageTitles); // títulos de página { "0": "Introducción" }
+    // Roles: rol con que entra la gente nueva y el de cada persona (por su id de navegador).
+    this.defaultRole = ROLES.includes(data.defaultRole) ? data.defaultRole : 'editor';
+    this.roles = {};
+    for (const [k, v] of Object.entries(data.roles ?? {})) if (CLIENT_ID_RE.test(k) && ROLES.includes(v)) this.roles[k] = v;
     this.view = null; // zona que muestra el anfitrión { x, y, w, h }
     this.timer = null; // { endsAt }
     this.poll = null; // { id, question, options, votes: Map(peerId → índice), open }
@@ -66,10 +71,13 @@ export class Room {
     return given.length === expected.length && crypto.timingSafeEqual(given, expected);
   }
 
-  addPeer({ id, name, send, display = false, host = false }) {
+  addPeer({ id, name, send, display = false, host = false, clientId = null }) {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
-    const peer = { id, name, color, send, display, host };
+    const cid = typeof clientId === 'string' && CLIENT_ID_RE.test(clientId) ? clientId : null;
+    const role = host ? 'host' : (cid && this.roles[cid]) || this.defaultRole;
+    const peer = { id, name, color, send, display, host, clientId: cid, role, avatar: null, avatarPos: null };
     this.peers.set(id, peer);
+    if (role === 'presentador') this.grants.add(id);
     this.lastActiveAt = Date.now();
     return peer;
   }
@@ -91,7 +99,31 @@ export class Room {
   }
 
   publicPeers() {
-    return [...this.peers.values()].map(({ id, name, color, display, host }) => ({ id, name, color, display, host }));
+    return [...this.peers.values()].map((p) => this.publicPeer(p));
+  }
+
+  publicPeer({ id, name, color, display, host, role, avatar, avatarPos }) {
+    return { id, name, color, display, host, role, avatar, avatarPos };
+  }
+
+  /** Cambia el rol de un participante (y lo recuerda para cuando vuelva a entrar). */
+  setRole(peer, role) {
+    if (!peer || peer.host || !ROLES.includes(role)) return false;
+    peer.role = role;
+    if (peer.clientId) this.roles[peer.clientId] = role;
+    if (role === 'presentador') this.grants.add(peer.id);
+    else this.grants.delete(peer.id);
+    if (role === 'visita') {
+      peer.avatar = null; // las visitas no muestran cámara ni monigote
+      peer.avatarPos = null;
+    }
+    this.onChange(this);
+    return true;
+  }
+
+  /** ¿Puede dibujar, escribir, adjuntar, usar láser y cámara? (todos menos las visitas) */
+  canEdit(peer) {
+    return Boolean(peer && (peer.host || peer.role !== 'visita'));
   }
 
   /**
@@ -137,6 +169,7 @@ export class Room {
 
   /** ¿Puede este participante pasar diapositivas / cambiar de página? */
   canSteer(peer) {
+    if (peer?.role === 'visita') return false;
     return Boolean(peer?.host || this.grantAll || this.grants.has(peer?.id));
   }
 
@@ -171,6 +204,8 @@ export class Room {
       background: this.background,
       pageBackgrounds: this.pageBackgrounds,
       pageTitles: this.pageTitles,
+      defaultRole: this.defaultRole,
+      roles: this.roles,
       hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),

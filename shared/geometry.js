@@ -113,6 +113,7 @@ export function hitTest(el, px, py, tol = 4) {
     case 'ellipse':
       return hitEllipse(el, px, py, t);
     case 'note':
+    case 'chair':
     case 'image':
     case 'doc':
     case 'file':

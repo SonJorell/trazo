@@ -223,6 +223,36 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Roles y permisos (v2.3)
+
+El anfitrión abre **☰ → Participantes y permisos** (o toca los avatares de arriba):
+
+| Rol | Puede |
+|-----|-------|
+| **Visita** | Mirar, reaccionar con emojis y votar. Ve una barra con *✋ Pedir permiso para dibujar*. |
+| **Editor** | Además dibujar, escribir, adjuntar, usar láser, cámara y monigote. |
+| **Presentador** | Además pasar páginas/diapositivas y cambiar fondo y títulos. |
+
+- **Quien entre desde ahora será…**: ideal para votaciones con mucha gente (elige *Visita*).
+- **Todos a la vez**: pasa a todos a un rol con un toque (p. ej. «todos visita» para cerrar la pizarra).
+- Cuando una visita pide permiso aparece un aviso con **Permitir / Ahora no**.
+- El rol se recuerda: si alguien se desconecta y vuelve desde el mismo navegador, conserva el suyo.
+- El servidor hace cumplir los permisos (una visita no puede dibujar aunque modifique la página).
+
+## Mi cámara y avatar (monigote)
+
+En **☰ → Mi cámara y avatar** (o el botón 🙂 junto a tu vista previa de cámara) cada persona elige:
+
+- **Forma**: automática (la del anfitrión), círculo, redondeada o cuadrada.
+- **Dónde se ve**: *fija en la presentación*, *sigue mi puntero*, *en un lugar de la pizarra*
+  (tocas dónde dejarla) o **monigote**.
+- **Monigote**: tu cámara es la cabeza de un personaje que **camina hacia tu puntero**, cae con
+  gravedad, se para sobre figuras, notas, imágenes y documentos, **salta** para subirse a ellas y
+  se **sienta en una silla** (🪑 *Agregar silla* → *Sentarme*). Eliges **color** y **figura**
+  (hombre, mujer o neutro). Sin cámara, la cabeza muestra tus iniciales.
+- Todos ven los monigotes; el video de las cámaras se ve en la presentación principal (y tú ves
+  el tuyo).
+
 ## Novedades de la versión 2.2
 
 - **Colores y pinceles**: una sola paleta para todos los pinceles (con el Neón brilla cualquier

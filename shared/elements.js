@@ -3,7 +3,7 @@
  * Compartido por el servidor (Node) y el cliente (navegador): no usar APIs específicas de ninguno.
  */
 
-export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note', 'image', 'doc', 'file']);
+export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note', 'image', 'doc', 'file', 'chair']);
 
 /** URL de un archivo subido a la sala: /assets/<sala>/<id>.<ext> */
 export const ASSET_URL_RE = /^\/assets\/[a-z0-9]{4,24}\/[A-Za-z0-9_-]{8,40}\.[a-z0-9]{1,5}$/;
@@ -97,6 +97,11 @@ export function sanitizeElement(raw) {
     el.points = pts;
   }
 
+  if (el.type === 'chair') {
+    // Silla donde los monigotes se pueden sentar.
+    el.w = clamp(Math.abs(coord(raw.w)) || 90, 30, 600);
+    el.h = clamp(Math.abs(coord(raw.h)) || 110, 30, 600);
+  }
   if (el.type === 'image' || el.type === 'doc' || el.type === 'file') {
     el.w = clamp(Math.abs(coord(raw.w)) || 400, 20, 20000);
     el.h = clamp(Math.abs(coord(raw.h)) || 300, 20, 20000);

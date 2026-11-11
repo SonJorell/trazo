@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { ROLE_LABELS } from '/shared/protocol.js';
 
 const initials = (name) =>
   name
@@ -70,7 +71,7 @@ export class Presence {
         {
           class: `avatar${p.host ? ' host' : ''}`,
           style: `background:${p.color}`,
-          title: `${p.name}${i === 0 ? ' (tú)' : ''}${p.host ? ' — presentación principal' : ''}`,
+          title: `${p.name}${i === 0 ? ' (tú)' : ''}${p.host ? ' — anfitrión' : ` — ${ROLE_LABELS[p.role] ?? 'Editor'}`}`,
         },
         initials(p.name),
       ),

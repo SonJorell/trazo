@@ -26,6 +26,7 @@ export class CameraBubbles {
     this.getName = getName;
     this.onClose = onClose;
     this.bubbles = new Map(); // id → { node, video, label }
+    this.looks = new Map(); // id → forma y modo elegidos por cada persona
     this.prefs = { ...DEFAULT_PREFS, ...local.get(PREFS_KEY, {}) };
     this.layer = document.body.appendChild(h('div', { class: 'cam-layer' }));
     this.settingsBtn = h('button', {
@@ -63,10 +64,36 @@ export class CameraBubbles {
       this.bubbles.set(id, b);
       if (this.prefs.layout === 'free') this._placeFree(node);
     }
+    this._applyLook(id);
     b.label.textContent = this.getName(id);
     b.video.srcObject = stream;
     b.video.play?.().catch(() => {});
     this.settingsBtn.hidden = false;
+  }
+
+  /** Video de la cámara de una persona (para dibujarla como monigote o junto a su puntero). */
+  videoOf(id) {
+    return this.bubbles.get(id)?.video ?? null;
+  }
+
+  /**
+   * Forma y modo que eligió cada persona: «fija» se ve como burbuja (con su forma);
+   * en los demás modos la burbuja se oculta porque la cámara se dibuja en la pizarra.
+   */
+  setLook(id, look) {
+    if (look) this.looks.set(id, look);
+    else this.looks.delete(id);
+    this._applyLook(id);
+  }
+
+  _applyLook(id) {
+    const b = this.bubbles.get(id);
+    if (!b) return;
+    const look = this.looks.get(id);
+    const onBoard = look && look.mode !== 'fixed' && look.mode !== 'off';
+    b.node.classList.toggle('on-board', Boolean(onBoard));
+    if (look?.shape && look.shape !== 'auto') b.node.dataset.shape = look.shape;
+    else delete b.node.dataset.shape;
   }
 
   remove(id) {

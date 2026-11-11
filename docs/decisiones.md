@@ -341,3 +341,33 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   vuelvan una mancha.
 - **Consecuencias**: el modelo de datos no cambia (`strokeWidth` y `opacity` siguen siendo
   números); los trazos antiguos se ven igual.
+
+## ADR-038 — Roles por navegador aplicados en el servidor
+
+- **Decisión**: cada participante tiene rol `visita`, `editor` o `presentador` (el anfitrión es
+  `host`). El servidor rechaza o descarta los mensajes de edición de las visitas (`ops`, trazos,
+  láser, cursor, cámara, avatar, pedir diapositivas). El rol se guarda en la sala por el id
+  estable del navegador (`clientId`, el mismo que marca «mis trazos») para que se conserve al
+  reconectar; la gente nueva recibe el rol por defecto que fija el anfitrión. «Presentador» es
+  el permiso de diapositivas existente (`grants`), así que ambos caminos quedan sincronizados.
+- **Consecuencias**: las salas con muchas personas (votaciones) son ordenadas y seguras ante
+  clientes modificados. Limitación conocida: en la red local alguien podría imitar el `clientId`
+  de otra persona; con rol por defecto «visita» eso no da más permisos que entrar de nuevo.
+
+## ADR-039 — Avatares: física en el dueño, interpolación en los demás
+
+- **Decisión**: el monigote lo simula su dueño (30 pasos/s: caminar hacia el puntero, gravedad,
+  superficies de figuras/notas/imágenes/documentos/sillas, salto solo para subirse a algo) y
+  comparte la posición ~15 veces/s con `avatar-pos` (volátil). Los demás interpolan. El suelo es
+  el borde inferior de la vista del presentador, igual para todos.
+- **Consecuencias**: sin servidor de física ni divergencias; el costo de red es mínimo. Las sillas
+  son elementos normales de la pizarra (se mueven, borran y deshacen como cualquier figura).
+
+## ADR-040 — Cámara dibujada en el lienzo según el modo de cada persona
+
+- **Decisión**: la persona elige forma y modo (`avatar`). En modo fija se usa la burbuja HTML de
+  siempre (con su forma); en «sigue el puntero», «anclada» y «monigote» la burbuja se oculta y el
+  video se dibuja en el lienzo recortado a la forma (cabeza del monigote incluida).
+- **Consecuencias**: la cámara se mueve con la pizarra y queda alineada con lo dibujado. Como las
+  cámaras solo viajan a la presentación principal (WebRTC 1→anfitrión), los demás ven el
+  monigote con iniciales; ver todas las cámaras en todos los equipos queda como trabajo futuro.
