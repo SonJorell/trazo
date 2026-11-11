@@ -41,12 +41,38 @@ export class Sync {
     connection.on('message', (msg) => this._onMessage(msg));
 
     // Latencia: ida y vuelta de un ping cada pocos segundos.
+    this._awaiting = 0; // momento del ping sin respuesta (0 = ninguno)
     this._pingTimer = setInterval(() => this.ping(), PING_MS);
-    connection.on('status', (s) => s === 'online' ? this.ping() : this.onLatency(null));
+    connection.on('status', (s) => {
+      if (s === 'online') {
+        this._awaiting = 0;
+        this.ping();
+      } else this.onLatency(null);
+    });
+    // Al volver al primer plano (celular que se bloqueó), comprobar la conexión enseguida.
+    const wake = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (this.conn.status === 'offline') this.conn.reconnectNow();
+      else this.ping();
+    };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('online', wake);
   }
 
   ping() {
-    if (this.conn.online) this.conn.send({ t: MSG.PING, ts: Math.round(performance.now()) });
+    if (!this.conn.online) return;
+    const now = performance.now();
+    if (this._awaiting) {
+      // Un ping lleva más de 10 s sin respuesta: la conexión está muerta aunque el navegador no lo sepa.
+      if (now - this._awaiting > 10_000) {
+        this._awaiting = 0;
+        this.onLatency(null);
+        this.conn.reconnectNow();
+      }
+      return;
+    }
+    this._awaiting = now;
+    this.conn.send({ t: MSG.PING, ts: Math.round(now) });
   }
 
   /** Trazo propio a medio dibujar: se envían solo los puntos nuevos, ~60 veces por segundo. */
@@ -89,7 +115,7 @@ export class Sync {
     const now = Date.now();
     const send = () => {
       this._lastCursor = Date.now();
-      this.conn.send({ t: MSG.CURSOR, x: Math.round(p.x), y: Math.round(p.y) });
+      this.conn.send({ t: MSG.CURSOR, x: Math.round(p.x), y: Math.round(p.y), p: this.scene.page });
     };
     clearTimeout(this._cursorTimer);
     if (now - this._lastCursor >= CURSOR_MS) send();
@@ -103,10 +129,10 @@ export class Sync {
       clearTimeout(this._laserTimer);
       this._laserTimer = null;
       if (!this._laserBuf.length) return;
-      this.conn.send({ t: MSG.LASER, pts: this._laserBuf.splice(0, 64), c: color, end });
+      this.conn.send({ t: MSG.LASER, pts: this._laserBuf.splice(0, 64), c: color, end, p: this.scene.page });
     };
     if (end) flush();
-    else if (!this._laserTimer) this._laserTimer = setTimeout(flush, 40);
+    else if (!this._laserTimer) this._laserTimer = setTimeout(flush, 25);
   }
 
   _onMessage(msg) {
@@ -138,6 +164,7 @@ export class Sync {
         if (this.live?.apply(msg, this.scene)) this.scene.emit('live');
         break;
       case MSG.PONG:
+        this._awaiting = 0;
         if (Number.isFinite(msg.ts) && msg.ts > 0) this.onLatency(Math.max(0, Math.round(performance.now() - msg.ts)));
         break;
       case MSG.PEER_JOIN:
@@ -147,10 +174,10 @@ export class Sync {
         this.presence.remove(msg.id);
         break;
       case MSG.LASER:
-        this.onLaser(msg);
+        if (msg.p === undefined || msg.p === this.scene.page) this.onLaser(msg);
         break;
       case MSG.CURSOR:
-        this.presence.moveCursor(msg.id, msg.x, msg.y);
+        this.presence.moveCursor(msg.id, msg.x, msg.y, msg.p);
         break;
     }
   }

@@ -19,7 +19,9 @@
  *   poll { question, options }          (anfitrión) Abre una votación rápida.
  *   vote { option }                     (participante) Vota en la votación abierta.
  *   poll-close { clear? }               (anfitrión) Cierra (o quita) la votación.
- *   background { pattern, color }       Fondo de hoja de la sala (anfitrión o con permiso).
+ *   background { pattern, color, page? } Fondo de hoja (anfitrión o con permiso). Con `page`
+ *                                       solo esa página; sin `page`, todas (y se borran los propios).
+ *   page-title { n, title }             Título de una página (anfitrión o con permiso).
  *   stroke { id, from, pts, s? }        Trazo en vivo: puntos nuevos desde el índice `from` (efímero; llega con `by`).
  *   ping { ts } → pong { ts }           Medición de latencia.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
@@ -69,6 +71,7 @@ export const MSG = Object.freeze({
   VOTE: 'vote',
   POLL_CLOSE: 'poll-close',
   BACKGROUND: 'background',
+  PAGE_TITLE: 'page-title',
   STROKE: 'stroke',
   PING: 'ping',
   PONG: 'pong',
@@ -129,9 +132,26 @@ export const BG_COLORS = Object.freeze({
 export const DEFAULT_BACKGROUND = Object.freeze({ pattern: 'dots', color: 'white' });
 
 export function validateBackground(msg) {
-  if (!BG_PATTERNS.includes(msg?.pattern) || !(msg?.color in BG_COLORS)) return null;
-  return { pattern: msg.pattern, color: msg.color };
+  if (!BG_PATTERNS.includes(msg?.pattern) || !Object.hasOwn(BG_COLORS, msg?.color)) return null;
+  const out = { pattern: msg.pattern, color: msg.color };
+  if (msg.page !== undefined && msg.page !== null) {
+    if (!Number.isInteger(msg.page) || msg.page < 0 || msg.page > 999) return null;
+    out.page = msg.page;
+  }
+  return out;
 }
+
+export const MAX_PAGE_TITLE = 60;
+
+/** Título de página: texto corto sin caracteres de control (vacío = sin título). */
+export function validatePageTitle(msg) {
+  if (!Number.isInteger(msg?.n) || msg.n < 0 || msg.n > 999 || typeof msg.title !== 'string') return null;
+  const title = msg.title.replace(/[\p{Cc}<>]/gu, '').trim().slice(0, MAX_PAGE_TITLE);
+  return { n: msg.n, title };
+}
+
+/** Página (opcional) que acompaña a cursores y láser: así no se ven los de otra página. */
+export const pageOf = (v) => (Number.isInteger(v) && v >= 0 && v <= 999 ? v : undefined);
 
 /** Trozo de trazo en vivo: puntos nuevos de un trazo que alguien está dibujando. */
 export function validateStroke(msg) {
@@ -184,7 +204,7 @@ export function validateLaser(msg) {
     if (Math.abs(p[0]) > 1e7 || Math.abs(p[1]) > 1e7) return null;
     pts.push([Math.round(p[0]), Math.round(p[1])]);
   }
-  return { pts, c: LASER_COLOR_RE.test(msg.c) ? msg.c : '#ff2d55', end: msg.end === true };
+  return { pts, c: LASER_COLOR_RE.test(msg.c) ? msg.c : '#ff2d55', end: msg.end === true, p: pageOf(msg.p) };
 }
 
 /** Tamaño máximo de un mensaje de señalización WebRTC (SDP o candidato). */

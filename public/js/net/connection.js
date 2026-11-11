@@ -73,6 +73,24 @@ export class Connection extends Emitter {
     return false;
   }
 
+  /**
+   * Reconecta ya (sin esperar la espera exponencial). Se usa cuando la conexión parece muerta
+   * (no responde al ping) o cuando el celular vuelve del segundo plano.
+   */
+  reconnectNow() {
+    if (this._stopped) return;
+    this._retry = 0;
+    clearTimeout(this._timer);
+    const old = this.ws;
+    this.ws = null;
+    try {
+      old?.close();
+    } catch {
+      /* ya estaba cerrada */
+    }
+    this.connect();
+  }
+
   stop() {
     this._stopped = true;
     clearTimeout(this._timer);
