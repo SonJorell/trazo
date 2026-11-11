@@ -65,6 +65,13 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-42 | *(v2.1)* Anotaciones ancladas a la página de un documento: se ocultan al cambiar de página y acompañan al documento al moverlo o redimensionarlo. |
 | RF-43 | *(v2.1)* Otros archivos como tarjeta descargable. |
 | RF-44 | *(v2.1)* Trazos en vivo por trozos, cursores suavizados e indicador de latencia. |
+| RF-45 | *(v2.2)* Paleta única para todos los pinceles, color personalizado con recientes, tamaño y opacidad en % y vista previa. |
+| RF-46 | *(v2.2)* Fondo por página (o para todas), igual para todos los participantes. |
+| RF-47 | *(v2.2)* Títulos de página y vista de páginas con miniaturas. |
+| RF-48 | *(v2.2)* Cámaras configurables: forma, tamaño, ubicación, nombres y espejo. |
+| RF-49 | *(v2.2)* Copiar, cortar, pegar, duplicar y seleccionar todo. |
+| RF-50 | *(v2.2)* Cursores y láser por página; sin eco del cambio de página; reconexión al volver del segundo plano y detección de conexión muerta. |
+| RF-51 | *(v2.2)* Interfaz adaptada a tablet (segunda fila) y celular (hoja inferior, objetivos táctiles). |
 
 ## 4. Reglas de negocio
 
@@ -150,6 +157,11 @@ y el linter pasa.
 | T-30 | Conversión de Office | PowerShell + COM (Office) y LibreOffice como respaldo, cola de una en una, prueba con LibreOffice | Terminado |
 | T-31 | Documentos en el cliente | pdf.js, elementos `image`/`doc`/`file`, barra del documento, anclaje de anotaciones | Terminado |
 | T-32 | Tiempo real | Mensaje `stroke` con deltas, capa de trazos en vivo, interpolación de cursores, `ping`/`pong` | Terminado |
+| T-34 | Panel de estilo v2.2 | Paleta única, personalizado, % y vista previa | Terminado |
+| T-35 | Fondo y títulos por página | Mensajes `background{page}` y `page-title`, vista de páginas, PDF con títulos | Terminado |
+| T-36 | Cámaras configurables | Preferencias por equipo, 6 ubicaciones, 3 formas | Terminado |
+| T-37 | Sincronización v2.2 | Página en cursor/láser, sin eco, reconexión inmediata | Terminado |
+| T-38 | Pruebas v2.2 | Integración (47) + E2E `v22.py` (15) + regresión E2E | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro
@@ -169,7 +181,6 @@ y el linter pasa.
 - Exportar a PDF cada página de un documento con sus anotaciones (hoy: la página visible).
 - Recortar y rotar imágenes; buscar texto dentro de los documentos.
 - Miniaturas de páginas del documento para saltar directo a una.
-- Copiar, pegar y duplicar elementos.
 - Varias páginas por sala y plantillas.
 - Compactación de elementos borrados (lápidas) antiguos.
 - Exportar a SVG y a JSON; importar JSON.

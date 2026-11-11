@@ -223,6 +223,27 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.2
+
+- **Colores y pinceles**: una sola paleta para todos los pinceles (con el Neón brilla cualquier
+  color), **color personalizado** con los últimos 6 usados, vista previa del trazo, y
+  **tamaño y opacidad en %** con control deslizante y atajos rápidos.
+- **Fondo por página**: en *Fondo de la hoja* eliges si se aplica a **todas las páginas** o
+  **solo a la actual**. Todos ven siempre el mismo fondo en cada página (también a pantalla
+  completa en el celular).
+- **Títulos y vista de páginas**: toca *Pág. N* abajo para ver todas las páginas en miniatura,
+  saltar a una o escribirle un título (lo ven todos y sale en el PDF).
+- **Cámaras**: botón 📷 abajo a la derecha (en la presentación principal) para elegir **forma**
+  (círculo, redondeada, rectángulo), **tamaño**, **ubicación** (libre, esquinas, fila, columna,
+  cuadrícula), nombres y efecto espejo.
+- **Copiar, pegar y duplicar**: `Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+D`, `Ctrl+A`, y botón
+  *Duplicar* junto a *Eliminar* (útil en el celular).
+- **Sincronización**: los cursores y el láser solo se ven en la página donde están; al pasar
+  páginas rápido ya no hay saltos; si el celular se bloquea o pierde la red, se reconecta solo
+  al volver (y detecta conexiones «muertas» con el ping).
+- **Interfaz**: en tablet la barra de herramientas baja a una segunda fila; en el celular el
+  estilo se abre como hoja inferior a lo ancho, con botones más grandes para el dedo.
+
 **Tiempo real más fluido**: los trazos viajan en vivo a trocitos (~60 veces por segundo) en lugar
 de reenviar el trazo completo; los cursores de los demás se deslizan suavemente; junto al código
 de la sala ves la **latencia** (verde < 80 ms, amarillo < 200 ms, rojo más).
@@ -235,6 +256,8 @@ de la sala ves la **latencia** (verde < 80 ms, amarillo < 200 ms, rojo más).
 | `P` | Lápiz | `E` | Borrador |
 | `K` | Puntero láser | `N` | Nota adhesiva |
 | `S` | Sello | `←` / `→` | Página del documento activo |
+| `Ctrl+C` / `Ctrl+V` | Copiar / pegar | `Ctrl+D` | Duplicar |
+| `Ctrl+X` | Cortar | `Ctrl+A` | Seleccionar todo |
 | `R` | Rectángulo | `H` | Mover vista |
 | `O` | Elipse | `Espacio` + arrastrar | Mover vista |
 | `A` | Flecha | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
@@ -273,6 +296,7 @@ Ejemplo en Windows: `set PORT=3090 && npm start`.
 | `npm run check` | Lint + pruebas |
 | `npm run overlay` | Instala Electron (si falta) y abre el modo sobre la pantalla |
 | `python tests/e2e/sesion_completa.py` | Pruebas de punta a punta opcionales (Playwright; ver cabecera del archivo) |
+| `python tests/e2e/v22.py` | Punta a punta de v2.2 (escritorio, tablet y celular) |
 | `python tests/e2e/adjuntos.py` | Punta a punta de fondos, adjuntos, documentos y trazos en vivo |
 
 ## Estructura
