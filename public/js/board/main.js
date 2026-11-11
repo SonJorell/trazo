@@ -115,6 +115,8 @@ onAssetLoad(render);
 // Gancho para las pruebas de punta a punta (?e2e=1): permite inspeccionar la escena.
 if (params.has('e2e')) window.__trazo = { scene, live, viewport };
 scene.on('live', render);
+// Al cambiar de página no queda seleccionado nada de la página anterior.
+scene.on('page', () => overlay.selection.size && ctx.select([]));
 let background = { pattern: 'dots', color: 'white' };
 let uploadToken = null;
 if (!OVERLAY) {
