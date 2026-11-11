@@ -106,6 +106,15 @@ desde el PC y el celular en la misma red.
 | E2E `tests/e2e/sellos.py` | Sellos ✓ y ★ colocados; «Borrar mis trazos» quitó 2 |
 | Defectos encontrados y corregidos | (1) `history` local ocultaba `window.history` y la página del overlay no arrancaba desde v1.4; (2) «null» en la tarjeta de votación; (3) QR grande tapaba el panel; (4) avisos tapaban la votación en celulares |
 
+### Versión 2.1 — Fondos de hoja, documentos y tiempo real
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 46/46 (nuevas: subir/servir/borrar adjuntos, permiso por sala, límite de tamaño, descarga forzada de tipos peligrosos, conversión RTF→PDF con LibreOffice, validación de `image`/`doc`/`file` y anclajes, `stroke` retransmitido, `background` con permiso, `ping`) |
+| E2E `tests/e2e/adjuntos.py` (Chrome, anfitrión 1280×800 + celular 390×844) | 12/12: latencia visible, fondo sincronizado y bloqueado para la invitada, foto, PDF de 3 páginas como documento, trazo en vivo visto **antes** de soltar, anotación anclada que se oculta al pasar de página, PowerPoint convertido a 3 diapositivas, tarjeta descargable |
+| Regresión E2E | `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) pdf.js 6 ya no tiene `destroy()` en el documento (se cierra la tarea de carga); (2) el campo `from` del trozo de trazo pisaba el id del autor al retransmitir (se renombró a `by`); (3) el botón 📎 quedaba oculto en el modo simple del celular |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para
@@ -114,8 +123,11 @@ desde el PC y el celular en la misma red.
 - **Otra base de datos.** Basta con implementar `init/exists/load/save` (por ejemplo, con SQLite).
 - **Acceso desde internet.** Con un túnel gratuito (Cloudflare Tunnel o Tailscale) y HTTPS. Antes
   de exponerlo conviene sustituir el PIN por un token largo.
-- **Funciones.** Estilo de boceto a mano, imágenes, copiar y pegar, varias páginas, exportar SVG o
-  JSON, PWA instalable y compactación de lápidas. El backlog completo está en
+- **Funciones.** Estilo de boceto a mano, copiar y pegar, exportar SVG o JSON, PWA instalable,
+  compactación de lápidas, miniaturas de páginas de documentos y exportar cada página de un
+  documento con sus anotaciones.
+- **Adjuntos a escala.** El almacén de archivos es una clase con `saveStream/serve/removeRoom`:
+  se puede cambiar por un almacenamiento de objetos (S3/MinIO) sin tocar el cliente. El backlog completo está en
   `docs/requerimientos.md`.
 - **Overlay.** Varios monitores, marcas que se desvanecen (puntero láser), WebRTC para más fluidez e
   instalador con inicio automático.

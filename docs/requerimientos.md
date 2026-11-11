@@ -59,6 +59,12 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-36 | *(v2.0)* Temporizador y votación rápida con un voto por persona. |
 | RF-37 | *(v2.0)* Permitir a todos pasar diapositivas. |
 | RF-38 | *(v2.0)* Exportar PDF multipágina; modo simple para celulares; `presentar.bat` con QR grande. |
+| RF-39 | *(v2.1)* Fondo de hoja compartido: 7 diseños (puntos, cuadriculada, rayada, milimetrada, isométrica, pentagrama, lisa) y 5 papeles (blanco, crema, celeste, pizarra negra, pizarra verde). Lo cambia el anfitrión o quien tenga permiso. |
+| RF-40 | *(v2.1)* Adjuntar imágenes (botón, arrastrar, pegar, cámara del celular) como elementos movibles y redimensionables con proporción fija. |
+| RF-41 | *(v2.1)* Adjuntar PDF y archivos de Office como documento para hojear o como una diapositiva por página. Office se convierte a PDF en el PC anfitrión. |
+| RF-42 | *(v2.1)* Anotaciones ancladas a la página de un documento: se ocultan al cambiar de página y acompañan al documento al moverlo o redimensionarlo. |
+| RF-43 | *(v2.1)* Otros archivos como tarjeta descargable. |
+| RF-44 | *(v2.1)* Trazos en vivo por trozos, cursores suavizados e indicador de latencia. |
 
 ## 4. Reglas de negocio
 
@@ -139,6 +145,12 @@ y el linter pasa.
 | T-25 | Cámaras en el cliente | Emisor/receptor, burbujas, vista previa, cambio de cámara | Terminado |
 | T-26 | Permiso de diapositivas | Pedir/permitir/quitar con prueba y botones ‹ › | Terminado |
 | T-27 | Anfitrión único | Clave de anfitrión al crear, prueba «solo el anfitrión es la presentación principal», ★ en la UI | Terminado |
+| T-28 | Fondos de hoja | Mensaje `background` con permiso, dibujo en coordenadas del mundo, selector con miniaturas, exportaciones | Terminado |
+| T-29 | Almacén de adjuntos | `POST /api/rooms/:id/assets` con permiso firmado, límites, servir con `nosniff`/descarga, borrado con la sala, pruebas | Terminado |
+| T-30 | Conversión de Office | PowerShell + COM (Office) y LibreOffice como respaldo, cola de una en una, prueba con LibreOffice | Terminado |
+| T-31 | Documentos en el cliente | pdf.js, elementos `image`/`doc`/`file`, barra del documento, anclaje de anotaciones | Terminado |
+| T-32 | Tiempo real | Mensaje `stroke` con deltas, capa de trazos en vivo, interpolación de cursores, `ping`/`pong` | Terminado |
+| T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro
 
@@ -154,7 +166,9 @@ y el linter pasa.
 - Acceso desde internet mediante túnel gratuito (Cloudflare Tunnel o Tailscale).
 - Estilo "a mano" tipo boceto (trazos irregulares).
 - Redimensionar y rotar todos los tipos de elemento.
-- Imágenes pegadas o subidas.
+- Exportar a PDF cada página de un documento con sus anotaciones (hoy: la página visible).
+- Recortar y rotar imágenes; buscar texto dentro de los documentos.
+- Miniaturas de páginas del documento para saltar directo a una.
 - Copiar, pegar y duplicar elementos.
 - Varias páginas por sala y plantillas.
 - Compactación de elementos borrados (lápidas) antiguos.

@@ -47,7 +47,17 @@ export class Presence {
   moveCursor(id, x, y) {
     const peer = this.peers.get(id);
     if (!peer) return;
-    this.overlay.cursors.set(id, { x, y, name: peer.name, color: peer.color, at: Date.now() });
+    // El cursor se desliza hacia la nueva posición (el renderizador interpola).
+    const prev = this.overlay.cursors.get(id);
+    this.overlay.cursors.set(id, {
+      x: prev?.x ?? x,
+      y: prev?.y ?? y,
+      tx: x,
+      ty: y,
+      name: peer.name,
+      color: peer.color,
+      at: Date.now(),
+    });
     this.render();
   }
 

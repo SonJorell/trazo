@@ -280,3 +280,85 @@ export function permissionsDialog(grants, onRevoke, everyone = null) {
     ),
   );
 }
+
+/**
+ * Pregunta con varias opciones en tarjetas. Resuelve con el `value` elegido o null.
+ * @param {{ title, message?, options: { value, label, desc? }[] }} opts
+ */
+export function choiceDialog({ title, message = '', options }) {
+  return new Promise((resolve) => {
+    const done = (v) => {
+      close();
+      resolve(v);
+    };
+    const { close } = modal(
+      h(
+        'div',
+        { class: 'stack' },
+        h('h2', {}, title),
+        message ? h('p', { class: 'muted' }, message) : null,
+        h(
+          'div',
+          { class: 'choice-list' },
+          ...options.map((o) =>
+            h(
+              'button',
+              { class: 'choice-card', onclick: () => done(o.value) },
+              h('strong', {}, o.label),
+              o.desc ? h('span', { class: 'muted' }, o.desc) : null,
+            ),
+          ),
+        ),
+        h('div', { class: 'row end' }, h('button', { class: 'btn ghost', onclick: () => done(null) }, 'Cancelar')),
+      ),
+      { onDismiss: () => resolve(null) },
+    );
+  });
+}
+
+/**
+ * Selector del fondo de hoja (diseño + papel), con vista previa de cada diseño.
+ * @param {{ current, patterns: Record<string,string>, colors: Record<string,string>, paint, canEdit, onPick }} opts
+ *   paint(canvas, bg) dibuja la miniatura.
+ */
+export function backgroundDialog({ current, patterns, colors, paint, canEdit, onPick }) {
+  let bg = { ...current };
+  const swatches = [];
+  const tiles = [];
+  const refresh = () => {
+    for (const t of tiles) {
+      t.node.classList.toggle('active', t.pattern === bg.pattern);
+      paint(t.canvas, { pattern: t.pattern, color: bg.color });
+    }
+    for (const s of swatches) s.node.classList.toggle('active', s.color === bg.color);
+  };
+  const pick = (partial) => {
+    if (!canEdit) return;
+    bg = { ...bg, ...partial };
+    refresh();
+    onPick(bg);
+  };
+  const tileNodes = Object.entries(patterns).map(([pattern, label]) => {
+    const canvas = h('canvas', { width: 96, height: 64 });
+    const node = h('button', { class: 'bg-tile', title: label, onclick: () => pick({ pattern }), disabled: !canEdit }, canvas, h('span', {}, label));
+    tiles.push({ pattern, node, canvas });
+    return node;
+  });
+  const swatchNodes = Object.entries(colors).map(([color, label]) => {
+    const node = h('button', { class: `bg-swatch paper-${color}`, title: label, 'aria-label': label, onclick: () => pick({ color }), disabled: !canEdit });
+    swatches.push({ color, node });
+    return node;
+  });
+  const { close } = modal(
+    h(
+      'div',
+      { class: 'stack' },
+      h('h2', {}, 'Fondo de la hoja'),
+      canEdit ? null : h('p', { class: 'muted' }, 'Solo el anfitrión (o quien tenga permiso) puede cambiar el fondo.'),
+      h('div', { class: 'bg-grid' }, ...tileNodes),
+      h('div', { class: 'row bg-papers' }, h('span', { class: 'muted' }, 'Papel:'), ...swatchNodes),
+      h('div', { class: 'row end' }, h('button', { class: 'btn primary', onclick: () => close() }, 'Listo')),
+    ),
+  );
+  refresh();
+}

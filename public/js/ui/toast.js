@@ -12,5 +12,6 @@ export function toast(message, { sticky = false, ms = 2600 } = {}) {
     setTimeout(() => node.remove(), 250);
   };
   if (!sticky) setTimeout(close, ms);
+  close.update = (text) => (node.textContent = text); // para mensajes de progreso
   return close;
 }

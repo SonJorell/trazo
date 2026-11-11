@@ -1,7 +1,9 @@
 import { normalizeRect } from '/shared/geometry.js';
 
 /** Tipos que se pueden redimensionar con el tirador. */
-export const RESIZABLE = new Set(['rect', 'ellipse', 'note']);
+export const RESIZABLE = new Set(['rect', 'ellipse', 'note', 'image', 'doc']);
+/** Tipos que conservan la proporción al redimensionar. */
+export const KEEP_ASPECT = new Set(['image', 'doc']);
 
 /** Posición del tirador de redimensión (esquina inferior derecha) en el mundo. */
 export function resizeHandle(el, zoom) {

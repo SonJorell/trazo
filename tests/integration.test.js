@@ -430,3 +430,50 @@ test('el tipo nota y la página se validan', async () => {
   assert.deepEqual([note.page, note.w, note.h, note.fill], [2, 60, 2000, '#ffec99']);
   assert.equal(sanitizeElement({ id: 'nota1234', type: 'note', version: 1, page: -3 }).page, 0);
 });
+
+test('v2.1: trazos en vivo, fondo de hoja, ping y permiso de subida', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const guest = connect();
+  await Promise.all([host.opened, guest.opened]);
+
+  // El ping responde incluso antes de entrar.
+  host.send({ t: 'ping', ts: 1234 });
+  assert.equal((await host.next('pong')).ts, 1234);
+
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey });
+  const wh = await host.next('welcome');
+  assert.deepEqual(wh.background, { pattern: 'dots', color: 'white' });
+  assert.match(wh.uploadToken, /^[A-Za-z0-9_-]{20,}$/);
+  guest.send({ t: 'join', room: id, name: 'Invitada' });
+  const wg = await guest.next('welcome');
+  assert.equal(wg.uploadToken, wh.uploadToken, 'mismo permiso de subida para la sala');
+  await host.next('peer-join');
+
+  // Trazo en vivo: se retransmite al resto con el autor (no al remitente).
+  host.send({ t: 'stroke', id: 'live00001', from: 0, pts: [[1, 1], [2, 2]], s: { stroke: '#e03131' } });
+  const st = await guest.next('stroke');
+  assert.equal(st.by, wh.you.id);
+  assert.equal(st.from, 0);
+  assert.equal(st.id, 'live00001');
+  assert.deepEqual(st.pts, [[1, 1], [2, 2]]);
+  guest.send({ t: 'stroke', id: 'x', from: 0, pts: [[0, 0]] }); // id inválido: se ignora
+
+  // La invitada no puede cambiar el fondo; el anfitrión sí y llega a todos.
+  guest.send({ t: 'background', pattern: 'grid', color: 'dark' });
+  assert.equal((await guest.next('error')).code, 'control_denied');
+  host.send({ t: 'background', pattern: 'grid', color: 'dark' });
+  const bg = await guest.next('background');
+  assert.deepEqual([bg.pattern, bg.color], ['grid', 'dark']);
+  await host.next('background');
+  host.send({ t: 'background', pattern: 'grid', color: 'neon' });
+  assert.equal((await host.next('error')).code, 'bad_request');
+
+  // Quien entra después recibe el fondo actual.
+  const late = connect();
+  await late.opened;
+  late.send({ t: 'join', room: id, name: 'Tarde' });
+  assert.deepEqual((await late.next('welcome')).background, { pattern: 'grid', color: 'dark' });
+
+  for (const c of [host, guest, late]) c.ws.close();
+});

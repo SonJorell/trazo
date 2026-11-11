@@ -3,7 +3,11 @@
  * Compartido por el servidor (Node) y el cliente (navegador): no usar APIs específicas de ninguno.
  */
 
-export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note']);
+export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note', 'image', 'doc', 'file']);
+
+/** URL de un archivo subido a la sala: /assets/<sala>/<id>.<ext> */
+export const ASSET_URL_RE = /^\/assets\/[a-z0-9]{4,24}\/[A-Za-z0-9_-]{8,40}\.[a-z0-9]{1,5}$/;
+export const MAX_DOC_PAGES = 300;
 export const MAX_PAGE = 999;
 
 /** Pinceles: cambian cómo se dibuja el trazo (grosor efectivo, transparencia, brillo). */
@@ -72,6 +76,11 @@ export function sanitizeElement(raw) {
     page: Number.isInteger(raw.page) ? clamp(raw.page, 0, MAX_PAGE) : 0,
   };
   if (typeof raw.author === 'string' && AUTHOR_RE.test(raw.author)) el.author = raw.author;
+  // Anotación sobre una página de un documento: solo se ve cuando el documento muestra esa página.
+  if (typeof raw.anchor === 'string' && ID_RE.test(raw.anchor) && Number.isInteger(raw.anchorPage)) {
+    el.anchor = raw.anchor;
+    el.anchorPage = clamp(raw.anchorPage, 0, MAX_DOC_PAGES - 1);
+  }
 
   if (el.type === 'rect' || el.type === 'ellipse') {
     el.w = coord(raw.w);
@@ -86,6 +95,29 @@ export function sanitizeElement(raw) {
     }
     if (pts.length === 0) return null;
     el.points = pts;
+  }
+
+  if (el.type === 'image' || el.type === 'doc' || el.type === 'file') {
+    el.w = clamp(Math.abs(coord(raw.w)) || 400, 20, 20000);
+    el.h = clamp(Math.abs(coord(raw.h)) || 300, 20, 20000);
+    el.name = typeof raw.name === 'string' ? raw.name.replace(/[<>]/g, '').slice(0, 120) : '';
+  }
+  if (el.type === 'image') {
+    if (typeof raw.src !== 'string' || !ASSET_URL_RE.test(raw.src)) return null;
+    el.src = raw.src;
+  }
+  if (el.type === 'doc') {
+    if (!Array.isArray(raw.pages) || !raw.pages.length) return null;
+    const pages = raw.pages.slice(0, MAX_DOC_PAGES).filter((u) => typeof u === 'string' && ASSET_URL_RE.test(u));
+    if (!pages.length) return null;
+    el.pages = pages;
+    el.docPage = Number.isInteger(raw.docPage) ? clamp(raw.docPage, 0, pages.length - 1) : 0;
+    if (typeof raw.source === 'string' && ASSET_URL_RE.test(raw.source)) el.source = raw.source;
+  }
+  if (el.type === 'file') {
+    if (typeof raw.src !== 'string' || !ASSET_URL_RE.test(raw.src)) return null;
+    el.src = raw.src;
+    el.size = isNum(raw.size) ? Math.max(0, Math.floor(raw.size)) : 0;
   }
 
   if (el.type === 'note') {

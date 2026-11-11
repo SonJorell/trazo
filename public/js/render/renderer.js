@@ -1,10 +1,10 @@
 import { getBounds, rectsIntersect } from '/shared/geometry.js';
 import { effectiveWidth } from '/shared/elements.js';
-import { drawElement } from './draw.js';
+import { drawElement, setDarkPaper } from './draw.js';
+import { drawPattern, paperColors, isDarkPaper } from './background.js';
 import { RESIZABLE, resizeHandle } from '../core/handles.js';
 
 const SELECTION_COLOR = '#4263eb';
-const GRID = 24;
 
 /**
  * Dibuja la escena y las capas de interfaz (selección, recuadro, cursores remotos).
@@ -17,8 +17,11 @@ export class Renderer {
    *   overlay = { selection:Set, marquee, cursors:Map, editingId, screen: { img, w, h } | null }
    *   transparent = true en el modo «sobre la pantalla»: sin fondo ni cuadrícula.
    */
-  constructor(canvas, { scene, viewport, overlay, transparent = false }) {
+  constructor(canvas, { scene, viewport, overlay, transparent = false, live = null }) {
     this.transparent = transparent;
+    this.live = live; // trazos ajenos a medio dibujar
+    this.background = { pattern: 'dots', color: 'white' };
+    this.onDraw = null; // aviso tras cada dibujo (p. ej. para colocar la barra del documento)
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.scene = scene;
@@ -37,6 +40,13 @@ export class Renderer {
     this.height = rect.height;
     this.canvas.width = Math.round(rect.width * dpr);
     this.canvas.height = Math.round(rect.height * dpr);
+    this.requestRender();
+  }
+
+  /** Cambia el fondo de hoja de la sala. */
+  setBackground(bg) {
+    this.background = bg;
+    setDarkPaper(!this.transparent && isDarkPaper(bg));
     this.requestRender();
   }
 
@@ -60,14 +70,16 @@ export class Renderer {
       ctx.fillStyle = '#111111'; // pantalla completa: fondo oscuro alrededor de la transmisión
       ctx.fillRect(0, 0, this.width, this.height);
     } else {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = paperColors(this.background).paper;
       ctx.fillRect(0, 0, this.width, this.height);
-      this._drawGrid(dpr);
     }
 
     const z = vp.zoom * dpr;
     ctx.setTransform(z, 0, 0, z, -vp.x * z, -vp.y * z);
     const view = vp.visibleRect(this.width, this.height);
+    if (!this.transparent && !document.body.classList.contains('immersive')) {
+      drawPattern(ctx, view, vp.zoom, this.background);
+    }
     this._drawScreen();
     for (const el of this.scene.alive()) {
       if (el.id === overlay.editingId) continue;
@@ -76,6 +88,10 @@ export class Renderer {
       if (!rectsIntersect(view, { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 })) continue;
       drawElement(ctx, el);
     }
+    if (this.live) {
+      this.live.prune(this.scene);
+      for (const el of this.live.visible(this.scene.page)) drawElement(ctx, el);
+    }
     this._drawSelection();
     this._drawMarquee();
     // Puntero láser: mientras haya estelas, se sigue animando.
@@ -83,6 +99,7 @@ export class Renderer {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._drawCursors();
+    this.onDraw?.();
   }
 
   /** Pantalla compartida en vivo: se dibuja en (0,0) con el tamaño de la pantalla de origen. */
@@ -95,21 +112,6 @@ export class Renderer {
     ctx.shadowBlur = 12 / vp.zoom;
     ctx.drawImage(s.img, 0, 0, s.w, s.h);
     ctx.restore();
-  }
-
-  _drawGrid() {
-    const { ctx, viewport: vp } = this;
-    const step = GRID * vp.zoom;
-    if (step < 10) return;
-    ctx.fillStyle = '#dee2e6';
-    const offX = -((vp.x * vp.zoom) % step);
-    const offY = -((vp.y * vp.zoom) % step);
-    const r = Math.max(0.8, Math.min(1.5, vp.zoom));
-    for (let x = offX; x < this.width; x += step) {
-      for (let y = offY; y < this.height; y += step) {
-        ctx.fillRect(x - r / 2, y - r / 2, r, r);
-      }
-    }
   }
 
   _drawSelection() {
@@ -158,8 +160,18 @@ export class Renderer {
     ctx.save();
     ctx.font = '12px system-ui, sans-serif';
     ctx.textBaseline = 'middle';
+    let moving = false;
     for (const c of overlay.cursors.values()) {
       if (now - c.at > 6000) continue;
+      // Interpolación suave hacia la última posición recibida.
+      if (c.tx !== undefined && (Math.abs(c.tx - c.x) > 0.5 || Math.abs(c.ty - c.y) > 0.5)) {
+        c.x += (c.tx - c.x) * 0.35;
+        c.y += (c.ty - c.y) * 0.35;
+        moving = true;
+      } else if (c.tx !== undefined) {
+        c.x = c.tx;
+        c.y = c.ty;
+      }
       const p = vp.toScreen(c.x, c.y);
       if (p.x < -20 || p.y < -20 || p.x > this.width + 20 || p.y > this.height + 20) continue;
       ctx.fillStyle = c.color;
@@ -179,5 +191,6 @@ export class Renderer {
       ctx.fillText(c.name, p.x + 17, p.y + 23);
     }
     ctx.restore();
+    if (moving) this.requestRender();
   }
 }
