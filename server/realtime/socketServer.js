@@ -17,12 +17,17 @@ import {
   validatePageTitle,
   pageOf,
   validateStroke,
+  validateAvatar,
+  validateAvatarPos,
+  ROLES,
   MAX_TIMER_MS,
 } from '../../shared/protocol.js';
 import { randomId, MAX_PAGE } from '../../shared/elements.js';
 import { TokenBucket } from './rateLimiter.js';
 
 const HEARTBEAT_MS = 30_000;
+/** Mensajes que una visita no puede enviar. */
+const EDIT_ONLY = new Set([MSG.OPS, MSG.CURSOR, MSG.STROKE, MSG.LASER, MSG.RTC, MSG.AVATAR, MSG.AVATAR_POS, MSG.CONTROL_REQUEST]);
 const MAX_OPS_PER_MESSAGE = 500;
 const MAX_BUFFERED_FOR_VOLATILE = 1024 * 1024; // si hay >1 MB pendiente, se saltan cuadros
 
@@ -53,6 +58,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       bucket: new TokenBucket(config.rateLimit),
       lastControlRequest: 0,
       lastReaction: 0,
+      lastRoleRequest: 0,
     };
     ws.isAlive = true;
     ws.on('pong', () => (ws.isAlive = true));
@@ -85,7 +91,15 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         if (msg.t === MSG.PING) return send({ t: MSG.PONG, ts: Number.isFinite(msg.ts) ? msg.ts : 0 });
       if (msg.t === MSG.JOIN) await handleJoin(msg);
         else if (!client.room) fail(ERR.NOT_JOINED, 'Primero debes unirte a una sala');
+        else if (msg.t === MSG.ROLE) setRole(msg);
+        else if (msg.t === MSG.ROLE_REQUEST) requestRole();
+        else if (EDIT_ONLY.has(msg.t) && !client.room.canEdit(client.peer)) {
+          // Las visitas solo reaccionan y votan: el resto se ignora (cursor) o se rechaza.
+          if (msg.t === MSG.OPS) fail(ERR.READ_ONLY, 'Estás como visita: puedes reaccionar y votar, pero no dibujar');
+        }
         else if (msg.t === MSG.OPS) handleOps(msg);
+        else if (msg.t === MSG.AVATAR) setAvatar(msg);
+        else if (msg.t === MSG.AVATAR_POS) moveAvatar(msg);
         else if (msg.t === MSG.CURSOR) handleCursor(msg);
         else if (msg.t === MSG.SCREEN) handleScreen(msg);
         else if (msg.t === MSG.SCREEN_STOP) stopScreen();
@@ -129,11 +143,13 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         send,
         host,
         display: host && msg.display === true,
+        clientId: msg.clientId,
       });
-      const { id, name, color, display } = client.peer;
+      const { id, name, color, display, role } = client.peer;
       send({
         t: MSG.WELCOME,
-        you: { id, name, color, host, display },
+        you: { id, name, color, host, display, role },
+        defaultRole: room.defaultRole,
         uploadToken: assets ? assets.tokenFor(room.id) : null,
         peers: room.publicPeers().filter((p) => p.id !== id),
         elements: room.snapshot(),
@@ -148,7 +164,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         poll: room.publicPoll(),
         canSteer: room.canSteer(client.peer),
       });
-      room.broadcast({ t: MSG.PEER_JOIN, peer: { id, name, color, display, host } }, id);
+      room.broadcast({ t: MSG.PEER_JOIN, peer: room.publicPeer(client.peer) }, id);
       logger.info(`${name} entró a la sala ${room.id} (${room.peers.size} conectados)`);
     }
 
@@ -235,9 +251,61 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       }
       const target = room.peers.get(msg.to);
       if (!target) return;
-      if (msg.granted === true) room.grants.add(target.id);
-      else room.grants.delete(target.id);
+      // Dar permiso de diapositivas = rol «presentador»; quitarlo = «editor».
+      room.setRole(target, msg.granted === true ? 'presentador' : 'editor');
+      room.broadcast({ t: MSG.PEER_ROLE, id: target.id, role: target.role });
       target.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: room.grants.has(target.id) }));
+    }
+
+    /** (anfitrión) Rol de una persona, de todas o con el que entra la gente nueva. */
+    function setRole(msg) {
+      if (!requireHost('cambiar permisos')) return;
+      const room = client.room;
+      const changed = [];
+      if (ROLES.includes(msg.default)) {
+        room.defaultRole = msg.default;
+        room.onChange(room);
+        room.broadcast({ t: MSG.ROOM_ROLES, defaultRole: room.defaultRole });
+      }
+      if (ROLES.includes(msg.all)) {
+        for (const peer of room.peers.values()) if (!peer.host && room.setRole(peer, msg.all)) changed.push(peer);
+      } else if (typeof msg.to === 'string' && ROLES.includes(msg.role)) {
+        const peer = room.peers.get(msg.to);
+        if (peer && room.setRole(peer, msg.role)) changed.push(peer);
+      } else if (!ROLES.includes(msg.default)) {
+        return fail(ERR.BAD_REQUEST, 'Rol inválido');
+      }
+      for (const peer of changed) {
+        room.broadcast({ t: MSG.PEER_ROLE, id: peer.id, role: peer.role });
+        peer.send(JSON.stringify({ t: MSG.CONTROL_GRANTED, granted: room.canSteer(peer) }));
+        if (peer.role === 'visita') room.broadcast({ t: MSG.AVATAR, id: peer.id, mode: 'off' });
+      }
+    }
+
+    /** (visita) Pide permiso para dibujar: le llega a los anfitriones. */
+    function requestRole() {
+      if (client.peer.role !== 'visita') return;
+      const now = Date.now();
+      if (now - client.lastRoleRequest < 10_000) return;
+      client.lastRoleRequest = now;
+      const payload = JSON.stringify({ t: MSG.ROLE_REQUEST, from: client.id, name: client.peer.name });
+      for (const peer of client.room.peers.values()) if (peer.host) peer.send(payload);
+    }
+
+    function setAvatar(msg) {
+      const avatar = validateAvatar(msg);
+      if (!avatar) return fail(ERR.BAD_REQUEST, 'Avatar inválido');
+      client.peer.avatar = avatar.mode === 'off' ? null : avatar;
+      if (avatar.mode !== 'body') client.peer.avatarPos = null;
+      client.room.broadcast({ t: MSG.AVATAR, id: client.id, ...avatar }, client.id);
+    }
+
+    function moveAvatar(msg) {
+      if (client.peer.avatar?.mode !== 'body') return;
+      const pos = validateAvatarPos(msg);
+      if (!pos) return;
+      client.peer.avatarPos = pos;
+      client.room.broadcast({ t: MSG.AVATAR_POS, id: client.id, ...pos }, client.id, { volatile: true });
     }
 
     function relayLaser(msg) {
