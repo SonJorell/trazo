@@ -1,5 +1,7 @@
 import { h } from './dom.js';
 import { STAMPS } from '../tools/stamp.js';
+import { STAMP_ICONS, stampSvg } from '../render/stampIcons.js';
+import { ICONS } from './icons.js';
 import { drawElement } from '../render/draw.js';
 import { createElement } from '/shared/elements.js';
 import { local } from '../util/storage.js';
@@ -17,10 +19,10 @@ export const PALETTE = [
 ];
 export const FILL_COLORS = ['transparent', '#ffc9c9', '#ffd8a8', '#ffec99', '#b2f2bb', '#a5d8ff', '#d0bfff', '#e9ecef'];
 export const BRUSH_OPTIONS = [
-  { value: 'pen', label: 'Lápiz', icon: '✎' },
-  { value: 'marker', label: 'Marcador', icon: '▬' },
-  { value: 'highlighter', label: 'Resaltador', icon: '▮' },
-  { value: 'neon', label: 'Neón', icon: '✦' },
+  { value: 'pen', label: 'Lápiz', icon: 'pen' },
+  { value: 'marker', label: 'Marcador', icon: 'marker' },
+  { value: 'highlighter', label: 'Resaltador', icon: 'highlighter' },
+  { value: 'neon', label: 'Neón', icon: 'sparkle' },
 ];
 export const DASH_OPTIONS = [
   { value: 'solid', label: 'Continua' },
@@ -156,7 +158,7 @@ export function createStylePanel(container, style, onChange) {
       h(
         'button',
         { class: `opt brush brush-${o.value}`, title: o.label, onclick: () => onChange({ brush: o.value }) },
-        h('span', { class: 'brush-icon' }, o.icon),
+        h('span', { class: 'brush-icon', html: ICONS[o.icon] }),
         h('span', { class: 'brush-label' }, o.label),
       ),
     );
@@ -209,7 +211,7 @@ export function createStylePanel(container, style, onChange) {
 
   const stampSection = () => {
     const buttons = STAMPS.map((s) =>
-      h('button', { class: 'opt stamp-opt', title: `Sello ${s}`, 'aria-label': `Sello ${s}`, onclick: () => onChange({ stamp: s }) }, s),
+      h('button', { class: 'opt stamp-opt', title: STAMP_ICONS[s].label, 'aria-label': `Sello ${STAMP_ICONS[s].label}`, html: stampSvg(s), onclick: () => onChange({ stamp: s }) }),
     );
     refreshers.push(() => buttons.forEach((b, i) => b.classList.toggle('active', STAMPS[i] === style.stamp)));
     return h('section', { class: 'sec-stamps' }, h('h3', {}, 'Sellos'), h('div', { class: 'opts stamps' }, buttons));

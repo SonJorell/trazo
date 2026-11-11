@@ -1489,7 +1489,7 @@ body.immersive .slide-pad {
   }
 
   .host-chip::before {
-    content: '★';
+    content: '';
     font-size: 1rem;
   }
 }
@@ -1543,8 +1543,10 @@ body.immersive .slide-pad {
 
 .brush-neon .brush-icon {
   color: #00c8d7;
-  text-shadow: 0 0 6px #00f0ff;
+  filter: drop-shadow(0 0 3px #00f0ff);
 }
+.brush-icon svg { width: 18px; height: 18px; display: block; }
+.stamp-opt svg { width: 22px; height: 22px; }
 
 .dash-sample {
   display: block;
@@ -1622,10 +1624,17 @@ body.immersive .slide-pad {
   animation: float-up 3.2s ease-out forwards;
 }
 
-.reaction-emoji {
-  font-size: 3.2rem;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+.reaction-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
+.reaction-icon svg { width: 34px; height: 34px; }
+.react-opt svg { width: 26px; height: 26px; }
 
 .reaction-name {
   margin-top: 2px;
@@ -2366,3 +2375,27 @@ body[data-role='host'] #presence { cursor: pointer; }
 body[data-role='visita'] .needs-edit { display: none; }
 /* Visitas en modo simple (celular): la mano sigue disponible para mover la vista. */
 body.simple[data-role='visita'] .toolbar .tool[data-tool='hand'] { display: inline-flex !important; }
+
+/* ===== v2.4: íconos en lugar de emojis ===== */
+.with-icon { display: inline-flex; align-items: center; gap: 6px; }
+.with-icon > span:first-child svg, .with-icon svg { width: 18px; height: 18px; display: block; }
+.host-chip { display: inline-flex; align-items: center; gap: 5px; }
+.host-chip svg { flex: none; }
+.ov-star svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.timer-chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip-icon svg { width: 18px; height: 18px; display: block; }
+.slide-btn svg, .doc-bar .icon-btn svg, .page-group .icon-btn svg { display: block; }
+.ctl-small svg { vertical-align: -3px; }
+.ctl-arrow svg { display: block; }
+
+/* ===== v2.4: íconos en lugar de emojis ===== */
+.with-icon { display: inline-flex; align-items: center; gap: 6px; }
+.with-icon svg { width: 18px; height: 18px; display: block; }
+.host-chip { display: inline-flex; align-items: center; gap: 5px; }
+.host-chip svg { flex: none; }
+.ov-star svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.timer-chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip-icon svg { width: 18px; height: 18px; display: block; }
+.slide-btn svg, .doc-bar .icon-btn svg, .page-group .icon-btn svg { display: block; }
+.ctl-small svg { vertical-align: -3px; }
+.ctl-arrow svg { display: block; }

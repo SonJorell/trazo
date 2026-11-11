@@ -1,6 +1,7 @@
 import { getBounds } from '/shared/geometry.js';
 import { getImage } from '../render/assets.js';
 import { h } from '../ui/dom.js';
+import { ICONS } from '../ui/icons.js';
 
 /**
  * Barra flotante del documento activo: ‹ página › · encuadrar · descargar · cerrar.
@@ -9,12 +10,12 @@ import { h } from '../ui/dom.js';
  */
 export function createDocBar({ scene, viewport, ctx, onFit }) {
   let docId = null;
-  const prev = h('button', { class: 'icon-btn', title: 'Página anterior del documento (←)', 'aria-label': 'Página anterior' }, '‹');
-  const next = h('button', { class: 'icon-btn', title: 'Página siguiente del documento (→)', 'aria-label': 'Página siguiente' }, '›');
+  const prev = h('button', { class: 'icon-btn', title: 'Página anterior del documento (←)', 'aria-label': 'Página anterior', html: ICONS.chevronLeft });
+  const next = h('button', { class: 'icon-btn', title: 'Página siguiente del documento (→)', 'aria-label': 'Página siguiente', html: ICONS.chevronRight });
   const label = h('span', { class: 'doc-label' });
-  const fit = h('button', { class: 'icon-btn', title: 'Encuadrar el documento', 'aria-label': 'Encuadrar' }, '⤢');
-  const download = h('a', { class: 'icon-btn', title: 'Descargar el archivo original', 'aria-label': 'Descargar', target: '_blank', rel: 'noopener' }, '⭳');
-  const close = h('button', { class: 'icon-btn', title: 'Ocultar esta barra', 'aria-label': 'Ocultar' }, '✕');
+  const fit = h('button', { class: 'icon-btn', title: 'Encuadrar el documento', 'aria-label': 'Encuadrar', html: ICONS.fit });
+  const download = h('a', { class: 'icon-btn', title: 'Descargar el archivo original', 'aria-label': 'Descargar', target: '_blank', rel: 'noopener', html: ICONS.download });
+  const close = h('button', { class: 'icon-btn', title: 'Ocultar esta barra', 'aria-label': 'Ocultar', html: ICONS.close });
   const bar = h('div', { class: 'doc-bar ov-hit', hidden: true }, prev, label, next, h('span', { class: 'sep' }), fit, download, close);
   document.body.append(bar);
 

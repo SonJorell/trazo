@@ -72,7 +72,7 @@ export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, g
       title: `Insertar «${name}»`,
       message: 'Elige cómo quieres verlo en la pizarra.',
       options: [
-        { value: 'doc', label: 'Documento para hojear', desc: 'Un solo bloque con ‹ › para cambiar de página. Lo que anotes encima queda en cada página.' },
+        { value: 'doc', label: 'Documento para hojear', desc: 'Un solo bloque con flechas para cambiar de página. Lo que anotes encima queda en cada página.' },
         { value: 'slides', label: 'Una página por diapositiva', desc: 'Cada página va a una página de Trazo (se avanza con la barra de páginas o el control remoto).' },
       ],
     });

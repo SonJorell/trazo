@@ -20,7 +20,7 @@ export const TOOL_DEFS = [
   { name: 'line', label: 'Línea', key: 'l', create: (ctx) => createShapeTool(ctx, 'line') },
   { name: 'text', label: 'Texto', key: 't', create: (ctx) => createTextTool(ctx) },
   { name: 'note', label: 'Nota adhesiva', key: 'n', create: (ctx) => createNoteTool(ctx) },
-  { name: 'stamp', label: 'Sello (✓ ✗ ★ ①…)', key: 's', create: (ctx) => createStampTool(ctx) },
+  { name: 'stamp', label: 'Sello', key: 's', create: (ctx) => createStampTool(ctx) },
   { name: 'eraser', label: 'Borrador', key: 'e', create: (ctx) => createEraserTool(ctx) },
 ];
 

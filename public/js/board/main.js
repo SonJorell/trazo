@@ -1,4 +1,4 @@
-import { createElement } from '/shared/elements.js';
+import { createElement, STAMP_KEYS } from '/shared/elements.js';
 import { hitTest } from '/shared/geometry.js';
 import { Scene } from '../core/scene.js';
 import { History, Transaction } from '../core/history.js';
@@ -96,10 +96,11 @@ const style = {
   brush: 'pen',
   dash: 'solid',
   opacity: 1,
-  stamp: '✓',
+  stamp: 'check',
   noteColor: '#ffec99',
   ...local.get(STYLE_KEY, {}),
 };
+if (!STAMP_KEYS.includes(style.stamp)) style.stamp = 'check'; // estilos guardados por versiones anteriores
 
 /** Identificador estable de este navegador: marca los trazos propios («Borrar mis trazos»). */
 const AUTHOR_ID = (() => {
@@ -599,7 +600,7 @@ function showScreen(frame) {
       followScreen = true;
       updateScreenUi();
       fitScreen();
-      if (isNarrow() && !isImmersive()) toast('Toca ⛶ para ver la pantalla completa');
+      if (isNarrow() && !isImmersive()) toast('Toca el botón de pantalla completa (arriba) para verla más grande');
     } else render();
   };
   img.src = frame.data;
@@ -959,7 +960,8 @@ async function start() {
     getPeers: () => presence.peers,
     getFloor: () => {
       const view = presenterView ?? (OVERLAY ? viewport.visibleRect(window.innerWidth, window.innerHeight) : viewport.visibleRect(renderer.width, renderer.height));
-      return { y: view.y + view.h - 12, view };
+      // Suelo: un poco sobre el borde inferior de lo que se proyecta (por encima de las barras).
+      return { y: view.y + view.h * 0.9, view };
     },
     onLookChange: (id, look) => camBubbles?.setLook(id, look),
     addChair: (el) => {
