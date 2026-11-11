@@ -109,6 +109,17 @@ y la 10.
 | 9 | Certificado de confianza opcional (mkcert) para evitar la advertencia | Bajo | Medio |
 | 10 | Grabación de la sesión (pantalla + marcas) | Bajo | Alto |
 
+**v2.1** agregó, a pedido del usuario: fondos de hoja (cuadriculada, rayada, milimetrada,
+isométrica, pentagrama; papeles claros y de pizarra), adjuntar fotos, PDF y archivos de Office
+como documentos que se hojean y se anotan por página, tarjetas descargables y un tiempo real más
+fluido (trazos en vivo por deltas, cursores suavizados, indicador de latencia). Nuevas candidatas:
+
+| Prioridad | Mejora | Impacto | Esfuerzo |
+|-----------|--------|---------|----------|
+| 11 | Miniaturas de páginas del documento para saltar directo | Medio | Bajo |
+| 12 | Exportar cada página de un documento con sus anotaciones | Medio | Medio |
+| 13 | Compartir la pantalla del celular | Medio | Alto |
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:

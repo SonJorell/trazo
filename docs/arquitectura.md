@@ -121,7 +121,38 @@ stateDiagram-v2
 | C → S | `control-request` | (participante) pide pasar diapositivas → llega solo al PC presentador |
 | C → S | `control-grant` | `to`, `granted` (solo el PC presentador) → `control-granted` al participante |
 | C ↔ S | `rtc` | `to` / `from`, `data` (oferta, respuesta, candidato, bye) — cámaras WebRTC |
+| C → S | `stroke` | *(v2.1)* `id`, `from`, `pts`, `s?` — puntos nuevos de un trazo a medio dibujar |
+| S → C | `stroke` | igual + `by` (autor); volátil, no se guarda |
+| C ↔ S | `background` | *(v2.1)* `pattern`, `color` (solo anfitrión o con permiso) |
+| C → S / S → C | `ping` / `pong` | *(v2.1)* `ts` — latencia de ida y vuelta |
 | S → C | `error` | `code`, `message`; los de sala/PIN cierran la conexión |
+
+`welcome` incluye además `background` y `uploadToken` (permiso para subir adjuntos a la sala).
+
+### Adjuntos (v2.1)
+
+```mermaid
+sequenceDiagram
+  participant C as Navegador que adjunta
+  participant S as Servidor (PC anfitrión)
+  participant O as Office / LibreOffice
+  participant B as Resto de la sala
+  C->>S: POST /api/rooms/:id/assets (X-Trazo-Token, archivo)
+  alt PowerPoint / Word / Excel
+    S->>O: convertir a PDF (cola, 120 s máx.)
+    O-->>S: archivo.pdf
+  end
+  S-->>C: { url, pdf? }
+  C->>C: pdf.js → cada página a JPEG
+  C->>S: POST …/assets (una por página)
+  C->>S: ops [doc { pages[], docPage }] o [image × N en páginas]
+  S-->>B: ops → GET /assets/<sala>/<archivo>
+```
+
+- Almacén: `server/assets/AssetStore.js` (límites 40 MB/archivo, 300 MB/sala, nombres aleatorios,
+  borrado con la sala). Conversión: `server/assets/officeConvert.js` + `office2pdf.ps1`.
+- Cliente: `public/js/attach/` (subida, pdf.js, barra del documento), `render/assets.js` (caché de
+  imágenes), `render/background.js` (fondos), `net/liveStrokes.js` (trazos en vivo).
 
 ### Flujo de una edición
 
@@ -131,7 +162,7 @@ sequenceDiagram
   participant S as Servidor
   participant B as PC (B)
   A->>A: herramienta → Transaction.update() → Scene.applyLocal()
-  A->>A: Sync agrupa cambios (40 ms)
+  A->>A: Sync agrupa cambios (20 ms; el lápiz envía trozos «stroke» cada 16 ms)
   A->>S: ops [elemento v5]
   S->>S: sanitizeElement + shouldReplace (LWW)
   S-->>B: ops [elemento v5]

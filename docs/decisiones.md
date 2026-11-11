@@ -254,3 +254,56 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   escrito a mano (`pdfWriter.js`, con tabla xref verificada por una prueba).
 - **Consecuencias**: no se agregan librerías al cliente. El PDF es de imágenes (no se puede
   seleccionar texto), suficiente para compartir el resultado de una sesión.
+
+## ADR-029 — Fondo de hoja como estado de la sala, dibujado en el mundo
+
+- **Decisión**: `room.background = { pattern, color }` se guarda con la sala y viaja en `welcome`
+  y en el mensaje `background` (solo anfitrión o con permiso). El diseño se dibuja en
+  coordenadas del mundo, así acompaña al zoom y al desplazamiento, y se omiten las líneas cuando
+  quedarían a menos de ~5 px.
+- **Consecuencias**: todos ven la misma hoja y las exportaciones la incluyen. En papel oscuro la
+  tinta negra por defecto se dibuja clara y el resaltador usa mezcla «pantalla» en vez de
+  «multiplicar», sin modificar los elementos guardados.
+
+## ADR-030 — Adjuntos por HTTP, elementos con URL de la sala
+
+- **Decisión**: los archivos se suben por `POST /api/rooms/:id/assets` (cuerpo binario, no por el
+  WebSocket) a `data/assets/<sala>/<aleatorio>.<ext>`. El permiso es un HMAC de la sala con un
+  secreto del proceso, que solo reciben quienes entran a la sala (en `welcome`). Los elementos
+  `image`/`doc`/`file` solo aceptan URLs `/assets/…` (validadas con expresión regular).
+- **Consecuencias**: el WebSocket no se bloquea con archivos grandes; nadie puede insertar URLs
+  externas. Solo PNG/JPG/GIF/WebP/PDF se sirven en línea; el resto se descarga
+  (`Content-Disposition: attachment`, `nosniff`, CSP `sandbox`). Los archivos se borran al cerrar
+  la sala (y los huérfanos en la limpieza periódica).
+
+## ADR-031 — PDF a imágenes en el navegador; Office a PDF en el anfitrión
+
+- **Decisión**: pdf.js (servido desde `node_modules/pdfjs-dist`, carga diferida) renderiza cada
+  página a JPEG en el navegador de quien adjunta; las páginas se suben como imágenes. Los
+  archivos de Office se convierten primero a PDF en el servidor: con Microsoft Office por COM
+  (PowerShell, rutas por variables de entorno, sin cerrar presentaciones abiertas) o con
+  LibreOffice sin interfaz. Las conversiones van en cola, de una en una, con 120 s de límite.
+- **Consecuencias**: todos los dispositivos (incluidos celulares lentos) solo descargan imágenes;
+  no hay que instalar nada nuevo en Windows con Office. Sin Office ni LibreOffice el archivo queda
+  como tarjeta descargable. El texto de los documentos no es seleccionable (son imágenes).
+
+## ADR-032 — Anotaciones ancladas a la página de un documento
+
+- **Decisión**: lo que se crea sobre un documento guarda `anchor` (id del documento) y
+  `anchorPage`. La escena oculta las anotaciones cuya página no es la visible del documento;
+  seleccionar y mover/redimensionar un documento arrastra también sus anotaciones (escaladas
+  respecto de su esquina).
+- **Consecuencias**: se puede explicar un PDF página por página sin borrar nada. Si el documento
+  se elimina, sus anotaciones quedan visibles (no se pierden).
+
+## ADR-033 — Trazos en vivo por deltas efímeros
+
+- **Decisión**: mientras se dibuja con el lápiz, los cambios son «transitorios»: no se envía el
+  elemento completo cada 40 ms sino un mensaje `stroke { id, from, pts }` con solo los puntos
+  nuevos cada ~16 ms (el primero lleva el estilo). El servidor lo retransmite como volátil y no lo
+  guarda. Al soltar se envía el trazo completo una vez, que reemplaza al provisional. Además: las
+  operaciones se agrupan cada 20 ms, el cursor cada 33 ms y se interpola en el receptor; un
+  `ping` cada 4 s mide la latencia.
+- **Consecuencias**: el tráfico de un trazo pasa de crecer con el cuadrado de sus puntos a ser
+  lineal, y los demás lo ven aparecer casi sin retraso. Si se pierde un trozo (o alguien entra a
+  mitad), el trazo aparece completo al soltar.

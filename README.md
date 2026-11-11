@@ -33,6 +33,7 @@ servicios externos y sin internet.
 
 - [Node.js](https://nodejs.org) 18.17 o superior (`node -v`)
 - PC y celular en la misma red
+- Opcional, para adjuntar PowerPoint/Word/Excel: Microsoft Office **o** [LibreOffice](https://es.libreoffice.org/) (gratis) en el PC anfitrión. Los PDF e imágenes no necesitan nada más.
 
 ## Instalación y uso
 
@@ -198,6 +199,34 @@ devuelve el foco a la presentación antes de pulsar la tecla.
 
 Análisis completo y hoja de ruta: [docs/analisis-mejoras.md](docs/analisis-mejoras.md).
 
+## Fondos de hoja y archivos adjuntos (v2.1)
+
+**Fondo de la hoja** (menú ☰ → *Fondo de la hoja*): puntos, cuadriculada, rayada (con margen),
+milimetrada, isométrica, pentagrama o lisa, en papel blanco, crema, celeste, **pizarra negra** o
+**pizarra verde**. Lo elige el anfitrión (o quien tenga permiso) y lo ven todos; también sale en
+las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca automáticamente.
+
+**Adjuntar** (botón 📎 de la barra, menú ☰, arrastrar y soltar, o `Ctrl+V`):
+
+| Archivo | Cómo queda en la pizarra |
+|---------|--------------------------|
+| Foto o imagen (PNG, JPG, GIF, WebP; en el celular también la cámara) | Imagen que se mueve y se agranda (mantiene la proporción) |
+| PDF, PowerPoint, Word, Excel, OpenDocument | Eliges: **documento para hojear** (‹ › en su barra o flechas del teclado) o **una página por diapositiva** (cada página va a una página de Trazo) |
+| Cualquier otro archivo | Tarjeta: doble toque para descargarlo |
+
+- Lo que dibujes **encima de un documento queda en esa página**: al pasar a la siguiente se
+  oculta y vuelve al regresar. Si mueves o agrandas el documento, las anotaciones lo acompañan.
+- Doble toque (con Seleccionar) sobre una imagen o documento lo encuadra en tu pantalla.
+- PowerPoint/Word/Excel se convierten a PDF **en el PC anfitrión**, con Microsoft Office si está
+  instalado o, si no, con [LibreOffice](https://es.libreoffice.org/) (gratis). Sin ninguno de los
+  dos, el archivo queda como tarjeta descargable (puedes exportarlo tú como PDF y adjuntar el PDF).
+- Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
+  junto con la sala.
+
+**Tiempo real más fluido**: los trazos viajan en vivo a trocitos (~60 veces por segundo) en lugar
+de reenviar el trazo completo; los cursores de los demás se deslizan suavemente; junto al código
+de la sala ves la **latencia** (verde < 80 ms, amarillo < 200 ms, rojo más).
+
 ### Atajos de teclado
 
 | Tecla | Acción | Tecla | Acción |
@@ -205,7 +234,7 @@ Análisis completo y hoja de ruta: [docs/analisis-mejoras.md](docs/analisis-mejo
 | `V` | Seleccionar | `T` | Texto |
 | `P` | Lápiz | `E` | Borrador |
 | `K` | Puntero láser | `N` | Nota adhesiva |
-| `S` | Sello | | |
+| `S` | Sello | `←` / `→` | Página del documento activo |
 | `R` | Rectángulo | `H` | Mover vista |
 | `O` | Elipse | `Espacio` + arrastrar | Mover vista |
 | `A` | Flecha | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
@@ -228,6 +257,8 @@ Variables de entorno (ver `.env.example`):
 | `EMPTY_ROOM_TTL_MIN` | `2` | Minutos que una sala vacía sigue abierta antes de borrarse |
 | `HTTPS_PORT` | `3443` | Puerto HTTPS local (cámaras en el celular); `0` lo desactiva |
 | `SWEEP_INTERVAL_MS` | `30000` | Cada cuánto se revisan las salas vacías |
+| `SOFFICE_PATH` | — | Ruta a `soffice` si LibreOffice no está en el lugar habitual |
+| `TRAZO_NO_MSOFFICE` | — | `1` para no usar Microsoft Office al convertir (solo LibreOffice) |
 
 Ejemplo en Windows: `set PORT=3090 && npm start`.
 
@@ -242,11 +273,12 @@ Ejemplo en Windows: `set PORT=3090 && npm start`.
 | `npm run check` | Lint + pruebas |
 | `npm run overlay` | Instala Electron (si falta) y abre el modo sobre la pantalla |
 | `python tests/e2e/sesion_completa.py` | Pruebas de punta a punta opcionales (Playwright; ver cabecera del archivo) |
+| `python tests/e2e/adjuntos.py` | Punta a punta de fondos, adjuntos, documentos y trazos en vivo |
 
 ## Estructura
 
 ```
-server/   Servidor: HTTP, WebSocket, salas, persistencia
+server/   Servidor: HTTP, WebSocket, salas, persistencia, adjuntos y conversión de Office
 overlay/  App de escritorio (Electron) para dibujar sobre la pantalla
 shared/   Modelo, geometría y protocolo (usados por servidor y navegador)
 public/   Cliente sin compilación: HTML, CSS y módulos JS
