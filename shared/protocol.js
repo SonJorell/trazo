@@ -216,6 +216,8 @@ export function validateAvatarPos(msg) {
   return {
     x: Math.round(msg.x),
     y: Math.round(msg.y),
+    vx: Number.isFinite(msg.vx) ? Math.round(Math.max(-3000, Math.min(3000, msg.vx))) : 0, // velocidad (para predecir)
+    vy: Number.isFinite(msg.vy) ? Math.round(Math.max(-3000, Math.min(3000, msg.vy))) : 0,
     f: msg.f === -1 ? -1 : 1, // hacia dónde mira
     w: Number.isFinite(msg.w) ? Math.round(Math.min(1, Math.max(0, msg.w)) * 100) / 100 : 0, // fase de la caminata
     m: msg.m === true, // ¿se está moviendo?
@@ -244,7 +246,8 @@ export function validateView(msg) {
 export const MAX_TIMER_MS = 3 * 60 * 60 * 1000;
 
 /** Reacciones permitidas (emojis que flotan sobre la presentación). */
-export const REACTIONS = Object.freeze(['👍', '👏', '❤️', '😂', '😮', '🎉', '❓', '✋']);
+/** Reacciones (íconos vectoriales, sin emojis). */
+export const REACTIONS = Object.freeze(['like', 'love', 'laugh', 'wow', 'party', 'idea', 'question', 'hand']);
 const LASER_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**

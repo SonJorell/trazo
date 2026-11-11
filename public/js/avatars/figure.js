@@ -82,96 +82,147 @@ const darker = (hex, k = 0.65) => {
   return `#${c(n >> 16)}${c((n >> 8) & 255)}${c(n & 255)}`;
 };
 
-export const FIGURE = { height: 150, head: 28 }; // medidas del monigote (unidades del mundo)
+export const FIGURE = { height: 160, head: 27 }; // medidas del monigote (unidades del mundo)
+
+const TAU = Math.PI * 2;
+
+/** Extremidad de dos tramos (muslo/pierna o brazo/antebrazo) desde (x, y) con ángulos acumulados. */
+function limb(ctx, x, y, a1, l1, a2, l2) {
+  const kx = x + Math.sin(a1) * l1;
+  const ky = y + Math.cos(a1) * l1;
+  const ex = kx + Math.sin(a1 + a2) * l2;
+  const ey = ky + Math.cos(a1 + a2) * l2;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(kx, ky, (kx + ex) / 2, (ky + ey) / 2); // articulación suave
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  return { x: ex, y: ey };
+}
 
 /**
- * Monigote con los pies en (x, y). pose = { f: dirección, w: fase de caminata, m: se mueve, s: sentado }.
- * La cabeza es la cámara (o las iniciales).
+ * Monigote con los pies en (x, y). La cabeza es la cámara (o las iniciales).
+ * pose = { f: dirección (1/-1), phase: ciclo de la caminata (0–1), amp: cuánto camina (0–1),
+ *          air: en el aire (0–1), lean: inclinación (-1–1), s: sentado, t: tiempo (respiración) }.
  */
 export function drawFigure(ctx, x, y, pose, look) {
   const { color, figure } = look;
-  const hair = darker(color, 0.45);
+  const f = pose.f || 1;
+  const amp = pose.amp ?? 0;
+  const air = pose.air ?? 0;
+  const ph = (pose.phase ?? 0) * TAU;
+  const breath = Math.sin((pose.t ?? 0) * 2.2) * 1.2 * (1 - amp);
+  const limbColor = darker(color, 0.72);
   const r = FIGURE.head;
-  const swing = pose.m && !pose.s ? Math.sin(pose.w * Math.PI * 2) * 0.6 : 0;
-  const hip = { x, y: y - (pose.s ? 46 : 62) };
-  const neck = { x, y: hip.y - 50 };
-  const head = { x, y: neck.y - r - 2 };
+
+  // Cadera: baja un poco en cada paso (rebote) y al estar sentado.
+  const bob = Math.abs(Math.sin(ph)) * 4 * amp;
+  const hip = { x, y: y - (pose.s ? 40 : 66) + bob };
+  const lean = (pose.lean ?? 0) * 0.16;
+  const torsoLen = 46 + breath;
+  const shoulder = { x: hip.x + Math.sin(lean) * torsoLen, y: hip.y - Math.cos(lean) * torsoLen };
+  const head = { x: shoulder.x + Math.sin(lean) * (r + 6), y: shoulder.y - r - 6 };
+
   ctx.save();
+  // Sombra en el suelo (más chica en el aire).
+  if (!pose.s) {
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 26 * (1 - air * 0.45), 6 * (1 - air * 0.45), 0, 0, TAU);
+    ctx.fill();
+  }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const limb = darker(color, 0.78); // brazos y piernas un poco más oscuros que la ropa
-  ctx.strokeStyle = limb;
-  ctx.lineWidth = 9;
 
-  // Piernas
-  const leg = (angle, back) => {
-    ctx.beginPath();
-    ctx.moveTo(hip.x, hip.y);
+  const backColor = darker(color, 0.55);
+  const spread = (1 - amp) * (1 - air) * 6; // de pie, las piernas se separan un poco (vista de frente)
+
+  /** Pierna: `side` 0 = la de adelante, 1 = la de atrás. */
+  const leg = (side) => {
+    const p = ph + side * Math.PI;
+    const hx = hip.x + (side ? -spread : spread);
+    let foot;
     if (pose.s) {
-      // Sentado: muslo hacia adelante y pierna hacia abajo.
-      const kx = hip.x + pose.f * 40;
-      ctx.lineTo(kx, hip.y + (back ? 2 : 0));
-      ctx.lineTo(kx + pose.f * 4, y);
+      // Sentado: muslo horizontal hacia adelante y pierna hacia abajo.
+      foot = limb(ctx, hx, hip.y, (Math.PI / 2) * f, 32, (-Math.PI / 2) * f, 36);
     } else {
-      ctx.lineTo(hip.x + Math.sin(angle) * 34, hip.y + Math.cos(angle) * 62);
+      const thigh = Math.sin(p) * 0.55 * amp * f + air * (side ? -0.2 : 0.6) * f;
+      // La rodilla se dobla al avanzar la pierna (fase de balanceo) y al saltar.
+      const knee = -(Math.max(0, Math.cos(p)) * 0.95 * amp + air * 0.9) * f;
+      foot = limb(ctx, hx, hip.y, thigh, 34, knee, 33);
     }
-    ctx.stroke();
-  };
-  ctx.globalAlpha = 0.85;
-  leg(-swing, true);
-  ctx.globalAlpha = 1;
-  leg(swing, false);
-
-  // Cabello largo (detrás de la cabeza)
-  if (figure === 'mujer') {
-    ctx.fillStyle = hair;
+    ctx.fillStyle = ctx.strokeStyle;
     ctx.beginPath();
-    ctx.ellipse(head.x, head.y + r * 0.35, r * 1.18, r * 1.25, 0, 0, Math.PI * 2);
+    ctx.ellipse(foot.x + 5 * f, foot.y - 2, 9, 5, 0, 0, TAU);
+    ctx.fill();
+  };
+
+  /** Brazo: se balancea al revés que la pierna del mismo lado; arriba al saltar. */
+  const arm = (side) => {
+    const p = ph + (side ? 0 : Math.PI);
+    const idleOut = (1 - amp) * 0.22 * (side ? -1 : 1);
+    const upper = Math.sin(p) * 0.6 * amp * f + idleOut + (pose.s ? 0.5 * f : 0) + air * (side ? -2.4 : 2.4) * 0.5;
+    const fore = (0.25 + 0.45 * amp) * f;
+    const hand = limb(ctx, shoulder.x, shoulder.y + 6, upper, 25, fore, 23);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    ctx.arc(hand.x, hand.y, 5, 0, TAU);
+    ctx.fill();
+  };
+
+  // Extremidades de atrás (más oscuras), luego el cuerpo y al final las de adelante.
+  ctx.strokeStyle = backColor;
+  ctx.lineWidth = 11;
+  leg(1);
+  ctx.lineWidth = 9;
+  arm(1);
+
+  // Cabello largo (detrás)
+  if (figure === 'mujer') {
+    ctx.fillStyle = darker(color, 0.4);
+    ctx.beginPath();
+    ctx.ellipse(head.x, head.y + r * 0.45, r * 1.15, r * 1.3, 0, 0, TAU);
     ctx.fill();
   }
 
-  // Cuerpo: vestido (mujer) o torso
+  // Torso: cápsula redondeada (falda acampanada para «mujer»).
+  ctx.save();
+  ctx.translate(hip.x, hip.y);
+  ctx.rotate(lean);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  const tw = figure === 'hombre' ? 34 : 30;
   if (figure === 'mujer') {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(neck.x - 10, neck.y + 4);
-    ctx.lineTo(neck.x + 10, neck.y + 4);
-    ctx.lineTo(hip.x + 30, hip.y + 14);
-    ctx.lineTo(hip.x - 30, hip.y + 14);
+    ctx.moveTo(-tw / 2 + 2, -torsoLen);
+    ctx.lineTo(tw / 2 - 2, -torsoLen);
+    ctx.lineTo(tw / 2 + 10, 8);
+    ctx.lineTo(-tw / 2 - 10, 8);
     ctx.closePath();
-    ctx.fill();
+  } else if (ctx.roundRect) {
+    ctx.roundRect(-tw / 2, -torsoLen - 4, tw, torsoLen + 12, tw / 2.2);
   } else {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = figure === 'hombre' ? 16 : 11;
-    ctx.beginPath();
-    ctx.moveTo(neck.x, neck.y + 4);
-    ctx.lineTo(hip.x, hip.y);
-    ctx.stroke();
-    ctx.lineWidth = 9;
+    ctx.rect(-tw / 2, -torsoLen - 4, tw, torsoLen + 12);
   }
-  ctx.strokeStyle = limb;
+  ctx.fill();
+  ctx.restore();
 
-  // Brazos (se balancean al caminar; saludan un poco cuando está quieto)
-  const arm = (angle) => {
-    ctx.beginPath();
-    ctx.moveTo(neck.x, neck.y + 10);
-    ctx.lineTo(neck.x + Math.sin(angle) * 36, neck.y + 10 + Math.cos(angle) * 40);
-    ctx.stroke();
-  };
-  arm(0.95 + swing * 0.7);
-  arm(-0.95 - swing * 0.7);
+  ctx.strokeStyle = limbColor;
+  ctx.lineWidth = 11;
+  leg(0);
+  ctx.lineWidth = 9;
+  arm(0);
 
-  // Cabello corto (hombre): gorrito sobre la cabeza
+  // Cabello corto (hombre)
   if (figure === 'hombre') {
-    ctx.fillStyle = hair;
+    ctx.fillStyle = darker(color, 0.4);
     ctx.beginPath();
-    ctx.ellipse(head.x, head.y - r * 0.55, r * 0.95, r * 0.6, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(head.x, head.y - r * 0.5, r * 1.02, r * 0.68, 0, Math.PI, TAU);
     ctx.fill();
   }
   ctx.restore();
 
   drawHead(ctx, head.x, head.y, r, look);
-  drawName(ctx, x, head.y - r - 26, look.name, color, 12); // sobre la cabeza: siempre visible
+  drawName(ctx, head.x, head.y - r - 26, look.name, look.ring ?? color, 12); // sobre la cabeza
   return head;
 }
 
