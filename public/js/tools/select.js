@@ -1,5 +1,6 @@
 import { getBounds, rectsIntersect, normalizeRect } from '/shared/geometry.js';
-import { RESIZABLE, hitHandle } from '../core/handles.js';
+import { RESIZABLE, KEEP_ASPECT, hitHandle } from '../core/handles.js';
+import { scaleAbout } from '../core/transform.js';
 
 const DOUBLE_TAP_MS = 350;
 
@@ -14,6 +15,17 @@ export function createSelectTool(ctx) {
   let tx = null;
   let moved = false;
   let lastTap = { id: null, at: 0 };
+  let anchored = null; // anotaciones de los documentos que se mueven/redimensionan
+
+  /** Anotaciones ancladas (de todas sus páginas) a los documentos dados. */
+  const anchoredOf = (ids) => {
+    const out = new Map();
+    for (const id of ids) {
+      if (ctx.scene.get(id)?.type !== 'doc') continue;
+      for (const el of ctx.scene.anchoredTo(id)) if (!ids.has(el.id)) out.set(el.id, el);
+    }
+    return out;
+  };
 
   const single = () => {
     if (ctx.selection.size !== 1) return null;
@@ -33,17 +45,26 @@ export function createSelectTool(ctx) {
         mode = 'resize';
         tx = ctx.begin();
         originals = new Map([[sel.id, sel]]);
+        anchored = anchoredOf(new Set([sel.id]));
         return;
       }
 
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(6));
       if (hit) {
         const now = Date.now();
-        if ((hit.type === 'text' || hit.type === 'note') && lastTap.id === hit.id && now - lastTap.at < DOUBLE_TAP_MS) {
-          lastTap = { id: null, at: 0 };
-          mode = null;
-          ctx.editText(hit);
-          return;
+        if (lastTap.id === hit.id && now - lastTap.at < DOUBLE_TAP_MS) {
+          if (hit.type === 'text' || hit.type === 'note') {
+            lastTap = { id: null, at: 0 };
+            mode = null;
+            ctx.editText(hit);
+            return;
+          }
+          if (hit.type === 'image' || hit.type === 'doc' || hit.type === 'file') {
+            lastTap = { id: null, at: 0 };
+            mode = null;
+            ctx.openMedia?.(hit); // documento/imagen: encuadrar · archivo: descargar
+            return;
+          }
         }
         lastTap = { id: hit.id, at: now };
         if (e.shiftKey) ctx.toggleSelect(hit.id);
@@ -51,6 +72,8 @@ export function createSelectTool(ctx) {
         mode = 'move';
         tx = ctx.begin();
         originals = new Map([...ctx.selection].map((id) => [id, ctx.scene.get(id)]).filter(([, el]) => el));
+        anchored = anchoredOf(new Set(originals.keys()));
+        for (const [id, el] of anchored) originals.set(id, el); // las notas del documento lo acompañan
         return;
       }
 
@@ -72,7 +95,14 @@ export function createSelectTool(ctx) {
         for (const [id, orig] of originals) tx.update(id, { x: orig.x + dx, y: orig.y + dy });
       } else if (mode === 'resize') {
         const [[id, orig]] = originals;
-        tx.update(id, { w: orig.w + dx, h: orig.h + dy });
+        if (KEEP_ASPECT.has(orig.type)) {
+          const w = Math.max(40, orig.w + dx);
+          const s = w / orig.w;
+          tx.update(id, { w, h: orig.h * s });
+          for (const [aid, a] of anchored) tx.update(aid, scaleAbout(a, orig.x, orig.y, s));
+        } else {
+          tx.update(id, { w: orig.w + dx, h: orig.h + dy });
+        }
       } else if (mode === 'marquee') {
         const m = normalizeRect(start.x, start.y, dx, dy);
         ctx.overlay.marquee = m;
@@ -98,7 +128,7 @@ export function createSelectTool(ctx) {
         ctx.overlay.marquee = null;
         ctx.render();
       }
-      mode = start = originals = null;
+      mode = start = originals = anchored = null;
     },
 
     cancel() {

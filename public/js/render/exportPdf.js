@@ -1,6 +1,8 @@
 import { getBounds } from '/shared/geometry.js';
 import { drawElement } from './draw.js';
 import { buildPdf } from './pdfWriter.js';
+import { preloadElements } from './assets.js';
+import { drawPattern, paperColors } from './background.js';
 
 const MAX_SIDE = 2000;
 const PAD = 32;
@@ -10,9 +12,10 @@ const PAD = 32;
  * Sin librerías: cada página se dibuja en un lienzo, se comprime a JPEG y se inserta
  * como imagen en un PDF mínimo escrito a mano.
  */
-export async function exportPdf(scene, fileName) {
+export async function exportPdf(scene, fileName, background = null) {
   const byPage = new Map();
-  for (const el of scene.allAlive()) {
+  // Las anotaciones de documentos se exportan con la página que el documento muestra ahora.
+  for (const el of scene.allAlive().filter((e) => scene.anchorVisible(e))) {
     const p = el.page ?? 0;
     if (!byPage.has(p)) byPage.set(p, []);
     byPage.get(p).push(el);
@@ -21,7 +24,7 @@ export async function exportPdf(scene, fileName) {
 
   const images = [];
   for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
-    images.push(await renderPage(byPage.get(page)));
+    images.push(await renderPage(byPage.get(page), background));
   }
   const blob = buildPdf(images);
   const url = URL.createObjectURL(blob);
@@ -35,7 +38,8 @@ export async function exportPdf(scene, fileName) {
   return true;
 }
 
-async function renderPage(elements) {
+async function renderPage(elements, background) {
+  await preloadElements(elements);
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -55,9 +59,10 @@ async function renderPage(elements) {
   canvas.width = Math.max(1, Math.round(w * scale));
   canvas.height = Math.max(1, Math.round(h * scale));
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = background ? paperColors(background).paper : '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(scale, 0, 0, scale, (PAD - minX) * scale, (PAD - minY) * scale);
+  if (background) drawPattern(ctx, { x: minX - PAD, y: minY - PAD, w, h }, scale, background);
   for (const el of elements) drawElement(ctx, el);
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
   return { width: canvas.width, height: canvas.height, data: new Uint8Array(await blob.arrayBuffer()) };

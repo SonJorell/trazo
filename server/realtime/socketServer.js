@@ -13,6 +13,8 @@ import {
   validateLaser,
   validatePoll,
   validateView,
+  validateBackground,
+  validateStroke,
   MAX_TIMER_MS,
 } from '../../shared/protocol.js';
 import { randomId, MAX_PAGE } from '../../shared/elements.js';
@@ -26,7 +28,7 @@ const MAX_BUFFERED_FOR_VOLATILE = 1024 * 1024; // si hay >1 MB pendiente, se sal
  * Canal en tiempo real en la ruta `/ws`.
  * Cada conexión debe enviar primero `join`; luego puede enviar `ops` y `cursor`.
  */
-export function attachSocketServer(httpServer, { rooms, config, logger }) {
+export function attachSocketServer(httpServer, { rooms, config, logger, assets = null }) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.maxPayloadBytes });
 
   /** Acepta conexiones /ws de un servidor HTTP o HTTPS (se pueden sumar varios). */
@@ -78,7 +80,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       if (!msg || typeof msg.t !== 'string') return;
 
       try {
-        if (msg.t === MSG.JOIN) await handleJoin(msg);
+        if (msg.t === MSG.PING) return send({ t: MSG.PONG, ts: Number.isFinite(msg.ts) ? msg.ts : 0 });
+      if (msg.t === MSG.JOIN) await handleJoin(msg);
         else if (!client.room) fail(ERR.NOT_JOINED, 'Primero debes unirte a una sala');
         else if (msg.t === MSG.OPS) handleOps(msg);
         else if (msg.t === MSG.CURSOR) handleCursor(msg);
@@ -92,6 +95,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
         else if (msg.t === MSG.LASER) relayLaser(msg);
         else if (msg.t === MSG.REACTION) relayReaction(msg);
         else if (msg.t === MSG.PAGE) setPage(msg);
+        else if (msg.t === MSG.STROKE) relayStroke(msg);
+        else if (msg.t === MSG.BACKGROUND) setBackground(msg);
         else if (msg.t === MSG.VIEW) setView(msg);
         else if (msg.t === MSG.TIMER) setTimer(msg);
         else if (msg.t === MSG.POLL) openPoll(msg);
@@ -126,11 +131,13 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       send({
         t: MSG.WELCOME,
         you: { id, name, color, host, display },
+        uploadToken: assets ? assets.tokenFor(room.id) : null,
         peers: room.publicPeers().filter((p) => p.id !== id),
         elements: room.snapshot(),
         screen: room.screen,
         controller: Boolean(room.controller),
         page: room.page,
+        background: room.background,
         view: room.view,
         timer: room.timer,
         poll: room.publicPoll(),
@@ -253,6 +260,22 @@ export function attachSocketServer(httpServer, { rooms, config, logger }) {
       room.page = msg.n;
       room.onChange(room);
       room.broadcast({ t: MSG.PAGE, n: room.page, from: client.id });
+    }
+
+    function relayStroke(msg) {
+      const stroke = validateStroke(msg);
+      if (!stroke) return;
+      client.room.broadcast({ t: MSG.STROKE, by: client.id, ...stroke }, client.id, { volatile: true });
+    }
+
+    function setBackground(msg) {
+      const room = client.room;
+      if (!room.canSteer(client.peer)) return fail(ERR.CONTROL_DENIED, 'Solo el anfitrión (o quien tenga permiso) cambia el fondo');
+      const bg = validateBackground(msg);
+      if (!bg) return fail(ERR.BAD_REQUEST, 'Fondo inválido');
+      room.background = bg;
+      room.onChange(room);
+      room.broadcast({ t: MSG.BACKGROUND, ...bg });
     }
 
     function setView(msg) {

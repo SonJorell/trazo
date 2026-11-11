@@ -19,6 +19,9 @@
  *   poll { question, options }          (anfitrión) Abre una votación rápida.
  *   vote { option }                     (participante) Vota en la votación abierta.
  *   poll-close { clear? }               (anfitrión) Cierra (o quita) la votación.
+ *   background { pattern, color }       Fondo de hoja de la sala (anfitrión o con permiso).
+ *   stroke { id, from, pts, s? }        Trazo en vivo: puntos nuevos desde el índice `from` (efímero; llega con `by`).
+ *   ping { ts } → pong { ts }           Medición de latencia.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
  *
  * Servidor → cliente
@@ -65,6 +68,10 @@ export const MSG = Object.freeze({
   POLL: 'poll',
   VOTE: 'vote',
   POLL_CLOSE: 'poll-close',
+  BACKGROUND: 'background',
+  STROKE: 'stroke',
+  PING: 'ping',
+  PONG: 'pong',
   ERROR: 'error',
 });
 
@@ -110,6 +117,38 @@ export const CONTROL_ACTIONS = Object.freeze([
 export const KEY_STYLES = Object.freeze(['arrows', 'pages', 'space']);
 /** Lo único que puede hacer un participante al que el anfitrión le dio control. */
 export const GRANTED_ACTIONS = Object.freeze(['next', 'prev', 'first', 'last', 'black', 'white']);
+/** Fondos de hoja disponibles. */
+export const BG_PATTERNS = Object.freeze(['dots', 'grid', 'lines', 'graph', 'iso', 'music', 'blank']);
+export const BG_COLORS = Object.freeze({
+  white: '#ffffff',
+  cream: '#fbf7ec',
+  dark: '#1f2328',
+  chalk: '#21412f',
+  blue: '#eaf2fb',
+});
+export const DEFAULT_BACKGROUND = Object.freeze({ pattern: 'dots', color: 'white' });
+
+export function validateBackground(msg) {
+  if (!BG_PATTERNS.includes(msg?.pattern) || !(msg?.color in BG_COLORS)) return null;
+  return { pattern: msg.pattern, color: msg.color };
+}
+
+/** Trozo de trazo en vivo: puntos nuevos de un trazo que alguien está dibujando. */
+export function validateStroke(msg) {
+  if (typeof msg?.id !== 'string' || !/^[A-Za-z0-9_-]{4,40}$/.test(msg.id)) return null;
+  if (!Number.isInteger(msg.from) || msg.from < 0 || msg.from > 5000) return null;
+  if (!Array.isArray(msg.pts) || msg.pts.length === 0 || msg.pts.length > 200) return null;
+  const pts = [];
+  for (const p of msg.pts) {
+    if (!Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
+    pts.push([Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+  }
+  const out = { id: msg.id, from: msg.from, pts };
+  // Estilo del trazo: solo en el primer trozo (se valida como un elemento completo al recibirlo).
+  if (msg.s && typeof msg.s === 'object') out.s = msg.s;
+  return out;
+}
+
 /** Valida una votación: pregunta corta y entre 2 y 6 opciones. */
 export function validatePoll(msg) {
   const clean = (s, max) => (typeof s === 'string' ? s.replace(/[<>]/g, '').trim().slice(0, max) : '');

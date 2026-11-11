@@ -20,12 +20,19 @@ import {
   fatalDialog,
   liveStartDialog,
   shareDialog,
+  backgroundDialog,
 } from '../ui/dialogs.js';
 import { CameraSender, CameraReceiver } from '../media/cameras.js';
 import { CameraBubbles } from '../ui/cameraBubbles.js';
 import { Reactions } from '../ui/reactions.js';
 import { LaserLayer } from '../render/laser.js';
 import { exportPdf } from '../render/exportPdf.js';
+import { LiveStrokes } from '../net/liveStrokes.js';
+import { onAssetLoad } from '../render/assets.js';
+import { drawPattern, paperColors, PATTERN_LABELS, COLOR_LABELS } from '../render/background.js';
+import { setupAttachments } from '../attach/attachments.js';
+import { createDocBar } from '../attach/docBar.js';
+import { getBounds } from '/shared/geometry.js';
 import { NOTE_PADDING } from '../render/draw.js';
 import { setupSession } from '../session/session.js';
 import { toast } from '../ui/toast.js';
@@ -101,8 +108,15 @@ const AUTHOR_ID = (() => {
 })();
 
 const canvas = $('#board');
-const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: OVERLAY });
+const live = new LiveStrokes();
+const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: OVERLAY, live });
 const render = () => renderer.requestRender();
+onAssetLoad(render);
+// Gancho para las pruebas de punta a punta (?e2e=1): permite inspeccionar la escena.
+if (params.has('e2e')) window.__trazo = { scene, live, viewport };
+scene.on('live', render);
+let background = { pattern: 'dots', color: 'white' };
+let uploadToken = null;
 if (!OVERLAY) {
   viewport.x = -renderer.width / 2;
   viewport.y = -renderer.height / 2;
@@ -132,8 +146,9 @@ const ctx = {
     render();
     sync?.sendLaser(p, end, myColor);
   },
-  /** Propiedades de trazo actuales para crear un elemento nuevo. */
-  strokeProps: () => ({
+  /** Propiedades de trazo actuales para crear un elemento nuevo (anclado si se dibuja sobre un documento). */
+  strokeProps: (p) => ({
+    ...anchorAt(p),
     stroke: style.stroke,
     strokeWidth: style.strokeWidth,
     brush: style.brush,
@@ -143,6 +158,15 @@ const ctx = {
     page: scene.page,
   }),
   render,
+  /** Doble toque en un adjunto: documento/imagen → encuadrar; archivo → descargar. */
+  openMedia(el) {
+    if (el.type === 'file') {
+      const a = h('a', { href: `${el.src}?name=${encodeURIComponent(el.name || 'archivo')}`, download: el.name || 'archivo' });
+      document.body.append(a);
+      a.click();
+      a.remove();
+    } else focusElement(el);
+  },
   tol: (px) => px / viewport.zoom,
   hit: (el, p, tol) => hitTest(el, p.x, p.y, tol),
   select(ids) {
@@ -181,6 +205,30 @@ const ctx = {
   },
 };
 
+/** Documento bajo el punto: lo que se dibuje ahí queda anclado a su página actual. */
+function anchorAt(p) {
+  if (!p) return {};
+  const list = scene.alive();
+  for (let i = list.length - 1; i >= 0; i--) {
+    const el = list[i];
+    if (el.type !== 'doc') continue;
+    const b = getBounds(el);
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return { anchor: el.id, anchorPage: el.docPage ?? 0 };
+  }
+  return {};
+}
+
+/** Encuadra un elemento en la pantalla. */
+function focusElement(el) {
+  if (OVERLAY) return;
+  followScreen = false;
+  viewport.fit(getBounds(el), renderer.width, renderer.height, 40, 4);
+  afterViewChange();
+}
+
+const docBar = createDocBar({ scene, viewport, ctx, onFit: (el) => focusElement(el) });
+renderer.onDraw = () => docBar.update();
+
 // ---------- Texto ----------
 const textEditor = new TextEditor($('#editor-layer'), {
   viewport,
@@ -199,7 +247,7 @@ const textEditor = new TextEditor($('#editor-layer'), {
         y,
         text,
         fontSize,
-        ...ctx.strokeProps(),
+        ...ctx.strokeProps({ x, y }),
         stroke: color,
         dash: 'solid',
         ...measureText(text, fontSize),
@@ -248,6 +296,14 @@ toolbar.append(
     html: ICONS.palette,
     onclick: () => $('#style-panel').classList.toggle('open'),
   }),
+  h('button', {
+    class: 'tool',
+    id: 'attach-btn',
+    title: 'Adjuntar foto, PDF, PowerPoint o archivo (también puedes arrastrarlo o pegarlo)',
+    'aria-label': 'Adjuntar archivo',
+    html: ICONS.attach,
+    onclick: () => attachments.pick(),
+  }),
 );
 setTool('pen');
 
@@ -283,6 +339,11 @@ const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
 
 function onSelectionChange() {
   $('#delete-btn').hidden = overlay.selection.size === 0;
+  // La barra del documento sigue al último documento seleccionado.
+  if (overlay.selection.size === 1) {
+    const el = scene.get([...overlay.selection][0]);
+    docBar.setActive(el?.type === 'doc' ? el.id : null);
+  } else if (overlay.selection.size > 1) docBar.setActive(null);
   render();
 }
 
@@ -338,7 +399,7 @@ function clearMine() {
 }
 
 async function doExport() {
-  const ok = await exportPng(scene, `trazo-${room}.png`);
+  const ok = await exportPng(scene, `trazo-${room}.png`, background);
   if (!ok) toast('La pizarra está vacía');
 }
 
@@ -389,9 +450,11 @@ menu.append(
   menuItem('download', 'Exportar imagen PNG', doExport),
   menuItem('fit', 'Ajustar a la pantalla', fitToContent),
   menuItem('pdf', 'Exportar PDF (todas las páginas)', async () => {
-    const ok = await exportPdf(scene, `trazo-${room}.pdf`);
+    const ok = await exportPdf(scene, `trazo-${room}.pdf`, background);
     if (!ok) toast('La pizarra está vacía');
   }),
+  menuItem('attach', 'Adjuntar archivo (foto, PDF, PowerPoint…)', () => attachments.pick()),
+  menuItem('paper', 'Fondo de la hoja', openBackgroundDialog),
   menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
   menuItem('eraser', 'Borrar mis trazos', clearMine),
   menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
@@ -597,6 +660,52 @@ document.title = `Trazo · ${room.toUpperCase()}`;
 updateHistoryButtons();
 afterViewChange();
 
+// ---------- Adjuntos y fondo de hoja ----------
+const attachments = setupAttachments({
+  room,
+  getToken: () => uploadToken,
+  ctx,
+  viewport,
+  getViewSize: () => (OVERLAY ? { width: window.innerWidth, height: window.innerHeight } : { width: renderer.width, height: renderer.height }),
+  goToPage: (n) => session?.goTo(n),
+  select: (ids) => {
+    if (tool.name !== 'select') setTool('select');
+    ctx.select(ids);
+  },
+});
+
+let canEditBackground = () => false;
+function applyBackground(bg) {
+  background = bg;
+  renderer.setBackground(bg);
+  document.body.dataset.paper = bg.color;
+}
+
+/** Miniatura de un fondo para el selector. */
+function paintBackgroundPreview(cnv, bg) {
+  const c2d = cnv.getContext('2d');
+  c2d.setTransform(1, 0, 0, 1, 0, 0);
+  c2d.fillStyle = paperColors(bg).paper;
+  c2d.fillRect(0, 0, cnv.width, cnv.height);
+  const zoom = 0.5;
+  c2d.setTransform(zoom, 0, 0, zoom, 0, 0);
+  drawPattern(c2d, { x: 0, y: 0, w: cnv.width / zoom, h: cnv.height / zoom }, 1.4, bg);
+}
+
+function openBackgroundDialog() {
+  backgroundDialog({
+    current: background,
+    patterns: PATTERN_LABELS,
+    colors: COLOR_LABELS,
+    paint: paintBackgroundPreview,
+    canEdit: canEditBackground(),
+    onPick: (bg) => {
+      applyBackground(bg);
+      sync?.conn.send({ t: 'background', ...bg });
+    },
+  });
+}
+
 // ---------- Teclado ----------
 const TOOL_KEYS = new Map(TOOL_DEFS.map((d) => [d.key, d.name]));
 window.addEventListener('keydown', (e) => {
@@ -618,6 +727,9 @@ window.addEventListener('keydown', (e) => {
     deleteSelection();
   } else if (key === 'escape') {
     ctx.select([]);
+  } else if (!mod && docBar.active && ['arrowleft', 'arrowright', 'pageup', 'pagedown'].includes(key)) {
+    e.preventDefault();
+    docBar.turn(key === 'arrowleft' || key === 'pageup' ? -1 : 1);
   } else if (!mod && !e.altKey && TOOL_KEYS.has(key)) {
     setTool(TOOL_KEYS.get(key));
   }
@@ -704,10 +816,19 @@ async function start() {
     }
   });
   const presence = new Presence($('#presence'), { overlay, render });
+  const latencyEl = $('#latency');
   sync = new Sync({
     scene,
     connection,
     presence,
+    live,
+    onLatency: (ms) => {
+      if (!latencyEl) return;
+      latencyEl.hidden = ms === null;
+      latencyEl.textContent = ms === null ? '' : `${ms} ms`;
+      latencyEl.dataset.level = ms === null ? '' : ms < 80 ? 'good' : ms < 200 ? 'ok' : 'bad';
+      latencyEl.title = ms === null ? '' : `Latencia con el servidor: ${ms} ms (ida y vuelta)`;
+    },
     onScreen: showScreen,
     onLaser: (msg) => {
       overlay.laser.add(msg.from, msg.c, msg.pts, msg.end);
@@ -723,8 +844,14 @@ async function start() {
   $('#react-btn').innerHTML = ICONS.smile;
   connection.on('message', (msg) => {
     if (msg.t === 'reaction') reactions.show(msg.e, msg.name);
-    if (msg.t === 'welcome') myColor = msg.you.color;
+    if (msg.t === 'welcome') {
+      myColor = msg.you.color;
+      uploadToken = msg.uploadToken ?? null;
+      if (msg.background) applyBackground(msg.background);
+    }
+    if (msg.t === 'background') applyBackground({ pattern: msg.pattern, color: msg.color });
   });
+  canEditBackground = () => isHost || steerGranted;
 
   if (canShareScreen) {
     hostSharer = new ScreenSharer({

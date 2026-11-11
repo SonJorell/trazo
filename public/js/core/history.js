@@ -81,19 +81,19 @@ export class Transaction {
   }
 
   /** Agrega un elemento nuevo (versión 1). */
-  add(el) {
+  add(el, opts) {
     if (!this.before.has(el.id)) this.before.set(el.id, null);
-    this.scene.applyLocal(el);
+    this.scene.applyLocal(el, opts);
     return el;
   }
 
   /** Modifica un elemento existente aplicando `changes`. */
-  update(id, changes) {
+  update(id, changes, opts) {
     const current = this.scene.get(id);
     if (!current) return null;
     if (!this.before.has(id)) this.before.set(id, current);
     const next = bump(current, changes);
-    this.scene.applyLocal(next);
+    this.scene.applyLocal(next, opts);
     return next;
   }
 

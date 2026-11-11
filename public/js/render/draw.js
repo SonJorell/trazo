@@ -1,5 +1,14 @@
 import { normalizeRect } from '/shared/geometry.js';
 import { effectiveWidth } from '/shared/elements.js';
+import { getImage, imageUrlOf } from './assets.js';
+
+/** Papel oscuro (pizarra negra/verde): la tinta negra por defecto se muestra clara. */
+let darkPaper = false;
+export function setDarkPaper(on) {
+  darkPaper = Boolean(on);
+}
+const DEFAULT_INK = '#1e1e1e';
+const inkOf = (el) => (darkPaper && el.stroke === DEFAULT_INK && el.type !== 'note' ? '#f1f3f5' : el.stroke);
 
 export const FONT_FAMILY = 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 export const LINE_HEIGHT = 1.25;
@@ -167,25 +176,120 @@ function drawShape(ctx, el, width, color, { fill = true } = {}) {
  * y neón (halo brillante del color + núcleo claro).
  */
 export function drawElement(ctx, el) {
+  if (el.type === 'image' || el.type === 'doc' || el.type === 'file') return drawMedia(ctx, el);
   const brush = el.brush ?? 'pen';
+  const ink = inkOf(el);
   const width = effectiveWidth(el);
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const flat = el.type === 'text' || el.type === 'note';
   ctx.globalAlpha = (el.opacity ?? 1) * (flat ? 1 : BRUSH_ALPHA[brush] ?? 1);
-  if (brush === 'highlighter' && !flat) ctx.globalCompositeOperation = 'multiply';
+  // El resaltador se mezcla con lo de abajo; en papel oscuro «multiplicar» lo haría invisible.
+  if (brush === 'highlighter' && !flat) ctx.globalCompositeOperation = darkPaper ? 'screen' : 'multiply';
 
   if (brush === 'neon' && el.type !== 'note') {
-    ctx.shadowColor = el.stroke;
+    ctx.shadowColor = ink;
     ctx.shadowBlur = Math.max(10, el.strokeWidth * 5);
-    drawShape(ctx, el, width, el.stroke);
-    drawShape(ctx, el, width, el.stroke, { fill: false }); // segunda pasada: halo más intenso
+    drawShape(ctx, el, width, ink);
+    drawShape(ctx, el, width, ink, { fill: false }); // segunda pasada: halo más intenso
     ctx.shadowBlur = 0;
     ctx.globalAlpha *= 0.9;
     drawShape(ctx, el, Math.max(1, el.strokeWidth * 0.45), '#ffffff', { fill: false });
   } else {
-    drawShape(ctx, el, width, el.stroke);
+    drawShape(ctx, el, width, ink);
+  }
+  ctx.restore();
+}
+
+const roundRect = (ctx, x, y, w, h, r) => {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
+};
+
+export const formatSize = (bytes) =>
+  bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+/** Extensión en mayúsculas para la etiqueta de la tarjeta de archivo. */
+const extOf = (name) => (String(name).includes('.') ? String(name).split('.').pop().slice(0, 5).toUpperCase() : 'ARCHIVO');
+
+/** Imágenes, documentos (página actual + contador) y tarjetas de archivo. */
+function drawMedia(ctx, el) {
+  const r = normalizeRect(el.x, el.y, el.w, el.h);
+  ctx.save();
+  ctx.globalAlpha = el.opacity ?? 1;
+  if (el.type === 'file') {
+    ctx.shadowColor = 'rgba(0,0,0,0.16)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    const icon = Math.min(r.h - 24, 56);
+    ctx.fillStyle = '#4263eb';
+    roundRect(ctx, r.x + 12, r.y + (r.h - icon) / 2, icon, icon, 8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(icon * 0.26)}px ${FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(extOf(el.name), r.x + 12 + icon / 2, r.y + r.h / 2);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#1e1e1e';
+    ctx.font = `600 16px ${FONT_FAMILY}`;
+    const tx = r.x + icon + 24;
+    const maxW = r.w - icon - 36;
+    let name = el.name || 'archivo';
+    while (name.length > 4 && ctx.measureText(name).width > maxW) name = `${name.slice(0, -2)}…`.replace(/……$/, '…');
+    ctx.fillText(name, tx, r.y + r.h / 2 - 10);
+    ctx.fillStyle = '#868e96';
+    ctx.font = `13px ${FONT_FAMILY}`;
+    ctx.fillText(`${formatSize(el.size || 0)} · doble toque para descargar`, tx, r.y + r.h / 2 + 12);
+    ctx.restore();
+    return;
+  }
+
+  const entry = getImage(imageUrlOf(el));
+  if (el.type === 'doc') {
+    ctx.shadowColor = 'rgba(0,0,0,0.22)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.shadowColor = 'transparent';
+  }
+  if (entry.ok) {
+    ctx.drawImage(entry.img, r.x, r.y, r.w, r.h);
+  } else {
+    ctx.fillStyle = '#f1f3f5';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#868e96';
+    ctx.font = `${Math.max(12, Math.min(28, r.w / 18))}px ${FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(entry.failed ? 'No se pudo cargar' : 'Cargando…', r.x + r.w / 2, r.y + r.h / 2);
+  }
+  if (el.type === 'doc' && el.pages.length > 1) {
+    // Contador de página en la esquina (se ve en la presentación y al exportar).
+    const fs = Math.max(11, Math.min(26, r.w * 0.022));
+    const label = `${(el.docPage ?? 0) + 1} / ${el.pages.length}`;
+    ctx.font = `600 ${fs}px ${FONT_FAMILY}`;
+    const w = ctx.measureText(label).width + fs * 1.2;
+    const hgt = fs * 1.7;
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = '#212529';
+    roundRect(ctx, r.x + r.w - w - fs * 0.6, r.y + r.h - hgt - fs * 0.6, w, hgt, hgt / 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, r.x + r.w - w / 2 - fs * 0.6, r.y + r.h - hgt / 2 - fs * 0.6);
   }
   ctx.restore();
 }

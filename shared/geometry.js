@@ -113,6 +113,9 @@ export function hitTest(el, px, py, tol = 4) {
     case 'ellipse':
       return hitEllipse(el, px, py, t);
     case 'note':
+    case 'image':
+    case 'doc':
+    case 'file':
     case 'text': {
       const b = getBounds(el);
       return px >= b.x - t && px <= b.x + b.w + t && py >= b.y - t && py <= b.y + b.h + t;

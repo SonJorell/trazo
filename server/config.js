@@ -17,6 +17,7 @@ export function loadConfig(overrides = {}) {
     dataDir: path.resolve(ROOT, env.DATA_DIR ?? 'data'),
     publicDir: path.join(ROOT, 'public'),
     sharedDir: path.join(ROOT, 'shared'),
+    pdfjsDir: path.join(ROOT, 'node_modules', 'pdfjs-dist'),
     saveDelayMs: Number(env.SAVE_DELAY_MS ?? 1000),
     // Minutos que una sala sin participantes sigue existiendo antes de cerrarse y borrarse.
     emptyRoomTtlMs: Number(env.EMPTY_ROOM_TTL_MIN ?? 2) * 60_000,
