@@ -12,7 +12,9 @@ export function createPenTool(ctx) {
     down(p) {
       tx = ctx.begin();
       points = [[0, 0]];
-      el = tx.add(createElement('pen', { x: p.x, y: p.y, points, ...ctx.strokeProps() }));
+      // Mientras se dibuja, el trazo viaja en vivo por trozos (cambios «transitorios»);
+      // al soltar se envía completo una sola vez.
+      el = tx.add(createElement('pen', { x: p.x, y: p.y, points, ...ctx.strokeProps(p) }), { transient: true });
     },
     move(p) {
       if (!el) return;
@@ -21,10 +23,11 @@ export function createPenTool(ctx) {
       const last = points[points.length - 1];
       if (Math.hypot(nx - last[0], ny - last[1]) < 1.5 / ctx.viewport.zoom) return;
       points = [...points, [nx, ny]];
-      el = tx.update(el.id, { points });
+      el = tx.update(el.id, { points }, { transient: true });
     },
     up() {
       if (!el) return;
+      tx.update(el.id, {});
       tx.commit();
       tx = el = points = null;
     },

@@ -14,8 +14,9 @@ import { ROOM_ALPHABET, ROOM_ID_RE, PIN_RE, ROOM_MODES } from '../../shared/prot
  * Las salas sin participantes se cierran (y se borran) tras `emptyRoomTtlMs`.
  */
 export class RoomManager {
-  constructor({ store, saveDelayMs = 1000, emptyRoomTtlMs = 120_000, logger }) {
+  constructor({ store, saveDelayMs = 1000, emptyRoomTtlMs = 120_000, logger, assets = null }) {
     this.store = store;
+    this.assets = assets; // archivos adjuntos: se borran al cerrar la sala
     this.saveDelayMs = saveDelayMs;
     this.emptyRoomTtlMs = emptyRoomTtlMs;
     this.startedAt = Date.now(); // gracia tras reiniciar: nadie ha podido reconectarse aún
@@ -132,7 +133,14 @@ export class RoomManager {
       this._timers.delete(id);
       this.rooms.delete(id);
       await this.store.delete(id);
+      await this.assets?.removeRoom(id).catch(() => {});
       closed.push(id);
+    }
+    // Archivos de salas que ya no existen (p. ej. borradas a mano).
+    if (this.assets) {
+      for (const id of await this.assets.rooms()) {
+        if (!ids.has(id) && !this.rooms.has(id)) await this.assets.removeRoom(id).catch(() => {});
+      }
     }
     if (closed.length) this.logger?.info(`Salas cerradas por estar vacías: ${closed.join(', ')}`);
     return closed;

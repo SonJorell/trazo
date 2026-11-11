@@ -17,7 +17,7 @@ export function createStampTool(ctx) {
       const tx = ctx.begin();
       tx.add(
         createElement('text', {
-          ...ctx.strokeProps(),
+          ...ctx.strokeProps(p),
           dash: 'solid',
           text: symbol,
           fontSize,

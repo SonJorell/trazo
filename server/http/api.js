@@ -1,4 +1,7 @@
+import fs from 'node:fs/promises';
 import QRCode from 'qrcode';
+import { safeExt, safeName, OFFICE_EXT, httpError } from '../assets/AssetStore.js';
+import { convertToPdf } from '../assets/officeConvert.js';
 import { getLanAddresses } from '../util/network.js';
 
 const MAX_BODY = 4 * 1024;
@@ -43,8 +46,10 @@ function readJson(req) {
  *                              (hostKey solo se entrega aquí: identifica al anfitrión)
  *   GET  /api/rooms/:id      → { id, hasPin, mode, live } o 404 (no existe o se cerró)
  *   GET  /api/qr.svg?text=   → código QR en SVG (solo para URLs de este servidor)
+ *   POST /api/rooms/:id/assets  (cuerpo = el archivo; cabeceras X-Trazo-Token y X-Trazo-Name)
+ *                            → { url, name, size, pdf? }  (pdf = versión PDF de un archivo de Office)
  */
-export function createApiHandler({ rooms, config }) {
+export function createApiHandler({ rooms, config, assets, logger }) {
   const lanUrls = () => getLanAddresses().map((ip) => `http://${ip}:${config.port}`);
   const secureUrls = () =>
     config.httpsPort ? getLanAddresses().map((ip) => `https://${ip}:${config.httpsPort}`) : [];
@@ -69,6 +74,34 @@ export function createApiHandler({ rooms, config }) {
         const room = await rooms.create({ pin: body.pin, mode: body.mode ?? 'blank' });
         sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode, hostKey: room.issuedHostKey });
         delete room.issuedHostKey;
+        return true;
+      }
+
+      const up = pathname.match(/^\/api\/rooms\/([a-z0-9]{4,24})\/assets$/);
+      if (req.method === 'POST' && up && assets) {
+        const room = await rooms.get(up[1]);
+        if (!room) throw httpError(404, 'La sala no existe');
+        if (!assets.checkToken(room.id, req.headers['x-trazo-token'])) throw httpError(403, 'Sin permiso para subir archivos');
+        let name = 'archivo';
+        try {
+          name = safeName(decodeURIComponent(String(req.headers['x-trazo-name'] ?? 'archivo')));
+        } catch {
+          /* nombre mal codificado: se usa el genérico */
+        }
+        const ext = safeExt(name);
+        const saved = await assets.saveStream(room.id, req, ext);
+        const body = { url: assets.url(room.id, saved.file), name, size: saved.size, ext };
+        if (OFFICE_EXT.has(ext)) {
+          const pdf = assets.newPath(room.id, 'pdf');
+          try {
+            body.converter = await convertToPdf(saved.path, pdf.path, ext, logger);
+            body.pdf = assets.url(room.id, pdf.file);
+          } catch (err) {
+            await fs.rm(pdf.path, { force: true });
+            body.convertError = err.message;
+          }
+        }
+        sendJson(res, 201, body);
         return true;
       }
 

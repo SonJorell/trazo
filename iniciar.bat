@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist node_modules (
+if not exist node_modules\pdfjs-dist (
   echo Instalando dependencias por primera vez...
   call npm install --omit=dev
   if errorlevel 1 (

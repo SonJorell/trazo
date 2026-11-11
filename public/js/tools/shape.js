@@ -17,8 +17,8 @@ export function createShapeTool(ctx, type) {
       tx = ctx.begin();
       origin = p;
       const props = isLinear
-        ? { x: p.x, y: p.y, points: [[0, 0], [0, 0]], ...ctx.strokeProps() }
-        : { x: p.x, y: p.y, w: 0, h: 0, fill: ctx.style.fill, ...ctx.strokeProps() };
+        ? { x: p.x, y: p.y, points: [[0, 0], [0, 0]], ...ctx.strokeProps(p) }
+        : { x: p.x, y: p.y, w: 0, h: 0, fill: ctx.style.fill, ...ctx.strokeProps(p) };
       el = tx.add(createElement(type, props));
     },
     move(p, e) {

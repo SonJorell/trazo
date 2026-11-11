@@ -11,7 +11,7 @@ export function createNoteTool(ctx) {
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(4));
       if (hit?.type === 'note') return ctx.editText(hit);
       const tx = ctx.begin();
-      const { stroke: _s, brush: _b, dash: _d, ...rest } = ctx.strokeProps();
+      const { stroke: _s, brush: _b, dash: _d, ...rest } = ctx.strokeProps(p);
       const el = tx.add(
         createElement('note', {
           ...rest,

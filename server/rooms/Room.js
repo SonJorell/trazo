@@ -30,6 +30,7 @@ export class Room {
     this.grants = new Set(); // participantes a los que el anfitrión dejó pasar diapositivas
     this.grantAll = false; // el anfitrión permitió a todos pasar diapositivas
     this.page = Number.isInteger(data.page) ? data.page : 0; // página/diapositiva visible
+    this.background = data.background ?? { pattern: 'dots', color: 'white' }; // fondo de hoja
     this.view = null; // zona que muestra el anfitrión { x, y, w, h }
     this.timer = null; // { endsAt }
     this.poll = null; // { id, question, options, votes: Map(peerId → índice), open }
@@ -156,6 +157,7 @@ export class Room {
       lastActiveAt: this.lastActiveAt,
       mode: this.mode,
       page: this.page,
+      background: this.background,
       hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),

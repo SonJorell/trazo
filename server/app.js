@@ -8,6 +8,7 @@ import { attachSocketServer } from './realtime/socketServer.js';
 import { RoomManager } from './rooms/RoomManager.js';
 import { FileStore } from './storage/FileStore.js';
 import { createLogger } from './util/logger.js';
+import { AssetStore } from './assets/AssetStore.js';
 
 /**
  * Ensambla la aplicación. Recibe dependencias inyectables (almacén, logger)
@@ -17,12 +18,15 @@ export async function createApp(config, deps = {}) {
   const logger = deps.logger ?? createLogger(config.logLevel);
   const store = deps.store ?? new FileStore(config.dataDir);
   await store.init();
+  const assets = deps.assets ?? new AssetStore(config.dataDir, config.assets);
+  await assets.init();
 
   const rooms = new RoomManager({
     store,
     saveDelayMs: config.saveDelayMs,
     emptyRoomTtlMs: config.emptyRoomTtlMs,
     logger,
+    assets,
   });
   const sweep = () => rooms.sweep().catch((err) => logger.error('Error cerrando salas vacías:', err));
   const sweeper = setInterval(sweep, config.sweepIntervalMs);
@@ -30,7 +34,9 @@ export async function createApp(config, deps = {}) {
   sweep();
   const serveShared = createStaticHandler(config.sharedDir, '/shared/');
   const servePublic = createStaticHandler(config.publicDir, '/');
-  const handleApi = createApiHandler({ rooms, config });
+  // pdf.js (visor de PDF del navegador) servido desde node_modules.
+  const servePdfjs = createStaticHandler(config.pdfjsDir, '/vendor/pdfjs/');
+  const handleApi = createApiHandler({ rooms, config, assets, logger });
 
   const handler = async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -42,6 +48,8 @@ export async function createApp(config, deps = {}) {
       if (url.pathname === '/control') {
         if (servePublic(req, res, '/control.html')) return;
       }
+      if (url.pathname.startsWith('/assets/') && (await assets.serve(req, res, url.pathname))) return;
+      if (servePdfjs(req, res, url.pathname)) return;
       if (serveShared(req, res, url.pathname)) return;
       if (servePublic(req, res, url.pathname)) return;
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -54,7 +62,7 @@ export async function createApp(config, deps = {}) {
   };
 
   const server = http.createServer(handler);
-  const wss = attachSocketServer(server, { rooms, config, logger });
+  const wss = attachSocketServer(server, { rooms, config, logger, assets });
   let secureServer = null;
 
   const listenOn = (srv, port, host) =>
@@ -66,6 +74,7 @@ export async function createApp(config, deps = {}) {
   return {
     server,
     rooms,
+    assets,
     get secureServer() {
       return secureServer;
     },

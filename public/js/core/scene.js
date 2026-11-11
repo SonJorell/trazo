@@ -49,10 +49,26 @@ export class Scene extends Emitter {
   alive() {
     if (!this._alive) {
       this._alive = [...this.map.values()]
-        .filter((el) => !el.isDeleted && (el.page ?? 0) === this.page)
+        .filter((el) => !el.isDeleted && (el.page ?? 0) === this.page && this.anchorVisible(el))
         .sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : 1));
     }
     return this._alive;
+  }
+
+  /**
+   * Una anotación anclada a un documento solo se ve cuando ese documento muestra su página.
+   * Si el documento se borró, la anotación queda visible (no se pierde nada).
+   */
+  anchorVisible(el) {
+    if (!el.anchor) return true;
+    const doc = this.map.get(el.anchor);
+    if (!doc || doc.isDeleted) return true;
+    return (doc.docPage ?? 0) === el.anchorPage;
+  }
+
+  /** Anotaciones (de cualquier página) ancladas a un documento. */
+  anchoredTo(docId) {
+    return [...this.map.values()].filter((el) => !el.isDeleted && el.anchor === docId);
   }
 
   /** Aplica cambios llegados de la red con la regla LWW. */
@@ -71,12 +87,16 @@ export class Scene extends Emitter {
     return changed;
   }
 
-  /** Aplica un cambio propio (ya con la versión incrementada) y lo anuncia para sincronizar. */
-  applyLocal(el) {
+  /**
+   * Aplica un cambio propio (ya con la versión incrementada) y lo anuncia para sincronizar.
+   * `transient`: cambio intermedio (un trazo a medio dibujar) que se transmite en vivo
+   * por trozos y no como operación completa.
+   */
+  applyLocal(el, { transient = false } = {}) {
     this.map.set(el.id, el);
     this._alive = null;
     this.emit('change');
-    this.emit('local', el);
+    this.emit(transient ? 'local-transient' : 'local', el);
   }
 
   /** Elemento visible más al frente bajo el punto. */
