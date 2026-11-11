@@ -7,10 +7,10 @@ servicios externos y sin internet.
 - Lápiz, rectángulo, elipse, línea, flecha, texto y borrador
 - **Pinceles**: lápiz, marcador, resaltador y **neón**; 18 colores (6 neón) + personalizado;
   líneas continuas, discontinuas y punteadas; opacidad regulable
-- **Puntero láser** que se desvanece solo y **reacciones** con emojis sobre la proyección
+- **Puntero láser** que se desvanece solo y **reacciones** con íconos sobre la proyección
 - **Páginas**: una por diapositiva (las marcas vuelven al regresar) o varias hojas de pizarra
 - **Seguir al presentador**: los participantes ven lo mismo que encuadra el anfitrión
-- **Notas adhesivas** y **sellos** (✓ ✗ ★ ① …), **temporizador** y **votación rápida**
+- **Notas adhesivas** y **sellos** vectoriales (visto bueno, estrella, números…), **temporizador** y **votación rápida**
 - **Exportar PDF** con todas las páginas y **modo simple** para celulares
 - **Presentar con un clic** (`presentar.bat`) con QR grande en el proyector
 - Seleccionar, mover, redimensionar y eliminar; colores, relleno y grosor
@@ -62,7 +62,7 @@ La consola muestra algo así:
    En directo, el navegador te pedirá qué pantalla o ventana compartir (Chrome o Edge en el PC).
 2. Dentro de la pizarra pulsa **Compartir**: aparece el enlace y un QR.
 3. Escanéalo con la cámara del celular (misma Wi-Fi) y a dibujar.
-4. Si la sala está en directo, en el celular toca **⛶** para verla a pantalla completa
+4. Si la sala está en directo, en el celular toca el botón **pantalla completa** para verla a pantalla completa
    (gira el teléfono para verla más grande; **⤡** para salir).
 
 > **Cierre automático**: cuando sale el último participante, la sala se cierra y se borra a los
@@ -81,7 +81,7 @@ La consola muestra algo así:
    - **Marcas: por diapositiva / se borran / se quedan**: qué pasa con lo dibujado al pasar de
      diapositiva desde el control remoto o un participante con permiso. «Por diapositiva» guarda las
      marcas de cada una y las muestra de nuevo al volver.
-   - **Temporizador** (1 a 15 min) y **Votación rápida** (Sí/No, A-D, 👍/👎, 1-5 o tus opciones).
+   - **Temporizador** (1 a 15 min) y **Votación rápida** (Sí/No, A-D, De acuerdo/En desacuerdo, Bien/Regular/Mal, 1-5 o tus opciones).
    - **Personas → Permitir a todos** para que cualquiera pase diapositivas sin aprobar uno por uno.
    - **QR**: muestra u oculta el QR grande para el público.
 
@@ -120,7 +120,7 @@ Notas:
 | Qué es | La ventana del PC conectado al proyector o a la pantalla grande | Celulares, tablets u otros PC |
 | Cómo se abre | `iniciar-overlay.bat` (encima de PowerPoint o de lo que sea) **o** la pizarra que creaste desde el inicio | Escaneando el QR de **Invitar / Compartir** |
 | Puede | Proyectar, recibir cámaras, recibir el control de diapositivas, transmitir su pantalla, dar y quitar permisos | Dibujar y escribir, encender su cámara, pedir pasar diapositivas |
-| Se reconoce por | **★** junto al código de la sala («★ Principal») | — |
+| Se reconoce por | La etiqueta **Principal** (con una estrella) junto al código de la sala | — |
 
 Solo puede haber **una** presentación principal por sala: la de quien la **creó**. Al crearla,
 el servidor le entrega una clave de anfitrión que guarda ese PC; nadie más puede proyectar,
@@ -129,7 +129,7 @@ transmitir ni registrarse para el control, aunque tenga el enlace.
 Flujo recomendado para presentar:
 
 1. En el PC del proyector abre tu presentación (PowerPoint, Slides, PDF…).
-2. Doble clic en `iniciar-overlay.bat`: crea la sala y esa capa queda como **★ presentación principal**.
+2. Doble clic en `iniciar-overlay.bat`: crea la sala y esa capa queda como **presentación principal**.
 3. Pulsa **Invitar** en la barra del overlay y que los demás escaneen el QR.
 4. Ellos dibujan, encienden su cámara o piden pasar diapositivas; tú apruebas desde el PC.
 5. Para manejarlo tú desde tu celular, usa el QR de **Control remoto** (no lo muestres).
@@ -184,14 +184,14 @@ devuelve el foco a la presentación antes de pulsar la tecla.
   todos. En una pizarra en blanco funcionan como hojas; con diapositivas, una página por diapositiva.
 - **Seguir al presentador**: tu vista acompaña lo que encuadra el anfitrión. Si la mueves a mano,
   aparece **Seguir** para volver.
-- **Notas adhesivas** (`N`, 6 colores) y **sellos** (`S`: ✓ ✗ ★ ❤ ! ? ➜ ⚠ ① ② ③ ④).
+- **Notas adhesivas** (`N`, 6 colores) y **sellos** (`S`: visto bueno, incorrecto, estrella, corazón, atención, pregunta, flecha, advertencia y números 1–4; son vectoriales y se pueden agrandar).
 - **Modo simple** (menú ☰): en celulares de participantes viene activado; deja solo lápiz, láser,
   notas, sellos y borrador.
 - **Exportar PDF** (menú ☰): una hoja por página, listo para compartir al terminar.
 
 - **Puntero láser** (`K`): señala con una estela brillante que se borra sola en ~1 segundo. Cada
   persona tiene su color.
-- **Reacciones** (botón 🙂 arriba a la derecha): 👍 👏 ❤️ 😂 😮 🎉 ❓ ✋ flotan sobre la pantalla de
+- **Reacciones** (botón de carita arriba a la derecha): me gusta, me encanta, divertido, sorprendente, celebrar, buena idea, duda y levantar la mano; flotan como íconos sobre la pantalla de
   todos, también sobre la proyección.
 - **Borrar mis trazos** (menú ☰): elimina solo lo que dibujaste tú; se puede deshacer.
 - **Auto-limpiar** (barra del overlay): al pasar de diapositiva desde el control remoto o con
@@ -206,7 +206,7 @@ milimetrada, isométrica, pentagrama o lisa, en papel blanco, crema, celeste, **
 **pizarra verde**. Lo elige el anfitrión (o quien tenga permiso) y lo ven todos; también sale en
 las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca automáticamente.
 
-**Adjuntar** (botón 📎 de la barra, menú ☰, arrastrar y soltar, o `Ctrl+V`):
+**Adjuntar** (botón de clip de la barra, menú ☰, arrastrar y soltar, o `Ctrl+V`):
 
 | Archivo | Cómo queda en la pizarra |
 |---------|--------------------------|
@@ -223,13 +223,24 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.4
+
+- **Cámara que sigue tu puntero**: la burbuja (con la forma que elijas) acompaña tu cursor con un
+  leve retraso elástico y tu nombre debajo; el cursor ya no repite la etiqueta.
+- **Monigote más fluido**: la física corre en cada cuadro de pantalla, se comparte posición y
+  velocidad 20 veces por segundo y los demás la **predicen y suavizan**; las piernas y los brazos
+  se animan según el movimiento que cada equipo ve (con rodillas y codos, rebote al caminar,
+  inclinación, sombra y pose de salto). La figura **neutra** es la predeterminada.
+- **Interfaz sin emojis**: reacciones, sellos, temporizador, barras y botones usan íconos
+  vectoriales propios, para un aspecto profesional y idéntico en cualquier equipo.
+
 ## Roles y permisos (v2.3)
 
 El anfitrión abre **☰ → Participantes y permisos** (o toca los avatares de arriba):
 
 | Rol | Puede |
 |-----|-------|
-| **Visita** | Mirar, reaccionar con emojis y votar. Ve una barra con *✋ Pedir permiso para dibujar*. |
+| **Visita** | Mirar, reaccionar y votar. Ve una barra con *Pedir permiso para dibujar*. |
 | **Editor** | Además dibujar, escribir, adjuntar, usar láser, cámara y monigote. |
 | **Presentador** | Además pasar páginas/diapositivas y cambiar fondo y títulos. |
 
@@ -241,14 +252,14 @@ El anfitrión abre **☰ → Participantes y permisos** (o toca los avatares de 
 
 ## Mi cámara y avatar (monigote)
 
-En **☰ → Mi cámara y avatar** (o el botón 🙂 junto a tu vista previa de cámara) cada persona elige:
+En **☰ → Mi cámara y avatar** (o el botón de carita junto a tu vista previa de cámara) cada persona elige:
 
 - **Forma**: automática (la del anfitrión), círculo, redondeada o cuadrada.
 - **Dónde se ve**: *fija en la presentación*, *sigue mi puntero*, *en un lugar de la pizarra*
   (tocas dónde dejarla) o **monigote**.
 - **Monigote**: tu cámara es la cabeza de un personaje que **camina hacia tu puntero**, cae con
   gravedad, se para sobre figuras, notas, imágenes y documentos, **salta** para subirse a ellas y
-  se **sienta en una silla** (🪑 *Agregar silla* → *Sentarme*). Eliges **color** y **figura**
+  se **sienta en una silla** (*Agregar silla* → *Sentarme*). Eliges **color** y **figura**
   (hombre, mujer o neutro). Sin cámara, la cabeza muestra tus iniciales.
 - Todos ven los monigotes; el video de las cámaras se ve en la presentación principal (y tú ves
   el tuyo).
@@ -263,7 +274,7 @@ En **☰ → Mi cámara y avatar** (o el botón 🙂 junto a tu vista previa de 
   completa en el celular).
 - **Títulos y vista de páginas**: toca *Pág. N* abajo para ver todas las páginas en miniatura,
   saltar a una o escribirle un título (lo ven todos y sale en el PDF).
-- **Cámaras**: botón 📷 abajo a la derecha (en la presentación principal) para elegir **forma**
+- **Cámaras**: botón de cámara abajo a la derecha (en la presentación principal) para elegir **forma**
   (círculo, redondeada, rectángulo), **tamaño**, **ubicación** (libre, esquinas, fila, columna,
   cuadrícula), nombres y efecto espejo.
 - **Copiar, pegar y duplicar**: `Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+D`, `Ctrl+A`, y botón

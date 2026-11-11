@@ -134,6 +134,15 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) el monigote saltaba sin parar si el puntero estaba arriba (ahora solo salta para subirse a algo); (2) brazos invisibles sobre el vestido; (3) el nombre quedaba fuera de la pantalla bajo los pies |
 
+### Versión 2.4 — Cámara que sigue al puntero, monigote fluido e íconos
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 48/48 (reacciones por clave) |
+| E2E `tests/e2e/v24.py` con cámara simulada de Chrome (WebRTC real participante → anfitrión) | 8/8: la cámara sigue al puntero con forma circular y la burbuja fija se oculta, monigote neutro por defecto, avance sin saltos ni retrocesos (paso máx. ~14 px cada 40 ms), piernas animadas, sello vectorial sincronizado, reacción con ícono, sin emojis en la interfaz del anfitrión ni del participante |
+| Regresión E2E | `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) la etiqueta del cursor quedaba tapada por la cámara que lo sigue; (2) el monigote se veía a saltos (física a 30 Hz y pose enviada); (3) pies bajo la barra inferior; (4) rodillas que se doblaban hacia adelante |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

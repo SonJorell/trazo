@@ -3,7 +3,9 @@
  * Compartido por el servidor (Node) y el cliente (navegador): no usar APIs específicas de ninguno.
  */
 
-export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note', 'image', 'doc', 'file', 'chair']);
+export const ELEMENT_TYPES = Object.freeze(['pen', 'rect', 'ellipse', 'line', 'arrow', 'text', 'note', 'image', 'doc', 'file', 'chair', 'stamp']);
+/** Sellos vectoriales disponibles (ver public/js/render/stampIcons.js). */
+export const STAMP_KEYS = Object.freeze(['check', 'x', 'star', 'heart', 'exclaim', 'question', 'arrow', 'warning', 'n1', 'n2', 'n3', 'n4']);
 
 /** URL de un archivo subido a la sala: /assets/<sala>/<id>.<ext> */
 export const ASSET_URL_RE = /^\/assets\/[a-z0-9]{4,24}\/[A-Za-z0-9_-]{8,40}\.[a-z0-9]{1,5}$/;
@@ -97,6 +99,12 @@ export function sanitizeElement(raw) {
     el.points = pts;
   }
 
+  if (el.type === 'stamp') {
+    if (!STAMP_KEYS.includes(raw.icon)) return null;
+    el.icon = raw.icon;
+    el.w = clamp(Math.abs(coord(raw.w)) || 64, 12, 1200);
+    el.h = clamp(Math.abs(coord(raw.h)) || 64, 12, 1200);
+  }
   if (el.type === 'chair') {
     // Silla donde los monigotes se pueden sentar.
     el.w = clamp(Math.abs(coord(raw.w)) || 90, 30, 600);

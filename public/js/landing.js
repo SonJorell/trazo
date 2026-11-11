@@ -94,7 +94,7 @@ async function showRecent() {
           { href: `/sala?room=${r.id}` },
           h('strong', { class: 'code' }, r.id.toUpperCase()),
           hostKeyOf(r.id) ? h('span', { class: 'tag-host' }, 'Anfitrión') : null,
-          r.info.mode === 'live' ? h('span', { class: 'tag-live' }, r.info.live ? '● En vivo' : 'En directo') : null,
+          r.info.mode === 'live' ? h('span', { class: 'tag-live' }, r.info.live ? 'En vivo' : 'En directo') : null,
           h('span', { class: 'muted' }, fmt.format(r.at)),
         ),
       ),

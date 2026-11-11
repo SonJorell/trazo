@@ -1,6 +1,7 @@
 import { MSG, ROLES, ROLE_LABELS } from '/shared/protocol.js';
 import { h } from './dom.js';
 import { toast } from './toast.js';
+import { ICONS } from './icons.js';
 
 const ROLE_HELP = {
   visita: 'Mira, reacciona y vota',
@@ -21,8 +22,13 @@ export function setupParticipants({ connection, presence, isHost, onRoleChange }
   let panel = null; // modal abierto (para repintarlo con cambios)
 
   // ---- Barra para visitas ----
-  const askBtn = h('button', { class: 'btn small primary', onclick: () => ask() }, '✋ Pedir permiso para dibujar');
-  const visitorBar = h('div', { class: 'visitor-bar', hidden: true, role: 'status' }, h('span', {}, '👁 Estás como ', h('strong', {}, 'visita'), ': puedes reaccionar y votar.'), askBtn);
+  const askBtn = h('button', { class: 'btn small primary with-icon', onclick: () => ask() }, h('span', { html: ICONS.raiseHand }), 'Pedir permiso para dibujar');
+  const visitorBar = h(
+    'div',
+    { class: 'visitor-bar', hidden: true, role: 'status' },
+    h('span', { class: 'with-icon' }, h('span', { html: ICONS.eye }), h('span', {}, 'Estás como ', h('strong', {}, 'visita'), ': puedes reaccionar y votar.')),
+    askBtn,
+  );
   document.body.append(visitorBar);
   let asked = 0;
   const ask = () => {
