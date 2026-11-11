@@ -14,6 +14,8 @@ import {
   validatePoll,
   validateView,
   validateBackground,
+  validatePageTitle,
+  pageOf,
   validateStroke,
   MAX_TIMER_MS,
 } from '../../shared/protocol.js';
@@ -97,6 +99,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         else if (msg.t === MSG.PAGE) setPage(msg);
         else if (msg.t === MSG.STROKE) relayStroke(msg);
         else if (msg.t === MSG.BACKGROUND) setBackground(msg);
+        else if (msg.t === MSG.PAGE_TITLE) setPageTitle(msg);
         else if (msg.t === MSG.VIEW) setView(msg);
         else if (msg.t === MSG.TIMER) setTimer(msg);
         else if (msg.t === MSG.POLL) openPoll(msg);
@@ -138,6 +141,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         controller: Boolean(room.controller),
         page: room.page,
         background: room.background,
+        pageBackgrounds: room.pageBackgrounds,
+        pageTitles: room.pageTitles,
         view: room.view,
         timer: room.timer,
         poll: room.publicPoll(),
@@ -158,7 +163,10 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
 
     function handleCursor(msg) {
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
-      client.room.broadcast({ t: MSG.CURSOR, id: client.id, x: msg.x, y: msg.y }, client.id);
+      const cursor = { t: MSG.CURSOR, id: client.id, x: msg.x, y: msg.y };
+      const p = pageOf(msg.p);
+      if (p !== undefined) cursor.p = p;
+      client.room.broadcast(cursor, client.id, { volatile: true });
     }
 
     function handleScreen(msg) {
@@ -259,7 +267,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       if (room.page === msg.n) return;
       room.page = msg.n;
       room.onChange(room);
-      room.broadcast({ t: MSG.PAGE, n: room.page, from: client.id });
+      // Quien cambió la página ya la aplicó: no se le devuelve (evita saltos al pasar rápido).
+      room.broadcast({ t: MSG.PAGE, n: room.page, from: client.id }, client.id);
     }
 
     function relayStroke(msg) {
@@ -273,9 +282,25 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       if (!room.canSteer(client.peer)) return fail(ERR.CONTROL_DENIED, 'Solo el anfitrión (o quien tenga permiso) cambia el fondo');
       const bg = validateBackground(msg);
       if (!bg) return fail(ERR.BAD_REQUEST, 'Fondo inválido');
-      room.background = bg;
+      if (bg.page !== undefined) {
+        room.pageBackgrounds[String(bg.page)] = { pattern: bg.pattern, color: bg.color };
+      } else {
+        room.background = { pattern: bg.pattern, color: bg.color };
+        room.pageBackgrounds = {}; // «para todas las páginas» reemplaza los fondos propios
+      }
       room.onChange(room);
       room.broadcast({ t: MSG.BACKGROUND, ...bg });
+    }
+
+    function setPageTitle(msg) {
+      const room = client.room;
+      if (!room.canSteer(client.peer)) return fail(ERR.CONTROL_DENIED, 'Solo el anfitrión (o quien tenga permiso) cambia los títulos');
+      const pt = validatePageTitle(msg);
+      if (!pt) return fail(ERR.BAD_REQUEST, 'Título inválido');
+      if (pt.title) room.pageTitles[String(pt.n)] = pt.title;
+      else delete room.pageTitles[String(pt.n)];
+      room.onChange(room);
+      room.broadcast({ t: MSG.PAGE_TITLE, ...pt });
     }
 
     function setView(msg) {

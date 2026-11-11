@@ -44,7 +44,7 @@ export class Presence {
     this.render();
   }
 
-  moveCursor(id, x, y) {
+  moveCursor(id, x, y, page) {
     const peer = this.peers.get(id);
     if (!peer) return;
     // El cursor se desliza hacia la nueva posición (el renderizador interpola).
@@ -56,6 +56,7 @@ export class Presence {
       ty: y,
       name: peer.name,
       color: peer.color,
+      page, // página en la que está (los de otra página no se dibujan)
       at: Date.now(),
     });
     this.render();

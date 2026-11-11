@@ -1,6 +1,15 @@
 import crypto from 'node:crypto';
 import { sanitizeElement, shouldReplace, LIMITS } from '../../shared/elements.js';
 
+/** Copia un objeto «página → valor» descartando claves que no sean números de página. */
+function plainMap(obj) {
+  const out = {};
+  if (obj && typeof obj === 'object') {
+    for (const [k, v] of Object.entries(obj)) if (/^\d{1,3}$/.test(k) && v !== undefined && v !== null) out[k] = v;
+  }
+  return out;
+}
+
 const PEER_COLORS = ['#e03131', '#1971c2', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#e8590c', '#5c940d'];
 
 /**
@@ -30,7 +39,9 @@ export class Room {
     this.grants = new Set(); // participantes a los que el anfitrión dejó pasar diapositivas
     this.grantAll = false; // el anfitrión permitió a todos pasar diapositivas
     this.page = Number.isInteger(data.page) ? data.page : 0; // página/diapositiva visible
-    this.background = data.background ?? { pattern: 'dots', color: 'white' }; // fondo de hoja
+    this.background = data.background ?? { pattern: 'dots', color: 'white' }; // fondo de hoja (todas las páginas)
+    this.pageBackgrounds = plainMap(data.pageBackgrounds); // fondo propio de algunas páginas { "2": {...} }
+    this.pageTitles = plainMap(data.pageTitles); // títulos de página { "0": "Introducción" }
     this.view = null; // zona que muestra el anfitrión { x, y, w, h }
     this.timer = null; // { endsAt }
     this.poll = null; // { id, question, options, votes: Map(peerId → índice), open }
@@ -158,6 +169,8 @@ export class Room {
       mode: this.mode,
       page: this.page,
       background: this.background,
+      pageBackgrounds: this.pageBackgrounds,
+      pageTitles: this.pageTitles,
       hostKey: this.hostKeyHash,
       pin: this.pin,
       elements: this.snapshot(),

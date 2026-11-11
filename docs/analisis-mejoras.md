@@ -120,6 +120,18 @@ fluido (trazos en vivo por deltas, cursores suavizados, indicador de latencia). 
 | 12 | Exportar cada página de un documento con sus anotaciones | Medio | Medio |
 | 13 | Compartir la pantalla del celular | Medio | Alto |
 
+**v2.2** atendió el pedido de sincronización (cursores/láser por página, sin eco de página,
+reconexión inmediata), personalización (paleta única, personalizado, % de tamaño y opacidad,
+cámaras configurables), títulos y vista de páginas, fondo por página, copiar/pegar/duplicar e
+interfaz para tablet y celular. Próximas candidatas:
+
+| Prioridad | Mejora | Impacto | Esfuerzo |
+|-----------|--------|---------|----------|
+| 14 | Reordenar, duplicar y borrar páginas desde la vista de páginas | Medio | Medio |
+| 15 | Herramienta de forma libre «auto-forma» (reconoce círculos/flechas dibujados a mano) | Medio | Medio |
+| 16 | Modo presentador: notas privadas por página visibles solo para el anfitrión | Medio | Medio |
+| 17 | Bloquear elementos (fondo de documento que no se mueva al anotar) | Medio | Bajo |
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:

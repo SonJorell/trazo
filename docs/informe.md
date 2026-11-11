@@ -116,6 +116,15 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) pdf.js 6 ya no tiene `destroy()` en el documento (se cierra la tarea de carga); (2) el campo `from` del trozo de trazo pisaba el id del autor al retransmitir (se renombró a `by`); (3) el botón 📎 quedaba oculto en el modo simple del celular |
 
+### Versión 2.2 — Sincronización, personalización e interfaz
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 47/47 (nueva: fondo por página, títulos con permiso y saneados, cursor con página, sin eco de página) |
+| E2E `tests/e2e/v22.py` (escritorio 1366×820, tablet 820×1180, celular 390×844) | 15/15: paleta neón, tamaño 50 % y opacidad 70 %, color personalizado en recientes y sincronizado, Ctrl+D, fondo solo de la página 1 y general en la 2, título visible para todos y no editable por invitados, cámaras en círculo/columna, barra de tablet sin choques, hoja inferior en el celular |
+| Regresión E2E | `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) a pantalla completa en el celular se pintaba fondo oscuro sin transmisión (cada uno veía un fondo distinto); (2) el panel de estilo no se desplazaba en pantallas bajas; (3) halo del neón excesivo con trazos gruesos |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

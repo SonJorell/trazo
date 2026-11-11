@@ -307,3 +307,37 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Consecuencias**: el tráfico de un trazo pasa de crecer con el cuadrado de sus puntos a ser
   lineal, y los demás lo ven aparecer casi sin retraso. Si se pierde un trozo (o alguien entra a
   mitad), el trazo aparece completo al soltar.
+
+## ADR-034 — Fondo por página con valor general
+
+- **Decisión**: la sala guarda un fondo general y un mapa `pageBackgrounds` (página → fondo). El
+  mensaje `background` con `page` cambia solo esa página; sin `page` cambia el general y borra
+  los propios. Los títulos van en `pageTitles` con el mensaje `page-title`.
+- **Consecuencias**: cada página puede tener su hoja (p. ej. pentagrama en una, cuadrícula en
+  otra) y todos ven lo mismo; volver a «todas» deja la sala coherente en un paso.
+
+## ADR-035 — Sin eco del cambio de página y página en cursores/láser
+
+- **Decisión**: el servidor ya no devuelve el cambio de página a quien lo hizo (que ya lo
+  aplicó). Cursores y láser llevan `p` (página) y no se dibujan en otra página. El cursor pasa a
+  ser volátil (se descarta si el cliente va atrasado).
+- **Consecuencias**: pasar varias páginas rápido no provoca saltos hacia atrás; no aparecen
+  punteros «fantasma» de quien está en otra página.
+
+## ADR-036 — Conexión: reconectar al volver y detectar sockets muertos
+
+- **Decisión**: si un `ping` queda más de 10 s sin respuesta, el cliente cierra y reconecta; al
+  volver la pestaña a primer plano (o al recuperar la red) reconecta de inmediato si estaba sin
+  conexión. Se mide el ping pendiente, no el tiempo desde el último, para no reconectar pestañas
+  en segundo plano que solo tienen los temporizadores ralentizados.
+- **Consecuencias**: los celulares que se bloquean vuelven a sincronizarse en cuanto se
+  desbloquean, en vez de esperar la espera exponencial.
+
+## ADR-037 — Paleta única y grosor en porcentaje
+
+- **Decisión**: una paleta de 18 colores sirve a todos los pinceles (el neón es un efecto, no un
+  juego de colores). El grosor se elige de 1 a 100 % y se convierte a 1–48 px de forma lineal; la
+  opacidad de 5 a 100 %. El halo del neón se acota (máx. 36 px) para que los trazos gruesos no se
+  vuelvan una mancha.
+- **Consecuencias**: el modelo de datos no cambia (`strokeWidth` y `opacity` siguen siendo
+  números); los trazos antiguos se ven igual.
