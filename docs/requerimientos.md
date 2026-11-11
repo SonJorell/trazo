@@ -72,6 +72,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-49 | *(v2.2)* Copiar, cortar, pegar, duplicar y seleccionar todo. |
 | RF-50 | *(v2.2)* Cursores y láser por página; sin eco del cambio de página; reconexión al volver del segundo plano y detección de conexión muerta. |
 | RF-51 | *(v2.2)* Interfaz adaptada a tablet (segunda fila) y celular (hoja inferior, objetivos táctiles). |
+| RF-52 | *(v2.3)* Roles visita/editor/presentador administrados por el anfitrión (por persona, todos a la vez y rol por defecto), aplicados en el servidor y recordados por navegador. |
+| RF-53 | *(v2.3)* Las visitas piden permiso para dibujar; el anfitrión lo concede desde un aviso. |
+| RF-54 | *(v2.3)* Cada persona elige la forma de su cámara y dónde se ve: fija, siguiendo su puntero o anclada en la pizarra. |
+| RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
 
@@ -162,6 +166,10 @@ y el linter pasa.
 | T-36 | Cámaras configurables | Preferencias por equipo, 6 ubicaciones, 3 formas | Terminado |
 | T-37 | Sincronización v2.2 | Página en cursor/láser, sin eco, reconexión inmediata | Terminado |
 | T-38 | Pruebas v2.2 | Integración (47) + E2E `v22.py` (15) + regresión E2E | Terminado |
+| T-39 | Roles en servidor | `role`, `peer-role`, `room-roles`, `role-request`; bloqueo de mensajes de edición para visitas | Terminado |
+| T-40 | Panel de participantes | Rol por persona, todos, por defecto; aviso de solicitudes; barra de visita | Terminado |
+| T-41 | Avatares | `avatar`/`avatar-pos`, física del monigote, sillas, modos puntero/anclado, diálogo | Terminado |
+| T-42 | Pruebas v2.3 | Integración (48) + E2E `v23.py` (8) + regresión | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro
@@ -184,5 +192,4 @@ y el linter pasa.
 - Varias páginas por sala y plantillas.
 - Compactación de elementos borrados (lápidas) antiguos.
 - Exportar a SVG y a JSON; importar JSON.
-- Permisos por participante (solo lectura).
 - Aplicación instalable (PWA) y modo sin conexión.
