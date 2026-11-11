@@ -1,6 +1,6 @@
 {
   "name": "trazo-overlay",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Ventana transparente siempre encima para dibujar sobre la pantalla con Trazo.",
   "type": "module",
   "main": "main.js",

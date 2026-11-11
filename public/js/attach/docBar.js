@@ -65,7 +65,13 @@ export function createDocBar({ scene, viewport, ctx, onFit }) {
     bar.hidden = false;
     const rect = bar.getBoundingClientRect();
     const cx = (p1.x + p2.x) / 2;
-    const maxY = window.innerHeight - rect.height - 64; // sobre la barra inferior
+    // No tapar las barras de abajo (en el celular son dos: zoom/páginas y herramientas).
+    let bottom = window.innerHeight - 8;
+    for (const node of document.querySelectorAll('.bottombar, #toolbar')) {
+      const r = node.getBoundingClientRect();
+      if (r.height && r.top > window.innerHeight / 2) bottom = Math.min(bottom, r.top - 8);
+    }
+    const maxY = bottom - rect.height;
     const x = Math.max(8, Math.min(window.innerWidth - rect.width - 8, cx - rect.width / 2));
     const y = Math.max(56, Math.min(maxY, p1.y + 10));
     bar.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
