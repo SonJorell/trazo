@@ -1,6 +1,7 @@
 import { normalizeRect } from '/shared/geometry.js';
 import { effectiveWidth } from '/shared/elements.js';
 import { getImage, imageUrlOf } from './assets.js';
+import { drawChair } from '../avatars/figure.js';
 
 /** Papel oscuro (pizarra negra/verde): la tinta negra por defecto se muestra clara. */
 let darkPaper = false;
@@ -178,6 +179,7 @@ function drawShape(ctx, el, width, color, { fill = true } = {}) {
  */
 export function drawElement(ctx, el) {
   if (el.type === 'image' || el.type === 'doc' || el.type === 'file') return drawMedia(ctx, el);
+  if (el.type === 'chair') return drawChair(ctx, el);
   const brush = el.brush ?? 'pen';
   const ink = inkOf(el);
   const width = effectiveWidth(el);

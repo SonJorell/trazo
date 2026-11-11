@@ -3,7 +3,7 @@ import { ICONS } from './icons.js';
 import { api } from '../util/api.js';
 
 /** Abre un modal con `content`; devuelve { close, node }. */
-function modal(content, { dismissable = true, onDismiss } = {}) {
+export function modal(content, { dismissable = true, onDismiss } = {}) {
   const backdrop = h('div', { class: 'modal-backdrop' });
   const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' }, content);
   backdrop.append(box);
