@@ -20,7 +20,7 @@ const MAX_FILE = 40 * 1024 * 1024;
  *  - Cualquier otro archivo → tarjeta que se descarga con doble toque.
  * Los archivos de Office se convierten a PDF en el PC anfitrión.
  */
-export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, goToPage, select }) {
+export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, goToPage, select, onPasteElements = () => false }) {
   const busy = new Set();
 
   /** Rectángulo del mundo donde colocar algo de proporción w:h (centrado en la vista). */
@@ -214,7 +214,11 @@ export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, g
     const tag = e.target?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const files = [...(e.clipboardData?.files ?? [])];
-    if (!files.length) return;
+    if (!files.length) {
+      // Sin archivos: pegar los elementos copiados en la pizarra (Ctrl+C / Ctrl+V).
+      if (onPasteElements()) e.preventDefault();
+      return;
+    }
     e.preventDefault();
     attachFiles(files);
   });

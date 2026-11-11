@@ -2,6 +2,7 @@ import { MSG } from '/shared/protocol.js';
 import { h } from '../ui/dom.js';
 import { ICONS } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
+import { pagesDialog } from '../ui/dialogs.js';
 
 /**
  * Herramientas de la sesión compartida:
@@ -9,17 +10,24 @@ import { toast } from '../ui/toast.js';
  * - Temporizador: cuenta regresiva visible para todos.
  * - Votación rápida: el anfitrión pregunta, los demás votan y se ven los resultados en vivo.
  */
-export function setupSession({ connection, scene, canSteer, isHost }) {
+export function setupSession({ connection, scene, canSteer, isHost, paintThumb = () => {} }) {
   // ---------------- Páginas ----------------
   const prevBtn = h('button', { class: 'icon-btn', title: 'Página anterior', 'aria-label': 'Página anterior' }, '‹');
   const nextBtn = h('button', { class: 'icon-btn', title: 'Página siguiente (crea una nueva al final)', 'aria-label': 'Página siguiente' }, '›');
-  const label = h('span', { class: 'page-label', title: 'Página actual' });
+  const number = h('span', { class: 'page-number' });
+  const titleEl = h('span', { class: 'page-title' });
+  const label = h('button', { class: 'page-label', title: 'Página actual (toca para ponerle título)' }, number, titleEl);
   const group = h('div', { class: 'group page-group' }, prevBtn, label, nextBtn);
   document.querySelector('.bottombar').append(group);
+  let titles = {}; // página → título
 
+  const titleOf = (n) => titles[String(n)] ?? '';
   const paintPages = () => {
     const steer = canSteer();
-    label.textContent = `Pág. ${scene.page + 1}/${scene.pageCount()}`;
+    number.textContent = `Pág. ${scene.page + 1}/${scene.pageCount()}`;
+    titleEl.textContent = titleOf(scene.page);
+    titleEl.hidden = !titleOf(scene.page);
+    label.title = `${titleOf(scene.page) || 'Página actual'} — toca para ver todas las páginas`;
     prevBtn.disabled = !steer || scene.page === 0;
     nextBtn.disabled = !steer;
     group.classList.toggle('readonly', !steer);
@@ -29,6 +37,24 @@ export function setupSession({ connection, scene, canSteer, isHost }) {
     connection.send({ t: MSG.PAGE, n });
     scene.setPage(n); // se aplica ya; el servidor confirma a todos
   };
+  const setTitle = (n, title) => {
+    titles = { ...titles, [String(n)]: title };
+    if (!title) delete titles[String(n)];
+    connection.send({ t: MSG.PAGE_TITLE, n, title });
+    paintPages();
+  };
+  // Vista de páginas: miniaturas, ir a una página y ponerle título.
+  label.addEventListener('click', () =>
+    pagesDialog({
+      count: scene.pageCount(),
+      current: scene.page,
+      canEdit: canSteer(),
+      titleOf,
+      paintThumb,
+      onGo: goTo,
+      onTitle: setTitle,
+    }),
+  );
   prevBtn.addEventListener('click', () => goTo(scene.page - 1));
   nextBtn.addEventListener('click', () => goTo(scene.page + 1));
   scene.on('change', paintPages);
@@ -108,6 +134,7 @@ export function setupSession({ connection, scene, canSteer, isHost }) {
   connection.on('message', (msg) => {
     if (msg.t === MSG.WELCOME) {
       scene.setPage(msg.page ?? 0);
+      titles = msg.pageTitles ?? {};
       timer = msg.timer;
       if (msg.poll?.id !== poll?.id) myVote = null;
       poll = msg.poll;
@@ -116,6 +143,10 @@ export function setupSession({ connection, scene, canSteer, isHost }) {
       paintPoll();
     } else if (msg.t === MSG.PAGE) {
       scene.setPage(msg.n);
+    } else if (msg.t === MSG.PAGE_TITLE) {
+      titles = { ...titles, [String(msg.n)]: msg.title };
+      if (!msg.title) delete titles[String(msg.n)];
+      paintPages();
     } else if (msg.t === MSG.TIMER) {
       timer = msg.timer;
       if (timer) toast('Comenzó el temporizador');
@@ -207,5 +238,5 @@ export function setupSession({ connection, scene, canSteer, isHost }) {
     requestAnimationFrame(() => question.focus());
   }
 
-  return { timerDialog, pollDialog, goTo, paintPages, icons: { timer: ICONS.timer, poll: ICONS.poll } };
+  return { timerDialog, pollDialog, goTo, paintPages, titleOf, icons: { timer: ICONS.timer, poll: ICONS.poll } };
 }

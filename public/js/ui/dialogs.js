@@ -321,8 +321,20 @@ export function choiceDialog({ title, message = '', options }) {
  * @param {{ current, patterns: Record<string,string>, colors: Record<string,string>, paint, canEdit, onPick }} opts
  *   paint(canvas, bg) dibuja la miniatura.
  */
-export function backgroundDialog({ current, patterns, colors, paint, canEdit, onPick }) {
+export function backgroundDialog({ current, page = 0, pageHasOwn = false, patterns, colors, paint, canEdit, onPick }) {
   let bg = { ...current };
+  let onlyThisPage = pageHasOwn;
+  const scopeAll = h('button', { class: 'seg', onclick: () => setScope(false), disabled: !canEdit }, 'Todas las páginas');
+  const scopeOne = h('button', { class: 'seg', onclick: () => setScope(true), disabled: !canEdit }, `Solo la página ${page + 1}`);
+  const paintScope = () => {
+    scopeAll.classList.toggle('active', !onlyThisPage);
+    scopeOne.classList.toggle('active', onlyThisPage);
+  };
+  const setScope = (one) => {
+    onlyThisPage = one;
+    paintScope();
+    if (canEdit) onPick(bg, onlyThisPage);
+  };
   const swatches = [];
   const tiles = [];
   const refresh = () => {
@@ -336,7 +348,7 @@ export function backgroundDialog({ current, patterns, colors, paint, canEdit, on
     if (!canEdit) return;
     bg = { ...bg, ...partial };
     refresh();
-    onPick(bg);
+    onPick(bg, onlyThisPage);
   };
   const tileNodes = Object.entries(patterns).map(([pattern, label]) => {
     const canvas = h('canvas', { width: 96, height: 64 });
@@ -357,8 +369,74 @@ export function backgroundDialog({ current, patterns, colors, paint, canEdit, on
       canEdit ? null : h('p', { class: 'muted' }, 'Solo el anfitrión (o quien tenga permiso) puede cambiar el fondo.'),
       h('div', { class: 'bg-grid' }, ...tileNodes),
       h('div', { class: 'row bg-papers' }, h('span', { class: 'muted' }, 'Papel:'), ...swatchNodes),
+      h('div', { class: 'segmented', role: 'group', 'aria-label': 'Aplicar a' }, scopeAll, scopeOne),
       h('div', { class: 'row end' }, h('button', { class: 'btn primary', onclick: () => close() }, 'Listo')),
     ),
   );
   refresh();
+  paintScope();
+}
+
+/**
+ * Vista de todas las páginas: miniatura, número y título de cada una.
+ * @param {{ count, current, canEdit, titleOf(n), paintThumb(canvas, n), onGo(n), onTitle(n, title) }} opts
+ */
+export function pagesDialog({ count, current, canEdit, titleOf, paintThumb, onGo, onTitle }) {
+  const titleInput = h('input', {
+    type: 'text',
+    value: titleOf(current),
+    maxlength: '60',
+    placeholder: canEdit ? 'Escribe un título (p. ej. Introducción)' : 'Sin título',
+    disabled: !canEdit,
+    'aria-label': `Título de la página ${current + 1}`,
+  });
+  let saved = titleOf(current);
+  const saveTitle = () => {
+    const v = titleInput.value.trim();
+    if (!canEdit || v === saved) return;
+    saved = v;
+    onTitle(current, v);
+  };
+  titleInput.addEventListener('change', saveTitle);
+  titleInput.addEventListener('keydown', (e) => e.key === 'Enter' && (e.preventDefault(), saveTitle(), titleInput.blur()));
+
+  const cards = [];
+  for (let n = 0; n < count; n++) {
+    const canvas = h('canvas', { width: 320, height: 200 });
+    const card = h(
+      'button',
+      {
+        class: `page-card${n === current ? ' active' : ''}`,
+        disabled: !canEdit && n !== current,
+        title: canEdit ? `Ir a la página ${n + 1}` : '',
+        onclick: () => {
+          saveTitle();
+          close();
+          if (n !== current) onGo(n);
+        },
+      },
+      canvas,
+      h('span', { class: 'page-card-label' }, h('strong', {}, String(n + 1)), ' ', titleOf(n) || ''),
+    );
+    cards.push(card);
+    // Se dibujan después de abrir para no demorar el diálogo.
+    requestAnimationFrame(() => paintThumb(canvas, n));
+  }
+  if (canEdit) {
+    cards.push(
+      h('button', { class: 'page-card new', onclick: () => (saveTitle(), close(), onGo(count)) }, h('span', { class: 'plus' }, '+'), h('span', { class: 'page-card-label' }, 'Página nueva')),
+    );
+  }
+  const { close } = modal(
+    h(
+      'div',
+      { class: 'stack' },
+      h('h2', {}, 'Páginas'),
+      h('label', { class: 'stack small-gap' }, h('span', { class: 'muted small' }, `Título de la página ${current + 1}`), titleInput),
+      h('div', { class: 'page-grid' }, cards),
+      h('div', { class: 'row end' }, h('button', { class: 'btn primary', onclick: () => (saveTitle(), close()) }, 'Listo')),
+    ),
+    { onDismiss: saveTitle },
+  );
+  document.querySelector('.modal')?.classList.add('wide');
 }
