@@ -33,6 +33,9 @@ import { drawPattern, paperColors, PATTERN_LABELS, COLOR_LABELS } from '../rende
 import { setupAttachments } from '../attach/attachments.js';
 import { createDocBar } from '../attach/docBar.js';
 import { createClipboard } from '../core/clipboard.js';
+import { setupParticipants } from '../ui/participants.js';
+import { Avatars } from '../avatars/avatars.js';
+import { avatarDialog } from '../avatars/dialog.js';
 import { getBounds } from '/shared/geometry.js';
 import { NOTE_PADDING } from '../render/draw.js';
 import { setupSession } from '../session/session.js';
@@ -281,7 +284,10 @@ const tools = createTools(ctx);
 let tool = tools.get('pen');
 const toolButtons = new Map();
 
+/** Las visitas solo pueden mover la vista (y reaccionar/votar desde sus botones). */
+let readOnly = false;
 function setTool(name) {
+  if (readOnly && name !== 'hand') name = 'hand';
   if (textEditor.active) textEditor.commit();
   tool.cancel();
   tool = tools.get(name);
@@ -463,8 +469,30 @@ bind('#menu-btn', 'menu', (e) => {
 document.addEventListener('pointerdown', (e) => {
   if (!menu.hidden && !menu.contains(e.target) && e.target !== $('#menu-btn')) menu.hidden = true;
 });
-const menuItem = (icon, label, fn) =>
-  h('button', { class: 'menu-item', onclick: () => ((menu.hidden = true), fn()) }, h('span', { html: ICONS[icon] }), label);
+const menuItem = (icon, label, fn, extraClass = '') =>
+  h('button', { class: `menu-item ${extraClass}`, onclick: () => ((menu.hidden = true), fn()) }, h('span', { html: ICONS[icon] }), label);
+let openParticipants = () => {};
+const participantsItem = menuItem('users', 'Participantes y permisos', () => openParticipants());
+let openAvatarDialog = () => {};
+const avatarItem = menuItem('camera', 'Mi cámara y avatar (monigote)', () => openAvatarDialog());
+avatarItem.classList.add('needs-edit');
+
+/** Para el modo «en un lugar de la pizarra»: el próximo toque ubica la cámara. */
+function placeAnchorOnce() {
+  const done = toast('Toca la pizarra donde quieres dejar tu cámara', { sticky: true });
+  const onDown = (e) => {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    canvas.removeEventListener('pointerdown', onDown, true);
+    done();
+    const rect = canvas.getBoundingClientRect();
+    const p = viewport.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    avatars?.setLook({ mode: 'anchor', anchor: { x: Math.round(p.x), y: Math.round(p.y), p: scene.page } });
+    toast('Listo: tu cámara quedó en ese lugar');
+  };
+  canvas.addEventListener('pointerdown', onDown, true);
+}
+participantsItem.hidden = true;
 menu.append(
   menuItem('home', 'Inicio', () => (location.href = '/')),
   menuItem('download', 'Exportar imagen PNG', doExport),
@@ -473,14 +501,20 @@ menu.append(
     const ok = await exportPdf(scene, `trazo-${room}.pdf`, { backgroundFor, titleFor: (n) => session?.titleOf(n) ?? '' });
     if (!ok) toast('La pizarra está vacía');
   }),
-  menuItem('attach', 'Adjuntar archivo (foto, PDF, PowerPoint…)', () => attachments.pick()),
-  menuItem('paper', 'Fondo de la hoja', openBackgroundDialog),
+  menuItem('attach', 'Adjuntar archivo (foto, PDF, PowerPoint…)', () => attachments.pick(), 'needs-edit'),
+  menuItem('paper', 'Fondo de la hoja', openBackgroundDialog, 'needs-edit'),
+  participantsItem,
+  avatarItem,
   menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
-  menuItem('eraser', 'Borrar mis trazos', clearMine),
-  menuItem('trash', 'Limpiar pizarra', () => clearBoard()),
+  menuItem('eraser', 'Borrar mis trazos', clearMine, 'needs-edit'),
+  menuItem('trash', 'Limpiar pizarra', () => clearBoard(), 'needs-edit'),
 );
 
 // ---------- Pantalla compartida en vivo (fondo) ----------
+let stopMyCamera = () => {};
+let getSelfVideo = () => null;
+let camBubbles = null; // burbujas de cámaras (solo en la presentación principal)
+let avatars = null;
 // Quien transmite envía cuadros; los demás la ven de fondo en (0,0,w,h) del mundo.
 let screenSeq = 0;
 let followScreen = true; // reajustar al girar o cambiar de tamaño mientras no se mueva la vista a mano
@@ -688,6 +722,7 @@ const attachments = setupAttachments({
   viewport,
   getViewSize: () => (OVERLAY ? { width: window.innerWidth, height: window.innerHeight } : { width: renderer.width, height: renderer.height }),
   goToPage: (n) => session?.goTo(n),
+  canEdit: () => !readOnly,
   onPasteElements: () => clipboard.size > 0 && clipboard.paste() > 0,
   select: (ids) => {
     if (tool.name !== 'select') setTool('select');
@@ -771,6 +806,7 @@ const TOOL_KEYS = new Map(TOOL_DEFS.map((d) => [d.key, d.name]));
 window.addEventListener('keydown', (e) => {
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (readOnly && e.code !== 'Space') return; // visitas: sin atajos de edición
   const mod = e.ctrlKey || e.metaKey;
   const key = e.key.toLowerCase();
   if (e.code === 'Space') {
@@ -821,7 +857,10 @@ attachPointerInput(canvas, {
     textEditor.reposition();
     render();
   },
-  onCursor: (p) => sync?.sendCursor(p),
+  onCursor: (p) => {
+    sync?.sendCursor(p);
+    avatars?.setPointer(p);
+  },
   isSpaceDown: () => spaceDown,
   lockView: OVERLAY,
   onUserView: () => {
@@ -878,7 +917,7 @@ async function start() {
 
   // Quien proyecta (overlay o anfitrión) recibe las cámaras de los demás.
   const isDisplay = isHost;
-  const connection = new Connection({ room, getJoin: () => ({ name, pin, hostKey, display: isDisplay }) });
+  const connection = new Connection({ room, getJoin: () => ({ name, pin, hostKey, display: isDisplay, clientId: AUTHOR_ID }) });
   const hostChip = $('#host-chip');
   connection.on('message', (msg) => {
     if (msg.t !== 'welcome') return;
@@ -890,6 +929,56 @@ async function start() {
     }
   });
   const presence = new Presence($('#presence'), { overlay, render });
+  // Roles: visita (mira, reacciona, vota), editor y presentador. El anfitrión los administra.
+  const participants = setupParticipants({
+    connection,
+    presence,
+    isHost: () => isHost,
+    onRoleChange: (role) => {
+      readOnly = role === 'visita';
+      avatars?.setEnabled(!readOnly);
+      if (readOnly) {
+        setTool('hand');
+        $('#style-panel').classList.remove('open');
+        stopMyCamera();
+        if (textEditor.active) textEditor.commit();
+      } else if (tool.name === 'hand' && !OVERLAY) setTool('pen');
+    },
+  });
+  participantsItem.hidden = !isHost;
+
+  // Cámaras y monigotes de cada persona.
+  avatars = new Avatars({
+    scene,
+    viewport,
+    overlay,
+    render,
+    toast,
+    send: (msg) => connection.send(msg),
+    getMe: () => presence.me,
+    getPeers: () => presence.peers,
+    getFloor: () => {
+      const view = presenterView ?? (OVERLAY ? viewport.visibleRect(window.innerWidth, window.innerHeight) : viewport.visibleRect(renderer.width, renderer.height));
+      return { y: view.y + view.h - 12, view };
+    },
+    onLookChange: (id, look) => camBubbles?.setLook(id, look),
+    addChair: (el) => {
+      const tx = ctx.begin();
+      tx.add({ ...el, page: scene.page, author: AUTHOR_ID });
+      tx.commit();
+    },
+  });
+  avatars.videoFor = (id) => camBubbles?.videoOf(id) ?? null;
+  avatars.selfVideo = () => getSelfVideo();
+  renderer.avatars = avatars;
+  if (window.__trazo) window.__trazo.avatars = avatars;
+  connection.on('message', (msg) => avatars.handle(msg));
+  openAvatarDialog = () => {
+    if (readOnly) return toast('Como visita no puedes mostrar tu cámara ni un monigote');
+    avatarDialog({ avatars, cameraOn: Boolean(getSelfVideo()), onPlaceAnchor: placeAnchorOnce });
+  };
+  openParticipants = () => participants.open();
+  $('#presence').addEventListener('click', () => isHost && participants.open());
   const latencyEl = $('#latency');
   sync = new Sync({
     scene,
@@ -1079,6 +1168,7 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   let receiver = null;
   if (isDisplay) {
     const bubbles = new CameraBubbles({ getName, onClose: (id) => receiver.close(id, true) });
+    camBubbles = bubbles;
     receiver = new CameraReceiver({
       connection,
       onStream: (id, stream) => bubbles.show(id, stream),
@@ -1091,6 +1181,8 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   const selfView = $('#self-view');
   const selfVideo = $('#self-video');
   $('#cam-flip').innerHTML = ICONS.flip;
+  $('#cam-look').innerHTML = ICONS.smile;
+  $('#cam-look').addEventListener('click', () => openAvatarDialog());
   $('#cam-stop').innerHTML = ICONS.cameraOff;
   const displays = () => [...presence.peers.values()].filter((p) => p.display).map((p) => p.id);
   const camera = new CameraSender({
@@ -1110,6 +1202,7 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   camBtn.hidden = OVERLAY;
   camBtn.addEventListener('click', async () => {
     if (camera.active) return camera.stop();
+    if (readOnly) return toast('Como visita no puedes encender la cámara');
     if (!CameraSender.supported()) return cameraHttpsDialog(room);
     try {
       await camera.start();
@@ -1120,6 +1213,8 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   });
   $('#cam-flip').addEventListener('click', () => camera.switchCamera().catch((err) => toast(err.message)));
   $('#cam-stop').addEventListener('click', () => camera.stop());
+  stopMyCamera = () => camera.active && camera.stop();
+  getSelfVideo = () => (camera.active ? selfVideo : null);
 
   // ----- Control de diapositivas con permiso -----
   let controllerOnline = false;

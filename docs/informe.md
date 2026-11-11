@@ -125,6 +125,15 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) a pantalla completa en el celular se pintaba fondo oscuro sin transmisión (cada uno veía un fondo distinto); (2) el panel de estilo no se desplazaba en pantallas bajas; (3) halo del neón excesivo con trazos gruesos |
 
+### Versión 2.3 — Roles y avatares
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 48/48 (nueva: rol por defecto, visita bloqueada para dibujar/avatar, reacciona, pide permiso, pasa a editor, avatar monigote con posición, «todos a visita» apaga avatares, rol recordado al volver) |
+| E2E `tests/e2e/v23.py` | 8/8: visita con solo la mano y barra de permiso, solicitud aceptada por el anfitrión, monigote que camina hacia el puntero y cae al suelo, silla y sentarse visto por el anfitrión, «todos a visita» |
+| Regresión E2E | `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) el monigote saltaba sin parar si el puntero estaba arriba (ahora solo salta para subirse a algo); (2) brazos invisibles sobre el vestido; (3) el nombre quedaba fuera de la pantalla bajo los pies |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

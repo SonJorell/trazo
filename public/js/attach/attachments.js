@@ -20,7 +20,7 @@ const MAX_FILE = 40 * 1024 * 1024;
  *  - Cualquier otro archivo → tarjeta que se descarga con doble toque.
  * Los archivos de Office se convierten a PDF en el PC anfitrión.
  */
-export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, goToPage, select, onPasteElements = () => false }) {
+export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, goToPage, select, canEdit = () => true, onPasteElements = () => false }) {
   const busy = new Set();
 
   /** Rectángulo del mundo donde colocar algo de proporción w:h (centrado en la vista). */
@@ -162,6 +162,7 @@ export function setupAttachments({ room, getToken, ctx, viewport, getViewSize, g
 
   /** Adjunta una lista de archivos (de uno en uno, para no saturar la red). */
   async function attachFiles(list) {
+    if (!canEdit()) return toast('Como visita no puedes adjuntar archivos');
     for (const file of list) {
       if (busy.has(file)) continue;
       busy.add(file);

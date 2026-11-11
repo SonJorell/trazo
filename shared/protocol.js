@@ -22,6 +22,11 @@
  *   background { pattern, color, page? } Fondo de hoja (anfitrión o con permiso). Con `page`
  *                                       solo esa página; sin `page`, todas (y se borran los propios).
  *   page-title { n, title }             Título de una página (anfitrión o con permiso).
+ *   role { to, role } | { all } | { default }  (anfitrión) Cambia el rol de alguien, de todos o el
+ *                                       rol con que entra la gente nueva → peer-role / room-roles.
+ *   role-request {}                     (visita) Pide permiso para dibujar → llega al anfitrión.
+ *   avatar { mode, shape, color, figure, anchor? }  Cómo se muestra mi cámara/monigote.
+ *   avatar-pos { x, y, f, w, s, p }     Posición del monigote (efímero).
  *   stroke { id, from, pts, s? }        Trazo en vivo: puntos nuevos desde el índice `from` (efímero; llega con `by`).
  *   ping { ts } → pong { ts }           Medición de latencia.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
@@ -72,6 +77,12 @@ export const MSG = Object.freeze({
   POLL_CLOSE: 'poll-close',
   BACKGROUND: 'background',
   PAGE_TITLE: 'page-title',
+  ROLE: 'role',
+  PEER_ROLE: 'peer-role',
+  ROLE_REQUEST: 'role-request',
+  ROOM_ROLES: 'room-roles',
+  AVATAR: 'avatar',
+  AVATAR_POS: 'avatar-pos',
   STROKE: 'stroke',
   PING: 'ping',
   PONG: 'pong',
@@ -106,6 +117,7 @@ export const ERR = Object.freeze({
   ROOM_FULL: 'room_full',
   CONTROL_DENIED: 'control_denied',
   NOT_HOST: 'not_host',
+  READ_ONLY: 'read_only',
   NO_CONTROLLER: 'no_controller',
 });
 
@@ -167,6 +179,49 @@ export function validateStroke(msg) {
   // Estilo del trazo: solo en el primer trozo (se valida como un elemento completo al recibirlo).
   if (msg.s && typeof msg.s === 'object') out.s = msg.s;
   return out;
+}
+
+/**
+ * Roles de los participantes (el anfitrión siempre es «host»):
+ *  - visita: mira, reacciona y vota (ideal para salas grandes o votaciones).
+ *  - editor: además dibuja, escribe, adjunta, usa láser y cámara.
+ *  - presentador: además pasa páginas/diapositivas y cambia fondo y títulos.
+ */
+export const ROLES = Object.freeze(['visita', 'editor', 'presentador']);
+export const ROLE_LABELS = Object.freeze({ host: 'Anfitrión', visita: 'Visita', editor: 'Editor', presentador: 'Presentador' });
+export const CLIENT_ID_RE = /^[A-Za-z0-9_-]{4,40}$/;
+
+/** Cámara y avatar de cada persona. */
+export const AVATAR_MODES = Object.freeze(['off', 'fixed', 'pointer', 'anchor', 'body']);
+export const AVATAR_SHAPES = Object.freeze(['auto', 'circle', 'rounded', 'square']);
+export const AVATAR_FIGURES = Object.freeze(['hombre', 'mujer', 'neutro']);
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const coordOk = (v) => Number.isFinite(v) && Math.abs(v) <= 1e7;
+
+export function validateAvatar(msg) {
+  if (!AVATAR_MODES.includes(msg?.mode)) return null;
+  const out = {
+    mode: msg.mode,
+    shape: AVATAR_SHAPES.includes(msg.shape) ? msg.shape : 'auto',
+    color: HEX_RE.test(msg.color) ? msg.color : '#4263eb',
+    figure: AVATAR_FIGURES.includes(msg.figure) ? msg.figure : 'neutro',
+  };
+  const a = msg.anchor;
+  if (a && coordOk(a.x) && coordOk(a.y)) out.anchor = { x: Math.round(a.x), y: Math.round(a.y), p: pageOf(a.p) ?? 0 };
+  return out;
+}
+
+export function validateAvatarPos(msg) {
+  if (!coordOk(msg?.x) || !coordOk(msg?.y)) return null;
+  return {
+    x: Math.round(msg.x),
+    y: Math.round(msg.y),
+    f: msg.f === -1 ? -1 : 1, // hacia dónde mira
+    w: Number.isFinite(msg.w) ? Math.round(Math.min(1, Math.max(0, msg.w)) * 100) / 100 : 0, // fase de la caminata
+    m: msg.m === true, // ¿se está moviendo?
+    s: msg.s === true, // ¿sentado?
+    p: pageOf(msg.p) ?? 0,
+  };
 }
 
 /** Valida una votación: pregunta corta y entre 2 y 6 opciones. */

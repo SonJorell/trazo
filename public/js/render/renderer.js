@@ -22,6 +22,7 @@ export class Renderer {
     this.live = live; // trazos ajenos a medio dibujar
     this.background = { pattern: 'dots', color: 'white' };
     this.onDraw = null; // aviso tras cada dibujo (p. ej. para colocar la barra del documento)
+    this.avatars = null; // cámaras y monigotes ({ drawWorld(ctx), drawScreen(ctx) } → ¿hay animación?)
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.scene = scene;
@@ -93,6 +94,7 @@ export class Renderer {
       this.live.prune(this.scene);
       for (const el of this.live.visible(this.scene.page)) drawElement(ctx, el);
     }
+    if (this.avatars?.drawWorld(ctx)) this.requestRender();
     this._drawSelection();
     this._drawMarquee();
     // Puntero láser: mientras haya estelas, se sigue animando.
@@ -100,6 +102,7 @@ export class Renderer {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._drawCursors();
+    if (this.avatars?.drawScreen(ctx)) this.requestRender();
     this.onDraw?.();
   }
 

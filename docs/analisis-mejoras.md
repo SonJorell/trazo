@@ -132,6 +132,15 @@ interfaz para tablet y celular. Próximas candidatas:
 | 16 | Modo presentador: notas privadas por página visibles solo para el anfitrión | Medio | Medio |
 | 17 | Bloquear elementos (fondo de documento que no se mueva al anotar) | Medio | Bajo |
 
+**v2.3** sumó roles (visita/editor/presentador) administrados por el anfitrión y cámaras
+personalizables con modo monigote. Próximas candidatas:
+
+| Prioridad | Mejora | Impacto | Esfuerzo |
+|-----------|--------|---------|----------|
+| 18 | Ver las cámaras de todos en todos los equipos (SFU o malla pequeña) | Medio | Alto |
+| 19 | Más accesorios del monigote (sombrero, lentes) y gestos (saludar, aplaudir con reacciones) | Bajo | Bajo |
+| 20 | Votación anónima por rol y exportar resultados a CSV | Medio | Bajo |
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:
