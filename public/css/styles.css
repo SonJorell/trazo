@@ -2364,3 +2364,5 @@ body[data-role='host'] #presence { cursor: pointer; }
 .avatar-body { padding: 10px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); }
 .avatar-body .swatch { width: 30px; height: 30px; }
 body[data-role='visita'] .needs-edit { display: none; }
+/* Visitas en modo simple (celular): la mano sigue disponible para mover la vista. */
+body.simple[data-role='visita'] .toolbar .tool[data-tool='hand'] { display: inline-flex !important; }
