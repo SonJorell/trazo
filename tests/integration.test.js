@@ -358,9 +358,9 @@ test('puntero láser y reacciones se reenvían validados', async () => {
   assert.deepEqual(laser.pts, [[1, 3], [10, 20]]);
   assert.equal(laser.c, '#00ff00');
 
-  a.send({ t: 'reaction', e: '👏' });
+  a.send({ t: 'reaction', e: 'party' });
   const r = await b.next('reaction');
-  assert.deepEqual({ e: r.e, name: r.name }, { e: '👏', name: 'Ana' });
+  assert.deepEqual({ e: r.e, name: r.name }, { e: 'party', name: 'Ana' });
   a.send({ t: 'reaction', e: '<script>' });
   assert.equal((await a.next('error')).code, 'bad_request');
   a.ws.close();
@@ -558,8 +558,8 @@ test('v2.3: roles (visita/editor/presentador), solicitud de permiso y avatares',
   ana.send({ t: 'ops', ops: [{ id: 'visita0001', type: 'pen', version: 1, x: 0, y: 0, points: [[0, 0]] }] });
   assert.equal((await ana.next('error')).code, 'read_only');
   ana.send({ t: 'avatar', mode: 'body', color: '#ff0000' });
-  ana.send({ t: 'reaction', e: '👍' });
-  assert.equal((await host.next('reaction')).e, '👍');
+  ana.send({ t: 'reaction', e: 'like' });
+  assert.equal((await host.next('reaction')).e, 'like');
   ana.send({ t: 'role', to: ana.ws.id, role: 'editor' }); // no es anfitriona
   assert.equal((await ana.next('error')).code, 'not_host');
 

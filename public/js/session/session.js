@@ -12,8 +12,8 @@ import { pagesDialog } from '../ui/dialogs.js';
  */
 export function setupSession({ connection, scene, canSteer, isHost, paintThumb = () => {} }) {
   // ---------------- Páginas ----------------
-  const prevBtn = h('button', { class: 'icon-btn', title: 'Página anterior', 'aria-label': 'Página anterior' }, '‹');
-  const nextBtn = h('button', { class: 'icon-btn', title: 'Página siguiente (crea una nueva al final)', 'aria-label': 'Página siguiente' }, '›');
+  const prevBtn = h('button', { class: 'icon-btn', title: 'Página anterior', 'aria-label': 'Página anterior', html: ICONS.chevronLeft });
+  const nextBtn = h('button', { class: 'icon-btn', title: 'Página siguiente (crea una nueva al final)', 'aria-label': 'Página siguiente', html: ICONS.chevronRight });
   const number = h('span', { class: 'page-number' });
   const titleEl = h('span', { class: 'page-title' });
   const label = h('button', { class: 'page-label', title: 'Página actual (toca para ponerle título)' }, number, titleEl);
@@ -72,7 +72,7 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
     const left = Math.max(0, timer.endsAt - Date.now());
     if (left === 0) {
       if (!doneShownAt) doneShownAt = Date.now();
-      timerChip.textContent = '⏰ ¡Tiempo!';
+      timerChip.replaceChildren(h('span', { class: 'chip-icon', html: ICONS.alarm }), '¡Tiempo!');
       timerChip.classList.add('done');
       if (Date.now() - doneShownAt > 8000) timerChip.hidden = true;
       return;
@@ -82,7 +82,7 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
     timerChip.hidden = false;
     timerChip.classList.remove('done');
     timerChip.classList.toggle('ending', s <= 10);
-    timerChip.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    timerChip.replaceChildren(h('span', { class: 'chip-icon', html: ICONS.timer }), `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
   };
   setInterval(paintTimer, 250);
 
@@ -203,8 +203,8 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
     const presets = [
       ['Sí', 'No'],
       ['A', 'B', 'C', 'D'],
-      ['👍', '👎'],
-      ['😀', '😐', '🙁'],
+      ['De acuerdo', 'En desacuerdo'],
+      ['Bien', 'Regular', 'Mal'],
       ['1', '2', '3', '4', '5'],
     ];
     modal((close) =>

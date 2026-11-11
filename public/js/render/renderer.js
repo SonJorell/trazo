@@ -165,7 +165,7 @@ export class Renderer {
     ctx.font = '12px system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     let moving = false;
-    for (const c of overlay.cursors.values()) {
+    for (const [id, c] of overlay.cursors) {
       if (now - c.at > 6000) continue;
       if (c.page !== undefined && c.page !== this.scene.page) continue;
       // Interpolación suave hacia la última posición recibida.
@@ -180,6 +180,17 @@ export class Renderer {
       const p = vp.toScreen(c.x, c.y);
       if (p.x < -20 || p.y < -20 || p.x > this.width + 20 || p.y > this.height + 20) continue;
       ctx.fillStyle = c.color;
+      if (this.avatars?.hidesLabel(id)) {
+        // Su cámara (con su nombre) va junto al puntero: solo se dibuja la flecha.
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + 3, p.y + 15);
+        ctx.lineTo(p.x + 7, p.y + 10);
+        ctx.lineTo(p.x + 14, p.y + 9);
+        ctx.closePath();
+        ctx.fill();
+        continue;
+      }
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x + 3, p.y + 15);

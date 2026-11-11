@@ -2,7 +2,7 @@
 
 ## Resumen ejecutivo
 
-Trazo ya cubre lo esencial: una presentación principal (★) en el PC del proyector y
+Trazo ya cubre lo esencial: una presentación principal en el PC del proyector y
 participantes que dibujan, encienden su cámara o piden pasar diapositivas. El análisis del
 recorrido de cada rol muestra que lo que más frena la fluidez **no es la falta de funciones,
 sino los pasos sueltos**: varias ventanas que abrir, una advertencia de certificado, marcas que
@@ -11,7 +11,7 @@ se quedan de una diapositiva a otra y ninguna forma rápida de señalar o reacci
 En esta versión se resolvieron las fricciones de mayor impacto y menor esfuerzo:
 
 - **Puntero láser** que se desvanece, para señalar sin ensuciar.
-- **Reacciones** con emojis sobre la proyección.
+- **Reacciones** con íconos sobre la proyección.
 - **Borrado automático** de las marcas al pasar de diapositiva.
 - **«Borrar mis trazos».**
 - **Pinceles**: marcador, resaltador y neón.
@@ -53,7 +53,7 @@ clasificó cada fricción por **impacto** (cuánto corta el ritmo de la presenta
 | Fricción | Impacto | Estado |
 |----------|---------|--------|
 | Para señalar algo hay que dibujar y después borrar | Alto | **Resuelto**: puntero láser que se desvanece en ~1,3 s |
-| No hay forma de reaccionar sin hablar o escribir | Medio | **Resuelto**: reacciones 👍 👏 ❤️ 😂 😮 🎉 ❓ ✋ |
+| No hay forma de reaccionar sin hablar o escribir | Medio | **Resuelto**: reacciones con 8 íconos (desde v2.4; antes emojis) |
 | Borrar lo propio sin tocar lo de los demás | Medio | **Resuelto**: «Borrar mis trazos» (deshacible) |
 | Advertencia de certificado la primera vez (cámara) | Medio | Documentado; hoja de ruta: certificado de confianza opcional (mkcert) |
 | Pocos estilos que se lean bien proyectados | Medio | **Resuelto**: marcador, resaltador, neón, 18 colores (6 neón), líneas y opacidad |
@@ -79,7 +79,7 @@ clasificó cada fricción por **impacto** (cuánto corta el ritmo de la presenta
 - **Láser**: mensajes `laser` efímeros (máx. 64 puntos por mensaje) que el servidor reenvía sin
   guardar. Cada participante usa su color de presencia. Las estelas se dibujan con brillo y se
   desvanecen.
-- **Reacciones**: mensajes `reaction` restringidos a una lista de emojis, con un máximo de una
+- **Reacciones**: mensajes `reaction` restringidos a una lista fija (claves de íconos desde v2.4), con un máximo de una
   cada 600 ms por persona.
 - **Auto-limpiar**: botón en la barra del overlay, recordado en el PC. Al recibir
   siguiente, anterior, inicio o fin desde el control remoto, limpia la pizarra (se puede deshacer).
@@ -104,7 +104,7 @@ y la 10.
 | 4 | **Seguir al presentador**: los participantes ven automáticamente lo que el anfitrión encuadra | Medio | Medio |
 | 5 | Modo **«solo anotar»** para celulares: láser, lápiz, color y deshacer | Medio | Bajo |
 | 6 | **Notas adhesivas** y **figuras/íconos** prediseñados (check, cruz, estrella, numeración) | Medio | Medio |
-| 7 | **Temporizador** y **pregunta rápida** (votación con emojis contabilizada) | Medio | Medio |
+| 7 | **Temporizador** y **pregunta rápida** (votación contabilizada) | Medio | Medio |
 | 8 | **Exportar PDF** con todas las páginas anotadas al terminar | Medio | Medio |
 | 9 | Certificado de confianza opcional (mkcert) para evitar la advertencia | Bajo | Medio |
 | 10 | Grabación de la sesión (pantalla + marcas) | Bajo | Alto |
@@ -148,7 +148,7 @@ Los cuatro objetivos específicos quedan atendidos en esta versión:
 1. Señalar, reaccionar y limpiar lo propio cuestan un solo toque.
 2. Las marcas pueden acompañar a la diapositiva con «Auto-limpiar».
 3. Los pinceles neón, el marcador y el resaltador se leen bien proyectados.
-4. El anfitrión mantiene el control con permisos y la presentación principal única (★).
+4. El anfitrión mantiene el control con permisos y la presentación principal única.
 
 El siguiente salto de fluidez está en **páginas por diapositiva** y en un **acceso único
 «Presentar»**.

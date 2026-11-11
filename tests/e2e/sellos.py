@@ -13,7 +13,7 @@ with sync_playwright() as p:
     pg.goto(BASE+'/'); pg.evaluate("localStorage.setItem('trazo:name', JSON.stringify('Ana'))")
     pg.goto(f"{BASE}/sala?room={room['id']}"); pg.wait_for_selector('#status[data-state="online"]')
     pg.click('[data-tool="stamp"]'); pg.mouse.click(200, 300)
-    pg.click('#style-toggle'); pg.click('.stamp-opt:has-text("★")')
+    pg.click('#style-toggle'); pg.click('.stamp-opt[aria-label="Sello Estrella"]')
     pg.click('#style-toggle')
     pg.mouse.click(120, 420)
     pg.wait_for_timeout(500)

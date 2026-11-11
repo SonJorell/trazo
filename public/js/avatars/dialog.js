@@ -1,5 +1,6 @@
 import { h } from '../ui/dom.js';
 import { modal } from '../ui/dialogs.js';
+import { ICONS } from '../ui/icons.js';
 
 const SHAPES = { auto: 'Automática', circle: 'Círculo', rounded: 'Redondeada', square: 'Cuadrada' };
 const MODES = {
@@ -8,7 +9,7 @@ const MODES = {
   anchor: { label: 'En un lugar de la pizarra', desc: 'Queda fija donde toques (se mueve con la pizarra).' },
   body: { label: 'Monigote', desc: 'Tu cámara es la cabeza de un personaje que camina hacia tu puntero, salta y se sienta.' },
 };
-const FIGURES = { hombre: 'Hombre', mujer: 'Mujer', neutro: 'Neutro' };
+const FIGURES = { neutro: 'Neutro', hombre: 'Hombre', mujer: 'Mujer' };
 const COLORS = ['#4263eb', '#e03131', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#c2255c', '#1e1e1e'];
 
 /**
@@ -73,7 +74,7 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
             h(
               'div',
               { class: 'row wrap' },
-              h('button', { class: 'btn small', onclick: () => avatars.placeChair() }, '🪑 Agregar silla'),
+              h('button', { class: 'btn small with-icon', onclick: () => avatars.placeChair() }, h('span', { html: ICONS.chair }), 'Agregar silla'),
               avatars.seated
                 ? h('button', { class: 'btn small primary', onclick: () => (avatars.standUp(), paint()) }, 'Levantarme')
                 : h('button', { class: 'btn small primary', onclick: () => (avatars.sitDown(), paint()) }, 'Sentarme en la silla más cercana'),
@@ -83,11 +84,11 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
         : null;
     const anchorOptions =
       look.mode === 'anchor'
-        ? h('div', { class: 'row wrap' }, h('button', { class: 'btn small', onclick: () => (close(), onPlaceAnchor()) }, '📍 Cambiar de lugar'))
+        ? h('div', { class: 'row wrap' }, h('button', { class: 'btn small with-icon', onclick: () => (close(), onPlaceAnchor()) }, h('span', { html: ICONS.pin }), 'Cambiar de lugar'))
         : null;
     body.replaceChildren(
       h('h2', {}, 'Mi cámara y avatar'),
-      cameraOn ? null : h('p', { class: 'muted small' }, 'Tu cámara está apagada: el monigote se verá con tus iniciales. Enciéndela con el botón 📷.'),
+      cameraOn ? null : h('p', { class: 'muted small' }, 'Tu cámara está apagada: el monigote se verá con tus iniciales. Enciéndela con el botón de cámara de arriba.'),
       h('h4', {}, 'Dónde se ve'),
       modeCards,
       anchorOptions,

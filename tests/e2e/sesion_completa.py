@@ -45,7 +45,7 @@ with sync_playwright() as p:
     part.evaluate("() => localStorage.setItem('trazo:name', JSON.stringify('Ana'))")
     part.goto(f'{BASE}/sala?room={rid}')
     part.wait_for_selector('#status[data-state="online"]')
-    check('Participante sin ★ (no es principal)', not part.is_visible('#host-chip'))
+    check('Participante sin la marca de principal', not part.is_visible('#host-chip'))
     check('Modo simple activo por defecto en el celular', part.evaluate("document.body.classList.contains('simple')"))
     visible_tools = part.evaluate("[...document.querySelectorAll('.tool[data-tool]')].filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.tool)")
     check('Modo simple muestra solo lo esencial', set(visible_tools) == {'pen', 'laser', 'eraser', 'note', 'stamp'}, str(visible_tools))
@@ -94,7 +94,7 @@ with sync_playwright() as p:
     host.click('.menu-item:has-text("Temporizador")')
     host.click('.timer-presets button:has-text("3 min")')
     part.wait_for_selector('.timer-chip:not([hidden])')
-    check('Temporizador visible para el participante', '⏱' in part.inner_text('.timer-chip'), part.inner_text('.timer-chip'))
+    check('Temporizador visible para el participante', ':' in part.inner_text('.timer-chip') and part.locator('.timer-chip svg').count() == 1, part.inner_text('.timer-chip'))
 
     # ---------- Votación
     host.click('#menu-btn')
@@ -108,7 +108,7 @@ with sync_playwright() as p:
 
     # ---------- Reacción y láser
     part.click('#react-btn')
-    part.click('.react-opt >> nth=1')
+    part.click(".react-opt >> nth=1")
     host.wait_for_selector('.reaction', timeout=3000)
     check('La reacción aparece en el anfitrión', 'Ana' in host.inner_text('.reaction-layer'))
 
