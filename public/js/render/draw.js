@@ -7,6 +7,7 @@ let darkPaper = false;
 export function setDarkPaper(on) {
   darkPaper = Boolean(on);
 }
+export const isDarkPaperSet = () => darkPaper;
 const DEFAULT_INK = '#1e1e1e';
 const inkOf = (el) => (darkPaper && el.stroke === DEFAULT_INK && el.type !== 'note' ? '#f1f3f5' : el.stroke);
 
@@ -190,7 +191,7 @@ export function drawElement(ctx, el) {
 
   if (brush === 'neon' && el.type !== 'note') {
     ctx.shadowColor = ink;
-    ctx.shadowBlur = Math.max(10, el.strokeWidth * 5);
+    ctx.shadowBlur = Math.min(36, Math.max(10, el.strokeWidth * 3)); // halo acotado: con trazos gruesos no se vuelve una mancha
     drawShape(ctx, el, width, ink);
     drawShape(ctx, el, width, ink, { fill: false }); // segunda pasada: halo más intenso
     ctx.shadowBlur = 0;
