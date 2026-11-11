@@ -51,7 +51,7 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-28 | *(v1.4)* Una sola presentación principal por sala: la de quien la creó (clave de anfitrión). |
 | RF-29 | *(v1.5)* Pinceles lápiz, marcador, resaltador y neón; colores neón; líneas discontinua/punteada; opacidad. |
 | RF-30 | *(v1.5)* Puntero láser efímero compartido. |
-| RF-31 | *(v1.5)* Reacciones con emojis visibles para todos. |
+| RF-31 | *(v1.5)* Reacciones visibles para todos (íconos vectoriales desde v2.4). |
 | RF-32 | *(v1.5)* Borrar solo mis trazos; auto-limpiar marcas al pasar de diapositiva. |
 | RF-33 | *(v2.0)* Páginas compartidas; modo «marcas por diapositiva» en el overlay. |
 | RF-34 | *(v2.0)* Seguir al presentador (vista del anfitrión). |
@@ -75,6 +75,9 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-52 | *(v2.3)* Roles visita/editor/presentador administrados por el anfitrión (por persona, todos a la vez y rol por defecto), aplicados en el servidor y recordados por navegador. |
 | RF-53 | *(v2.3)* Las visitas piden permiso para dibujar; el anfitrión lo concede desde un aviso. |
 | RF-54 | *(v2.3)* Cada persona elige la forma de su cámara y dónde se ve: fija, siguiendo su puntero o anclada en la pizarra. |
+| RF-56 | *(v2.4)* La cámara que sigue al puntero se ve con su forma y nombre junto al cursor, con movimiento suave. |
+| RF-57 | *(v2.4)* Monigote neutro por defecto con animación fluida (predicción, suavizado y caminata articulada). |
+| RF-58 | *(v2.4)* Interfaz sin emojis: reacciones, sellos y controles con íconos vectoriales. |
 | RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
@@ -170,6 +173,9 @@ y el linter pasa.
 | T-40 | Panel de participantes | Rol por persona, todos, por defecto; aviso de solicitudes; barra de visita | Terminado |
 | T-41 | Avatares | `avatar`/`avatar-pos`, física del monigote, sillas, modos puntero/anclado, diálogo | Terminado |
 | T-42 | Pruebas v2.3 | Integración (48) + E2E `v23.py` (8) + regresión | Terminado |
+| T-43 | Íconos | Sellos vectoriales (`stamp`), reacciones por clave, controles con SVG | Terminado |
+| T-44 | Monigote fluido | Bucle por cuadro, velocidad en `avatar-pos`, predicción y suavizado, figura articulada | Terminado |
+| T-45 | Pruebas v2.4 | E2E `v24.py` con cámara simulada (8) + regresión | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro

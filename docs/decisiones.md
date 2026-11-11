@@ -371,3 +371,21 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Consecuencias**: la cámara se mueve con la pizarra y queda alineada con lo dibujado. Como las
   cámaras solo viajan a la presentación principal (WebRTC 1→anfitrión), los demás ven el
   monigote con iniciales; ver todas las cámaras en todos los equipos queda como trabajo futuro.
+
+## ADR-041 — Íconos vectoriales en lugar de emojis
+
+- **Decisión**: todos los símbolos de la interfaz son SVG propios (trazo de 2 px). Las reacciones
+  viajan como claves (`like`, `love`, `laugh`, `wow`, `party`, `idea`, `question`, `hand`) y los
+  sellos son un tipo de elemento `stamp` con un ícono vectorial que se dibuja con `Path2D`.
+- **Consecuencias**: aspecto profesional y uniforme (los emojis cambian según el sistema y no
+  siguen el color de la tinta); los sellos se pueden redimensionar sin perder nitidez y toman el
+  color elegido. Los sellos antiguos (texto) se siguen viendo.
+
+## ADR-042 — Monigote: física por cuadro y animación derivada del movimiento
+
+- **Decisión**: la física del dueño corre con `requestAnimationFrame` (paso real, acotado a 50 ms)
+  y comparte posición y velocidad cada 50 ms. Los demás predicen con la velocidad (máx. 120 ms) y
+  suavizan con un filtro exponencial independiente de los FPS. La fase de la caminata, la amplitud,
+  la inclinación y el «estar en el aire» se calculan en cada equipo a partir del movimiento que ve.
+- **Consecuencias**: el monigote se ve continuo aunque los mensajes lleguen con saltos; no hace
+  falta enviar la pose completa.
