@@ -1,6 +1,6 @@
 {
   "name": "trazo",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Pizarra colaborativa en tiempo real, gratuita y autoalojada, para usar desde el PC y el celular en la misma red.",
   "type": "module",
   "main": "server/index.js",

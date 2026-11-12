@@ -31,13 +31,15 @@ trazo/
 │   ├── config.js           Configuración por variables de entorno
 │   ├── http/               static.js (archivos), api.js (REST + QR)
 │   ├── realtime/           socketServer.js (protocolo), rateLimiter.js (token bucket)
-│   ├── rooms/              Room.js (estado), RoomManager.js (ciclo de vida), pin.js (scrypt)
+│   ├── rooms/              Room.js (estado), RoomManager.js (ciclo de vida), pin.js (scrypt),
+│   │                       archive.js (guardar/abrir salas .trazo)
 │   ├── storage/            FileStore.js (JSON en disco), MemoryStore.js (pruebas)
 │   ├── tls/                certificate.js (certificado HTTPS local autogenerado)
 │   └── util/               logger.js, network.js (IPs de la red local)
 ├── shared/                 Código usado por servidor Y navegador
 │   ├── elements.js         Modelo, saneo y regla LWW
 │   ├── geometry.js         Límites y pruebas de impacto
+│   ├── binding.js          Flechas pegadas a formas (cálculo del borde y recálculo)
 │   └── protocol.js         Tipos de mensaje, errores y validaciones
 ├── overlay/                App de escritorio (Electron): main.js, preload.cjs, keys.ps1, icon.png
 ├── public/                 Cliente (HTML/CSS/JS nativo, sin compilación)
@@ -53,10 +55,11 @@ trazo/
 │       ├── net/            connection.js (reconexión), sync.js (puente escena ↔ red)
 │       ├── overlay/        overlayMode.js, screenShare.js, magnifier.js (lupa), remoteControl.js
 │       ├── control/        main.js (página /control del celular)
-│       ├── media/          cameras.js (CameraSender / CameraReceiver, WebRTC)
+│       ├── media/          cameras.js (CameraSender / CameraReceiver, WebRTC), recorder.js (grabación)
 │       ├── ui/             barra, panel de estilo, presencia, diálogos, editor de texto, avisos
-│       └── util/           api.js, storage.js, emitter.js
-├── tests/                  Pruebas con node:test (unitarias + integración)
+│       └── util/           api.js, storage.js, emitter.js, pwa.js
+├── tests/                  Pruebas con node:test (unitarias + integración) y e2e/ (Playwright/Selenium)
+├── .github/                CI (workflows/ci.yml) y plantilla de pull request
 └── docs/                   Requerimientos, arquitectura, decisiones, informe
 ```
 
