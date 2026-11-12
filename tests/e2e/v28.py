@@ -70,7 +70,7 @@ with sync_playwright() as p:
     check('mover solo la flecha la despega', not any(t3['bind']), str(t3['bind']))
 
     # 5. Nota: el clic que cierra el editor no crea otra nota vacía.
-    host.keyboard.press('n'); host.mouse.click(860, 250); host.wait_for_selector('.note-editor')
+    host.keyboard.press('n'); host.mouse.click(860, 250); host.wait_for_function("document.activeElement?.classList.contains('note-editor')")
     host.keyboard.type('Para guardar'); host.mouse.click(950, 650); host.wait_for_timeout(300)
     notes = host.evaluate("window.__trazo.scene.alive().filter(e => e.type === 'note').map(e => e.text)")
     check('cerrar el editor con un clic no crea otra nota', notes == ['Para guardar'], str(notes))
