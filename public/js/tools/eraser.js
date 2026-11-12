@@ -5,7 +5,7 @@ export function createEraserTool(ctx) {
   const eraseAt = (p) => {
     const tol = ctx.tol(10);
     for (const el of ctx.scene.alive()) {
-      if (ctx.hit(el, p, tol)) tx.update(el.id, { isDeleted: true });
+      if (!el.locked && ctx.hit(el, p, tol)) tx.update(el.id, { isDeleted: true });
     }
   };
 

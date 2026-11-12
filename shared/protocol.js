@@ -27,6 +27,10 @@
  *   role-request {}                     (visita) Pide permiso para dibujar → llega al anfitrión.
  *   avatar { mode, shape, color, figure, anchor? }  Cómo se muestra mi cámara/monigote.
  *   avatar-pos { x, y, f, w, s, p }     Posición del monigote (efímero).
+ *   page-op { op, n, to? }              Mover/duplicar/borrar una página (anfitrión o con permiso)
+ *                                       → ops + page-meta { pageTitles, pageBackgrounds } + page.
+ *   notes { n, text }                   (anfitrión) Notas privadas de una página; solo las reciben
+ *                                       los anfitriones.
  *   stroke { id, from, pts, s? }        Trazo en vivo: puntos nuevos desde el índice `from` (efímero; llega con `by`).
  *   ping { ts } → pong { ts }           Medición de latencia.
  *   control { key, action, ... }        (celular) Orden para el PC: diapositivas o lupa.
@@ -83,6 +87,9 @@ export const MSG = Object.freeze({
   ROOM_ROLES: 'room-roles',
   AVATAR: 'avatar',
   AVATAR_POS: 'avatar-pos',
+  PAGE_OP: 'page-op',
+  PAGE_META: 'page-meta',
+  NOTES: 'notes',
   STROKE: 'stroke',
   PING: 'ping',
   PONG: 'pong',
@@ -224,6 +231,24 @@ export function validateAvatarPos(msg) {
     s: msg.s === true, // ¿sentado?
     p: pageOf(msg.p) ?? 0,
   };
+}
+
+export const PAGE_OPS = Object.freeze(['move', 'duplicate', 'delete']);
+export const MAX_NOTES = 4000;
+
+export function validatePageOp(msg) {
+  if (!PAGE_OPS.includes(msg?.op) || !Number.isInteger(msg.n) || msg.n < 0 || msg.n > 999) return null;
+  const out = { op: msg.op, n: msg.n };
+  if (msg.op === 'move') {
+    if (!Number.isInteger(msg.to) || msg.to < 0 || msg.to > 999) return null;
+    out.to = msg.to;
+  }
+  return out;
+}
+
+export function validateNotes(msg) {
+  if (!Number.isInteger(msg?.n) || msg.n < 0 || msg.n > 999 || typeof msg.text !== 'string') return null;
+  return { n: msg.n, text: msg.text.replace(/\p{Cc}/gu, (c) => (c === '\n' || c === '\t' ? c : '')).slice(0, MAX_NOTES) };
 }
 
 /** Valida una votación: pregunta corta y entre 2 y 6 opciones. */

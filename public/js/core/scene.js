@@ -99,10 +99,11 @@ export class Scene extends Emitter {
     this.emit(transient ? 'local-transient' : 'local', el);
   }
 
-  /** Elemento visible más al frente bajo el punto. */
-  hitTop(x, y, tol) {
+  /** Elemento visible más al frente bajo el punto (los bloqueados se ignoran salvo que se pidan). */
+  hitTop(x, y, tol, { locked = false } = {}) {
     const list = this.alive();
     for (let i = list.length - 1; i >= 0; i--) {
+      if (!locked && list[i].locked) continue;
       if (hitTest(list[i], x, y, tol)) return list[i];
     }
     return null;

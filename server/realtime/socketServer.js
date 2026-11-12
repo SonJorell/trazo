@@ -15,6 +15,8 @@ import {
   validateView,
   validateBackground,
   validatePageTitle,
+  validatePageOp,
+  validateNotes,
   pageOf,
   validateStroke,
   validateAvatar,
@@ -114,6 +116,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         else if (msg.t === MSG.STROKE) relayStroke(msg);
         else if (msg.t === MSG.BACKGROUND) setBackground(msg);
         else if (msg.t === MSG.PAGE_TITLE) setPageTitle(msg);
+        else if (msg.t === MSG.PAGE_OP) pageOp(msg);
+        else if (msg.t === MSG.NOTES) setNotes(msg);
         else if (msg.t === MSG.VIEW) setView(msg);
         else if (msg.t === MSG.TIMER) setTimer(msg);
         else if (msg.t === MSG.POLL) openPoll(msg);
@@ -159,6 +163,7 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         background: room.background,
         pageBackgrounds: room.pageBackgrounds,
         pageTitles: room.pageTitles,
+        notes: host ? room.notes : undefined, // privadas: solo para el anfitrión
         view: room.view,
         timer: room.timer,
         poll: room.publicPoll(),
@@ -358,6 +363,35 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       }
       room.onChange(room);
       room.broadcast({ t: MSG.BACKGROUND, ...bg });
+    }
+
+    function pageOp(msg) {
+      const room = client.room;
+      if (!room.canSteer(client.peer)) return fail(ERR.CONTROL_DENIED, 'Solo el anfitrión (o quien tenga permiso) organiza las páginas');
+      const op = validatePageOp(msg);
+      if (!op) return fail(ERR.BAD_REQUEST, 'Operación de página inválida');
+      const result = room.pageOp(op);
+      if (!result) return fail(ERR.BAD_REQUEST, 'No se pudo hacer el cambio de página');
+      // Todos (incluido quien lo pidió) reciben los cambios del servidor.
+      for (let i = 0; i < result.changed.length; i += 500) {
+        room.broadcast({ t: MSG.OPS, from: client.id, ops: result.changed.slice(i, i + 500) });
+      }
+      room.broadcast({ t: MSG.PAGE_META, pageTitles: room.pageTitles, pageBackgrounds: room.pageBackgrounds });
+      const notes = JSON.stringify({ t: MSG.NOTES, all: room.notes });
+      for (const peer of room.peers.values()) if (peer.host) peer.send(notes);
+      room.broadcast({ t: MSG.PAGE, n: room.page, from: client.id });
+    }
+
+    function setNotes(msg) {
+      if (!requireHost('escribir notas del presentador')) return;
+      const notes = validateNotes(msg);
+      if (!notes) return fail(ERR.BAD_REQUEST, 'Notas inválidas');
+      const room = client.room;
+      if (notes.text.trim()) room.notes[String(notes.n)] = notes.text;
+      else delete room.notes[String(notes.n)];
+      room.onChange(room);
+      const payload = JSON.stringify({ t: MSG.NOTES, ...notes });
+      for (const peer of room.peers.values()) if (peer.host && peer.id !== client.id) peer.send(payload);
     }
 
     function setPageTitle(msg) {

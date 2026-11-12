@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { sanitizeElement, shouldReplace, LIMITS } from '../../shared/elements.js';
+import { sanitizeElement, shouldReplace, LIMITS, bump, randomId, randomNonce, MAX_PAGE } from '../../shared/elements.js';
 import { ROLES, CLIENT_ID_RE } from '../../shared/protocol.js';
 
 /** Copia un objeto «página → valor» descartando claves que no sean números de página. */
@@ -43,6 +43,7 @@ export class Room {
     this.background = data.background ?? { pattern: 'dots', color: 'white' }; // fondo de hoja (todas las páginas)
     this.pageBackgrounds = plainMap(data.pageBackgrounds); // fondo propio de algunas páginas { "2": {...} }
     this.pageTitles = plainMap(data.pageTitles); // títulos de página { "0": "Introducción" }
+    this.notes = plainMap(data.notes); // notas privadas del presentador por página
     // Roles: rol con que entra la gente nueva y el de cada persona (por su id de navegador).
     this.defaultRole = ROLES.includes(data.defaultRole) ? data.defaultRole : 'editor';
     this.roles = {};
@@ -155,6 +156,73 @@ export class Room {
     return { accepted, rejected, full };
   }
 
+  /** Cantidad de páginas: la última con contenido, la visible o la última con título/fondo/notas. */
+  pageCount() {
+    let count = this.page + 1;
+    for (const el of this.elements.values()) if (!el.isDeleted) count = Math.max(count, (el.page ?? 0) + 1);
+    for (const map of [this.pageTitles, this.pageBackgrounds, this.notes]) for (const k of Object.keys(map)) count = Math.max(count, Number(k) + 1);
+    return count;
+  }
+
+  /**
+   * Mueve, duplica o borra una página completa (elementos, título, fondo y notas) de una vez.
+   * @returns {{ changed: object[], page: number } | null}
+   */
+  pageOp({ op, n, to }) {
+    const count = this.pageCount();
+    if (n >= count) return null;
+    if (op === 'duplicate' && count > MAX_PAGE) return null;
+    // Nueva posición de cada página antigua (-1 = borrada).
+    const newIndex = [];
+    if (op === 'move') {
+      const order = [...Array(count).keys()];
+      order.splice(n, 1);
+      order.splice(Math.min(to, count - 1), 0, n);
+      order.forEach((old, pos) => (newIndex[old] = pos));
+    } else if (op === 'delete') {
+      for (let i = 0; i < count; i++) newIndex[i] = i < n ? i : i === n ? -1 : i - 1;
+    } else {
+      for (let i = 0; i < count; i++) newIndex[i] = i <= n ? i : i + 1;
+    }
+    const changed = [];
+    const copies = new Map(); // id original → id de la copia (para re-anclar anotaciones)
+    for (const el of [...this.elements.values()]) {
+      if (el.isDeleted) continue;
+      const old = el.page ?? 0;
+      const ni = newIndex[old] ?? old;
+      if (ni === -1) changed.push(bump(el, { isDeleted: true }));
+      else if (ni !== old) changed.push(bump(el, { page: ni }));
+      if (op === 'duplicate' && old === n) copies.set(el.id, randomId());
+    }
+    if (op === 'duplicate') {
+      for (const [id, copyId] of copies) {
+        const el = this.elements.get(id);
+        const copy = { ...el, id: copyId, version: 1, nonce: randomNonce(), page: n + 1 };
+        if (el.anchor && copies.has(el.anchor)) copy.anchor = copies.get(el.anchor);
+        changed.push(copy);
+      }
+    }
+    if (this.elements.size + (op === 'duplicate' ? copies.size : 0) > LIMITS.maxElementsPerRoom) return null;
+    for (const el of changed) this.elements.set(el.id, el);
+    // Títulos, fondos y notas siguen a su página.
+    const remap = (map, dupSuffix = '') => {
+      const out = {};
+      for (const [k, v] of Object.entries(map)) {
+        const ni = newIndex[Number(k)] ?? Number(k);
+        if (ni !== -1) out[String(ni)] = v;
+        if (op === 'duplicate' && Number(k) === n) out[String(n + 1)] = typeof v === 'string' && dupSuffix ? `${v}${dupSuffix}`.slice(0, 60) : v;
+      }
+      return out;
+    };
+    this.pageTitles = remap(this.pageTitles, ' (copia)');
+    this.pageBackgrounds = remap(this.pageBackgrounds);
+    this.notes = remap(this.notes);
+    const np = newIndex[this.page];
+    this.page = op === 'duplicate' && this.page === n ? n + 1 : np === -1 ? Math.max(0, n - 1) : np ?? this.page;
+    this.onChange(this);
+    return { changed, page: this.page };
+  }
+
   /**
    * Envía un mensaje a todos los participantes salvo `exceptId`.
    * `volatile`: el mensaje se puede descartar si la conexión de un participante va atrasada
@@ -204,6 +272,7 @@ export class Room {
       background: this.background,
       pageBackgrounds: this.pageBackgrounds,
       pageTitles: this.pageTitles,
+      notes: this.notes,
       defaultRole: this.defaultRole,
       roles: this.roles,
       hostKey: this.hostKeyHash,

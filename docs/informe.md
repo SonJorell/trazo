@@ -143,6 +143,14 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) la etiqueta del cursor quedaba tapada por la cámara que lo sigue; (2) el monigote se veía a saltos (física a 30 Hz y pose enviada); (3) pies bajo la barra inferior; (4) rodillas que se doblaban hacia adelante |
 
+### Versión 2.5 — Organización de páginas, bloqueo, notas y CSV
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 50/50 (nueva: duplicar con anclas re-mapeadas y bloqueo conservado, mover, borrar, títulos y notas que siguen a su página, notas solo para anfitriones, permisos) |
+| E2E `tests/e2e/v25.py` | 9/9: duplicar, mover y borrar páginas vistos por la invitada, bloqueo (no se selecciona ni se borra), desbloqueo, notas privadas que sobreviven a recargar, CSV de votación |
+| Regresión E2E | `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para
