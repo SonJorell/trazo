@@ -141,6 +141,10 @@ personalizables con modo monigote. Próximas candidatas:
 | 19 | Más accesorios del monigote (sombrero, lentes) y gestos (saludar, aplaudir con reacciones) | Bajo | Bajo |
 | 20 | Votación anónima por rol y exportar resultados a CSV | Medio | Bajo |
 
+**v2.5** resolvió la 14 (organizar páginas), la 17 (bloquear), la 16 (notas del presentador) y
+el CSV de la 20. Siguen abiertas: ver todas las cámaras en todos los equipos (18), accesorios y
+gestos del monigote (19) y compartir la pantalla del celular (13).
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:

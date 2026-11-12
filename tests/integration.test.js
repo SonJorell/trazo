@@ -598,3 +598,65 @@ test('v2.3: roles (visita/editor/presentador), solicitud de permiso y avatares',
   assert.equal((await again.next('welcome')).you.role, 'visita');
   for (const c of [host, again]) c.ws.close();
 });
+
+test('v2.5: mover, duplicar y borrar páginas; notas privadas del presentador; bloqueo', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const ana = connect();
+  await Promise.all([host.opened, ana.opened]);
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey });
+  const wh = await host.next('welcome');
+  assert.deepEqual(wh.notes, {});
+  ana.send({ t: 'join', room: id, name: 'Ana' });
+  const wa = await ana.next('welcome');
+  assert.equal(wa.notes, undefined, 'las notas no llegan a los participantes');
+  await host.next('peer-join');
+
+  // Tres páginas con un elemento cada una (la 1 con un documento y su anotación anclada).
+  const el = (i, page, extra = {}) => ({ id: `pagina00${i}`, type: 'rect', version: 1, x: 0, y: 0, w: 10, h: 10, page, ...extra });
+  host.send({
+    t: 'ops',
+    ops: [el(0, 0), el(1, 1, { locked: true }), { ...el(2, 1), anchor: 'pagina001', anchorPage: 0 }, el(3, 2)],
+  });
+  await ana.next('ops');
+  host.send({ t: 'page-title', n: 1, title: 'Medio' });
+  await ana.next('page-title');
+  host.send({ t: 'notes', n: 1, text: 'Recordar\nla demo' });
+  host.send({ t: 'ping', ts: 1 });
+  await host.next('pong');
+
+  // Duplicar la página 1 → copia en la 2 (con anclaje re-mapeado) y la antigua 2 pasa a 3.
+  host.send({ t: 'page-op', op: 'duplicate', n: 1 });
+  const dup = await ana.next('ops');
+  const copies = dup.ops.filter((o) => o.version === 1);
+  assert.equal(copies.length, 2);
+  const copyDoc = copies.find((o) => !o.anchor);
+  assert.ok(copyDoc.locked, 'la copia conserva el bloqueo');
+  assert.equal(copies.find((o) => o.anchor).anchor, copyDoc.id);
+  assert.ok(dup.ops.some((o) => o.id === 'pagina003' && o.page === 3));
+  const meta = await ana.next('page-meta');
+  assert.deepEqual(meta.pageTitles, { 1: 'Medio', 2: 'Medio (copia)' });
+  const notes = await host.next('notes');
+  assert.deepEqual(notes.all, { 1: 'Recordar\nla demo', 2: 'Recordar\nla demo' });
+  assert.equal((await ana.next('page')).n, 0);
+
+  // Mover la página 3 al principio.
+  host.send({ t: 'page-op', op: 'move', n: 3, to: 0 });
+  const moved = await ana.next('ops');
+  assert.equal(moved.ops.find((o) => o.id === 'pagina003').page, 0);
+  assert.equal(moved.ops.find((o) => o.id === 'pagina000').page, 1);
+  await ana.next('page-meta');
+
+  // Borrar la página 0 (la que se movió): sus elementos quedan borrados y el resto sube.
+  host.send({ t: 'page-op', op: 'delete', n: 0 });
+  const del = await ana.next('ops');
+  assert.ok(del.ops.find((o) => o.id === 'pagina003').isDeleted);
+  assert.equal(del.ops.find((o) => o.id === 'pagina000').page, 0);
+
+  // Una participante sin permiso no puede organizar páginas ni escribir notas.
+  ana.send({ t: 'page-op', op: 'delete', n: 0 });
+  assert.equal((await ana.next('error')).code, 'control_denied');
+  ana.send({ t: 'notes', n: 0, text: 'x' });
+  assert.equal((await ana.next('error')).code, 'not_host');
+  for (const c of [host, ana]) c.ws.close();
+});

@@ -50,6 +50,11 @@ export function createSelectTool(ctx) {
       }
 
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(6));
+      if (!hit) {
+        // Un documento bloqueado no se selecciona, pero se puede hojear con su barra.
+        const lockedHit = ctx.scene.hitTop(p.x, p.y, ctx.tol(6), { locked: true });
+        if (lockedHit?.type === 'doc') ctx.activateDoc?.(lockedHit.id);
+      }
       if (hit) {
         const now = Date.now();
         if (lastTap.id === hit.id && now - lastTap.at < DOUBLE_TAP_MS) {
@@ -108,7 +113,7 @@ export function createSelectTool(ctx) {
         ctx.overlay.marquee = m;
         const ids = ctx.scene
           .alive()
-          .filter((el) => rectsIntersect(m, getBounds(el)))
+          .filter((el) => !el.locked && rectsIntersect(m, getBounds(el)))
           .map((el) => el.id);
         ctx.select(ids, true);
       }

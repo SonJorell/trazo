@@ -2,7 +2,7 @@ import { MSG } from '/shared/protocol.js';
 import { h } from '../ui/dom.js';
 import { ICONS } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
-import { pagesDialog } from '../ui/dialogs.js';
+import { pagesDialog, confirmDialog } from '../ui/dialogs.js';
 
 /**
  * Herramientas de la sesión compartida:
@@ -53,8 +53,23 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
       paintThumb,
       onGo: goTo,
       onTitle: setTitle,
+      onPageOp: pageOp,
     }),
   );
+
+  /** Mover, duplicar o borrar una página (lo hace el servidor para todos). */
+  async function pageOp(op, n, to) {
+    if (op === 'delete') {
+      const ok = await confirmDialog(
+        `¿Borrar la página ${n + 1} con todo lo que tiene? Las páginas siguientes suben un lugar. No se puede deshacer.`,
+        { okLabel: 'Borrar página', danger: true },
+      );
+      if (!ok) return;
+    }
+    connection.send({ t: MSG.PAGE_OP, op, n, ...(op === 'move' ? { to } : {}) });
+    // Se vuelve a abrir la vista para ver el nuevo orden.
+    setTimeout(() => label.click(), 450);
+  }
   prevBtn.addEventListener('click', () => goTo(scene.page - 1));
   nextBtn.addEventListener('click', () => goTo(scene.page + 1));
   scene.on('change', paintPages);
@@ -124,12 +139,33 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
             poll.open
               ? h('button', { class: 'btn small', onclick: () => connection.send({ t: MSG.POLL_CLOSE }) }, 'Cerrar votación')
               : null,
+            h('button', { class: 'btn small ghost with-icon', title: 'Descargar resultados (CSV para Excel)', onclick: downloadCsv }, h('span', { html: ICONS.csv }), 'CSV'),
             h('button', { class: 'btn small ghost', onclick: () => connection.send({ t: MSG.POLL_CLOSE, clear: true }) }, 'Quitar'),
           )
         : null,
     ];
     pollCard.replaceChildren(...children.filter(Boolean));
   };
+
+  /** Resultados de la votación en CSV (con BOM para que Excel respete los acentos). */
+  function downloadCsv() {
+    if (!poll) return;
+    const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
+    const rows = [
+      [q('Pregunta'), q(poll.question || 'Votación')],
+      [],
+      [q('Opción'), q('Votos'), q('Porcentaje')],
+      ...poll.options.map((opt, i) => [q(opt), poll.counts[i], poll.total ? `${Math.round((poll.counts[i] / poll.total) * 100)}%` : '0%']),
+      [],
+      [q('Total'), poll.total],
+    ];
+    const csv = `\ufeff${rows.map((r) => r.join(';')).join('\r\n')}`;
+    const a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })), download: `votacion-${new Date().toISOString().slice(0, 10)}.csv` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
 
   connection.on('message', (msg) => {
     if (msg.t === MSG.WELCOME) {
@@ -143,6 +179,9 @@ export function setupSession({ connection, scene, canSteer, isHost, paintThumb =
       paintPoll();
     } else if (msg.t === MSG.PAGE) {
       scene.setPage(msg.n);
+    } else if (msg.t === MSG.PAGE_META) {
+      titles = msg.pageTitles ?? {};
+      paintPages();
     } else if (msg.t === MSG.PAGE_TITLE) {
       titles = { ...titles, [String(msg.n)]: msg.title };
       if (!msg.title) delete titles[String(msg.n)];
