@@ -23,6 +23,13 @@ export class History extends Emitter {
     this.redoStack = [];
   }
 
+  /** Olvida el historial (p. ej. tras reorganizar páginas en el servidor). */
+  clear() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.emit('change');
+  }
+
   get canUndo() {
     return this.undoStack.length > 0;
   }

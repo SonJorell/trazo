@@ -381,7 +381,7 @@ export function backgroundDialog({ current, page = 0, pageHasOwn = false, patter
  * Vista de todas las páginas: miniatura, número y título de cada una.
  * @param {{ count, current, canEdit, titleOf(n), paintThumb(canvas, n), onGo(n), onTitle(n, title) }} opts
  */
-export function pagesDialog({ count, current, canEdit, titleOf, paintThumb, onGo, onTitle }) {
+export function pagesDialog({ count, current, canEdit, titleOf, paintThumb, onGo, onTitle, onPageOp = () => {} }) {
   const titleInput = h('input', {
     type: 'text',
     value: titleOf(current),
@@ -418,7 +418,32 @@ export function pagesDialog({ count, current, canEdit, titleOf, paintThumb, onGo
       canvas,
       h('span', { class: 'page-card-label' }, h('strong', {}, String(n + 1)), ' ', titleOf(n) || ''),
     );
-    cards.push(card);
+    // Acciones de la página (mover, duplicar, borrar) para quien puede organizar.
+    const act = (icon, label, fn, disabled = false) =>
+      h('button', {
+        class: 'icon-btn small',
+        title: label,
+        'aria-label': `${label} (página ${n + 1})`,
+        html: ICONS[icon],
+        disabled,
+        onclick: (e) => {
+          e.stopPropagation();
+          saveTitle();
+          close();
+          fn();
+        },
+      });
+    const actions = canEdit
+      ? h(
+          'div',
+          { class: 'page-card-actions' },
+          act('chevronLeft', 'Mover antes', () => onPageOp('move', n, n - 1), n === 0),
+          act('chevronRight', 'Mover después', () => onPageOp('move', n, n + 1), n >= count - 1),
+          act('copy', 'Duplicar', () => onPageOp('duplicate', n)),
+          act('trash', 'Borrar', () => onPageOp('delete', n), count <= 1),
+        )
+      : null;
+    cards.push(h('div', { class: 'page-card-wrap' }, card, actions));
     // Se dibujan después de abrir para no demorar el diálogo.
     requestAnimationFrame(() => paintThumb(canvas, n));
   }

@@ -2399,3 +2399,49 @@ body.simple[data-role='visita'] .toolbar .tool[data-tool='hand'] { display: inli
 .slide-btn svg, .doc-bar .icon-btn svg, .page-group .icon-btn svg { display: block; }
 .ctl-small svg { vertical-align: -3px; }
 .ctl-arrow svg { display: block; }
+
+/* ===== v2.5: páginas, bloqueo y notas ===== */
+.page-card-wrap { display: flex; flex-direction: column; gap: 4px; }
+.page-card-actions { display: flex; justify-content: center; gap: 2px; }
+.icon-btn.small { width: 30px; height: 30px; }
+.icon-btn.small svg { width: 16px; height: 16px; }
+.notes-panel {
+  position: fixed;
+  right: 12px;
+  bottom: calc(70px + var(--safe-bottom));
+  z-index: 35;
+  width: min(360px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.2);
+}
+.notes-panel textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  background: var(--bg);
+  color: var(--text);
+}
+#notes-btn.active { color: var(--accent); background: var(--accent-soft); }
+#notes-btn.has-notes { position: relative; }
+#notes-btn.has-notes::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}

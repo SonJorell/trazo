@@ -34,6 +34,7 @@ import { setupAttachments } from '../attach/attachments.js';
 import { createDocBar } from '../attach/docBar.js';
 import { createClipboard } from '../core/clipboard.js';
 import { setupParticipants } from '../ui/participants.js';
+import { setupPresenterNotes } from '../ui/presenterNotes.js';
 import { Avatars } from '../avatars/avatars.js';
 import { avatarDialog } from '../avatars/dialog.js';
 import { getBounds } from '/shared/geometry.js';
@@ -248,6 +249,7 @@ const clipboard = createClipboard({
   },
 });
 const docBar = createDocBar({ scene, viewport, ctx, onFit: (el) => focusElement(el) });
+ctx.activateDoc = (id) => docBar.setActive(id);
 renderer.onDraw = () => docBar.update();
 
 // ---------- Texto ----------
@@ -364,6 +366,7 @@ const stylePanel = createStylePanel($('#style-panel'), style, (partial) => {
 function onSelectionChange() {
   $('#delete-btn').hidden = overlay.selection.size === 0;
   $('#dup-btn').hidden = overlay.selection.size === 0;
+  $('#lock-btn').hidden = overlay.selection.size === 0;
   // La barra del documento sigue al último documento seleccionado.
   if (overlay.selection.size === 1) {
     const el = scene.get([...overlay.selection][0]);
@@ -414,7 +417,7 @@ async function clearBoard({ ask = true } = {}) {
 
 /** Borra solo lo que dibujó este navegador (deshacible). */
 function clearMine() {
-  const mine = scene.alive().filter((el) => el.author === AUTHOR_ID);
+  const mine = scene.alive().filter((el) => el.author === AUTHOR_ID && !el.locked);
   if (!mine.length) return toast('No tienes trazos en la pizarra');
   const tx = ctx.begin();
   for (const el of mine) tx.update(el.id, { isDeleted: true });
@@ -459,6 +462,30 @@ bind('#zoom-label', null, () => zoomBy(1 / viewport.zoom));
 bind('#fit-btn', 'fit', fitToContent);
 bind('#delete-btn', 'trash', deleteSelection);
 bind('#dup-btn', 'copy', () => clipboard.duplicate(overlay.selection));
+bind('#lock-btn', 'lock', lockSelection);
+
+/** Bloquea lo seleccionado: no se selecciona, mueve ni borra con las herramientas. */
+function lockSelection() {
+  const ids = [...overlay.selection];
+  if (!ids.length) return;
+  const tx = ctx.begin();
+  for (const id of ids) tx.update(id, { locked: true });
+  tx.commit();
+  ctx.select([]);
+  toast(`Bloqueado (${ids.length}). Para desbloquear: menú → Desbloquear elementos`, { ms: 4000 });
+}
+
+/** Desbloquea todo lo bloqueado en la página actual. */
+function unlockPage() {
+  const locked = scene.alive().filter((el) => el.locked);
+  if (!locked.length) return toast('No hay elementos bloqueados en esta página');
+  const tx = ctx.begin();
+  for (const el of locked) tx.update(el.id, { locked: false });
+  tx.commit();
+  setTool('select');
+  ctx.select(locked.map((el) => el.id));
+  toast(`Desbloqueados: ${locked.length}`);
+}
 bind('#share-btn', null, () => shareDialog({ room, hasPin: roomHasPin }));
 $('#share-btn').insertAdjacentHTML('afterbegin', ICONS.share);
 
@@ -506,6 +533,7 @@ menu.append(
   menuItem('paper', 'Fondo de la hoja', openBackgroundDialog, 'needs-edit'),
   participantsItem,
   avatarItem,
+  menuItem('unlock', 'Desbloquear elementos de esta página', () => unlockPage(), 'needs-edit'),
   menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
   menuItem('eraser', 'Borrar mis trazos', clearMine, 'needs-edit'),
   menuItem('trash', 'Limpiar pizarra', () => clearBoard(), 'needs-edit'),
@@ -833,7 +861,7 @@ window.addEventListener('keydown', (e) => {
   } else if (mod && key === 'a') {
     e.preventDefault();
     setTool('select');
-    ctx.select(scene.alive().map((el) => el.id));
+    ctx.select(scene.alive().filter((el) => !el.locked).map((el) => el.id));
   } else if (key === 'delete' || key === 'backspace') {
     deleteSelection();
   } else if (key === 'escape') {
@@ -1016,6 +1044,11 @@ async function start() {
       pageBackgrounds = msg.pageBackgrounds ?? {};
       paintBackground();
     }
+    if (msg.t === 'page-meta') {
+      history.clear(); // las páginas cambiaron de lugar: deshacer pasos anteriores sería confuso
+      pageBackgrounds = msg.pageBackgrounds ?? {};
+      paintBackground();
+    }
     if (msg.t === 'background') applyBackground(msg);
   });
   canEditBackground = () => isHost || steerGranted;
@@ -1081,6 +1114,7 @@ async function start() {
     isHost: () => isHost,
     paintThumb: paintPageThumb,
   });
+  if (!OVERLAY) setupPresenterNotes({ connection, scene, isHost: () => isHost, button: Object.assign($('#notes-btn'), { innerHTML: ICONS.notes }) });
   timerItem.hidden = !isHost;
   pollItem.hidden = !isHost;
   overlaySession = session;
