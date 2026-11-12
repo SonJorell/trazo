@@ -3,7 +3,10 @@ import { Connection } from '../net/connection.js';
 import { askJoin, fatalDialog } from '../ui/dialogs.js';
 import { toast } from '../ui/toast.js';
 import { api, parseRoomCode } from '../util/api.js';
+import { setupPwa } from '../util/pwa.js';
 import { local, savedName, saveName, savedPin, savePin, forgetPin } from '../util/storage.js';
+
+setupPwa();
 
 /**
  * Control remoto desde el celular: pasa diapositivas en el PC y maneja la lupa.
