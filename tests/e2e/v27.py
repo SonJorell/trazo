@@ -40,7 +40,7 @@ with sync_playwright() as p:
 
     # 1. Notas: el editor ocupa la nota y la nota crece hasta calzar con el texto.
     pg.keyboard.press('n'); pg.mouse.click(500, 300)
-    pg.wait_for_selector('.note-editor')
+    pg.wait_for_function("document.activeElement?.classList.contains('note-editor')")
     ed = pg.evaluate("(() => { const t = document.querySelector('.note-editor'); const r = t.getBoundingClientRect(); return { bg: getComputedStyle(t).backgroundColor, w: r.width }; })()")
     check('el editor de la nota tiene el fondo de la nota', ed['bg'] not in ('rgba(0, 0, 0, 0)', 'transparent'), ed['bg'])
     pg.keyboard.type('Ideas para la reunión: revisar presupuesto, calendario y supercalifragilisticoespialidoso.\nSegunda línea con más texto para que la nota tenga que crecer hacia abajo.')
