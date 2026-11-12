@@ -9,7 +9,8 @@ const FPS = 30;
 const MAX_WIDTH = 1920;
 
 export function pickMimeType() {
-  const candidates = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  // Sin fijar el perfil H.264: «avc1.42E01E» (nivel 3.0) falla en Safari/WebKit sobre ~720p.
+  const candidates = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   return candidates.find((t) => window.MediaRecorder?.isTypeSupported?.(t)) ?? '';
 }
 
