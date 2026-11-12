@@ -6,6 +6,6 @@ data/
 .DS_Store
 Thumbs.db
 coverage/
-v*.tgz
+*.tgz
 e2e-data/
 e2e-out/
