@@ -90,6 +90,7 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
         ? h('div', { class: 'row wrap' }, h('button', { class: 'btn small with-icon', onclick: () => (close(), onPlaceAnchor()) }, h('span', { html: ICONS.pin }), 'Cambiar de lugar'))
         : null;
     body.replaceChildren(
+      ...[
       h('h2', {}, 'Mi cámara y avatar'),
       cameraOn ? null : h('p', { class: 'muted small' }, 'Tu cámara está apagada: el monigote se verá con tus iniciales. Enciéndela con el botón de cámara de arriba.'),
       h('h4', {}, 'Dónde se ve'),
@@ -99,6 +100,7 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
       h('h4', {}, 'Forma de la cámara'),
       seg(SHAPES, look.shape, (v) => avatars.setLook({ shape: v })),
       h('div', { class: 'row end' }, h('button', { class: 'btn primary', onclick: close }, 'Listo')),
+      ].filter(Boolean), // replaceChildren escribiría «null» como texto
     );
   };
   paint();
