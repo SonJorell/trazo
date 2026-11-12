@@ -389,3 +389,19 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
   la inclinación y el «estar en el aire» se calculan en cada equipo a partir del movimiento que ve.
 - **Consecuencias**: el monigote se ve continuo aunque los mensajes lleguen con saltos; no hace
   falta enviar la pose completa.
+
+## ADR-043 — Reorganizar páginas en el servidor
+
+- **Decisión**: mover, duplicar o borrar una página es un único mensaje `page-op` que el
+  servidor aplica de forma atómica: re-numera los elementos (subiendo su versión, para que gane la
+  regla LWW), crea las copias con ids nuevos (re-anclando las anotaciones de documentos) y mueve
+  títulos, fondos y notas. Luego difunde `ops`, `page-meta` y `page`. El historial de deshacer de
+  cada cliente se vacía porque sus pasos ya no corresponden a las mismas páginas.
+- **Consecuencias**: no hay estados intermedios inconsistentes entre participantes; el borrado de
+  una página no se puede deshacer (se pide confirmación).
+
+## ADR-044 — Notas del presentador privadas
+
+- **Decisión**: las notas se guardan en la sala (`notes`, por página) pero solo se envían a
+  conexiones de anfitrión (en `welcome` y con el mensaje `notes`). Un participante nunca las recibe.
+- **Consecuencias**: el anfitrión puede preparar la charla en su PC y verla en otra ventana suya.

@@ -78,6 +78,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-56 | *(v2.4)* La cámara que sigue al puntero se ve con su forma y nombre junto al cursor, con movimiento suave. |
 | RF-57 | *(v2.4)* Monigote neutro por defecto con animación fluida (predicción, suavizado y caminata articulada). |
 | RF-58 | *(v2.4)* Interfaz sin emojis: reacciones, sellos y controles con íconos vectoriales. |
+| RF-59 | *(v2.5)* Mover, duplicar y borrar páginas desde la vista de páginas (servidor, para todos). |
+| RF-60 | *(v2.5)* Bloquear y desbloquear elementos. |
+| RF-61 | *(v2.5)* Notas privadas del presentador por página. |
+| RF-62 | *(v2.5)* Descargar los resultados de la votación en CSV. |
 | RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
@@ -176,6 +180,9 @@ y el linter pasa.
 | T-43 | Íconos | Sellos vectoriales (`stamp`), reacciones por clave, controles con SVG | Terminado |
 | T-44 | Monigote fluido | Bucle por cuadro, velocidad en `avatar-pos`, predicción y suavizado, figura articulada | Terminado |
 | T-45 | Pruebas v2.4 | E2E `v24.py` con cámara simulada (8) + regresión | Terminado |
+| T-46 | Organizar páginas | `page-op` atómico en el servidor (elementos, títulos, fondos, notas), acciones en la vista | Terminado |
+| T-47 | Bloqueo, notas y CSV | Campo `locked`, mensaje `notes` solo para anfitriones, exportación CSV | Terminado |
+| T-48 | Pruebas v2.5 | Integración (50) + E2E `v25.py` (9) + regresión | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro

@@ -223,6 +223,18 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.5
+
+- **Organizar páginas**: en la vista de páginas (toca *Pág. N* abajo) cada página tiene botones
+  para **mover antes/después**, **duplicar** y **borrar**. El servidor lo hace de una vez para
+  todos, con sus títulos, fondos y notas.
+- **Bloquear**: selecciona y toca el candado de la barra inferior. Lo bloqueado no se selecciona,
+  mueve ni borra al anotar encima (un documento bloqueado se sigue hojeando con su barra).
+  Para soltarlo: menú → *Desbloquear elementos de esta página*.
+- **Notas del presentador**: botón de hoja en la barra inferior (solo el anfitrión). Notas por
+  página que se guardan en la sala y nadie más ve.
+- **Resultados de votación en CSV**: botón *CSV* en la tarjeta de la votación (se abre en Excel).
+
 ## Novedades de la versión 2.4
 
 - **Cámara que sigue tu puntero**: la burbuja (con la forma que elijas) acompaña tu cursor con un
