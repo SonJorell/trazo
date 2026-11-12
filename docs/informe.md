@@ -160,6 +160,16 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `v25.py` 9/9, `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) en el celular la barra de visita tapaba las cámaras; (2) brazos del gesto ocultos detrás de la cabeza; (3) la gorra tapaba la cara |
 
+### Versión 2.7 — Grabación, PWA, notas y celular
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 51/51 |
+| E2E `tests/e2e/v27.py` | 16/16: manifest y service worker servidos y activos en localhost, editor de nota con el color y ancho de la nota, la nota crece a 299 px con el texto, grabación de la pizarra descargada como MP4 no vacío, barra inferior dentro de la pantalla a 360 y 390 px, temporizador sin tapar herramientas en tablet, panel de estilo cerrado en horizontal, sin emojis en la interfaz |
+| Auditoría responsiva | 14 pantallas × 4 tamaños (360, 390, horizontal 844×390, tablet 900×1180) revisadas con capturas |
+| Regresión E2E | `v26.py` 7/7, `v25.py` 9/9, `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) barra inferior cortada en celular; (2) panel de notas tapando su botón; (3) panel de estilo abierto al girar el celular; (4) temporizador sobre la barra de herramientas en tablet y horizontal; (5) botones de votación desbordados; (6) la tarjeta de votación tapaba el menú; (7) texto «nullnull» en el diálogo de avatar; (8) avisos sobre los títulos de los diálogos |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para
@@ -168,7 +178,7 @@ desde el PC y el celular en la misma red.
 - **Otra base de datos.** Basta con implementar `init/exists/load/save` (por ejemplo, con SQLite).
 - **Acceso desde internet.** Con un túnel gratuito (Cloudflare Tunnel o Tailscale) y HTTPS. Antes
   de exponerlo conviene sustituir el PIN por un token largo.
-- **Funciones.** Estilo de boceto a mano, copiar y pegar, exportar SVG o JSON, PWA instalable,
+- **Funciones.** Estilo de boceto a mano, copiar y pegar, exportar SVG o JSON, modo sin conexión completo de la PWA,
   compactación de lápidas, miniaturas de páginas de documentos y exportar cada página de un
   documento con sus anotaciones.
 - **Adjuntos a escala.** El almacén de archivos es una clase con `saveStream/serve/removeRoom`:

@@ -223,6 +223,28 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.7
+
+- **Grabar la sesión**: menú → *Grabar la sesión*. Elige **La pizarra** (lo dibujado, el fondo,
+  los monigotes y las cámaras; funciona también en el celular) o **Una pantalla o ventana**
+  (p. ej. PowerPoint con las marcas encima). Opcionalmente incluye tu micrófono. Mientras graba
+  aparece un indicador rojo con el tiempo; al detener, el video (MP4 o WebM según el navegador)
+  se descarga en tu equipo. Nada se sube al servidor.
+- **Aplicación instalable (PWA)**: en el PC anfitrión abre `http://localhost:3080` y usa
+  *Instalar app* (portada o menú) para tenerla como aplicación con su propio icono y ventana.
+  Si se cae la red, muestra una página sin conexión en vez de un error.
+  *Limitación*: los navegadores solo permiten instalar desde `localhost` o HTTPS con certificado
+  de confianza. En el celular por la red local (HTTP o el certificado autofirmado) usa
+  *Agregar a pantalla de inicio* del navegador: abre Trazo a pantalla completa, sin modo sin conexión.
+- **Notas adhesivas que calzan con el texto**: al escribir, el editor ocupa exactamente la nota
+  (mismo color, margen, letra e interlineado) y la nota **crece hacia abajo** para mostrar todo
+  lo escrito. Las palabras muy largas se cortan igual que en el editor; si achicas la nota a mano,
+  el texto que no cabe termina en «…».
+- **Celular, tablet y horizontal revisados**: barra inferior que cabe en pantallas de 360 px,
+  paneles (notas, cámara) como hojas inferiores, menús y diálogos con desplazamiento, temporizador
+  que ya no tapa las herramientas en tablet, panel de estilo cerrado al girar el celular y
+  avisos que no tapan los títulos de los diálogos.
+
 ## Novedades de la versión 2.6
 
 - **Todos ven las cámaras de todos**: cada participante recibe las cámaras de los demás (en la

@@ -4,7 +4,7 @@ import { Scene } from '../core/scene.js';
 import { History, Transaction } from '../core/history.js';
 import { Viewport } from '../core/viewport.js';
 import { Renderer } from '../render/renderer.js';
-import { measureText, LINE_HEIGHT, drawElement } from '../render/draw.js';
+import { measureText, LINE_HEIGHT, drawElement, noteHeightFor } from '../render/draw.js';
 import { exportPng } from '../render/exportPng.js';
 import { attachPointerInput } from '../input/pointer.js';
 import { createTools, TOOL_DEFS } from '../tools/index.js';
@@ -21,6 +21,7 @@ import {
   liveStartDialog,
   shareDialog,
   backgroundDialog,
+  modal,
 } from '../ui/dialogs.js';
 import { CameraSender, CameraReceiver } from '../media/cameras.js';
 import { CameraBubbles } from '../ui/cameraBubbles.js';
@@ -35,6 +36,8 @@ import { createDocBar } from '../attach/docBar.js';
 import { createClipboard } from '../core/clipboard.js';
 import { setupParticipants } from '../ui/participants.js';
 import { setupPresenterNotes } from '../ui/presenterNotes.js';
+import { SessionRecorder, canRecord, canRecordScreen } from '../media/recorder.js';
+import { setupPwa, onInstallable, promptInstall } from '../util/pwa.js';
 import { Avatars } from '../avatars/avatars.js';
 import { avatarDialog } from '../avatars/dialog.js';
 import { getBounds } from '/shared/geometry.js';
@@ -207,6 +210,7 @@ const ctx = {
         text: el.text,
         fontSize: el.fontSize,
         color: el.stroke,
+        fill: el.fill,
       });
     } else if (el) {
       overlay.editingId = el.id;
@@ -259,7 +263,13 @@ const textEditor = new TextEditor($('#editor-layer'), {
     overlay.editingId = null;
     const tx = ctx.begin();
     if (note) {
-      if (scene.get(id) && scene.get(id).text !== text) tx.update(id, { text });
+      const cur = scene.get(id);
+      if (cur) {
+        // La nota se agranda (nunca se achica) para que quepa todo el texto.
+        const needed = noteHeightFor(text, cur.fontSize, Math.abs(cur.w));
+        const h = Math.max(Math.abs(cur.h), needed);
+        if (cur.text !== text || h !== Math.abs(cur.h)) tx.update(id, { text, h });
+      }
     } else if (id) {
       if (!scene.get(id)) return render();
       if (!text) tx.update(id, { isDeleted: true });
@@ -501,6 +511,74 @@ const menuItem = (icon, label, fn, extraClass = '') =>
   h('button', { class: `menu-item ${extraClass}`, onclick: () => ((menu.hidden = true), fn()) }, h('span', { html: ICONS[icon] }), label);
 let openParticipants = () => {};
 const participantsItem = menuItem('users', 'Participantes y permisos', () => openParticipants());
+
+// ---------- Grabación ----------
+const recChip = h('div', { class: 'rec-chip ov-hit', hidden: true, role: 'status' });
+document.body.append(recChip);
+let recTimer = null;
+const recorder = new SessionRecorder({
+  boardCanvas: canvas,
+  onState: (on, blob, ext) => {
+    recItem.lastChild.textContent = on ? 'Detener grabación' : 'Grabar la sesión';
+    recChip.hidden = !on;
+    clearInterval(recTimer);
+    if (on) {
+      const time = h('span', { class: 'rec-time' }, '0:00');
+      recChip.replaceChildren(
+        h('span', { class: 'rec-dot' }),
+        h('span', {}, 'Grabando'),
+        time,
+        h('button', { class: 'icon-btn small', title: 'Detener y guardar', 'aria-label': 'Detener grabación', html: ICONS.stop, onclick: () => recorder.stop() }),
+      );
+      recTimer = setInterval(() => {
+        const s = Math.floor(recorder.elapsed / 1000);
+        time.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      }, 500);
+    } else if (blob?.size) {
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const a = h('a', { href: URL.createObjectURL(blob), download: `trazo-${room}-${stamp}.${ext}` });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast(`Grabación guardada (${(blob.size / 1048576).toFixed(1)} MB)`);
+    }
+  },
+});
+function openRecordDialog() {
+  if (recorder.active) return recorder.stop();
+  if (!canRecord()) return toast('Este navegador no permite grabar');
+  const mic = h('input', { type: 'checkbox' });
+  const go = (kind) => {
+    close();
+    recorder.start(kind, { mic: mic.checked }).catch((err) => toast(err.name === 'NotAllowedError' ? 'Grabación cancelada' : `No se pudo grabar: ${err.message}`));
+  };
+  const { close } = modal(
+    h(
+      'div',
+      { class: 'stack' },
+      h('h2', {}, 'Grabar la sesión'),
+      h('p', { class: 'muted small' }, 'El video se guarda en este equipo al detener la grabación.'),
+      h(
+        'div',
+        { class: 'choice-list' },
+        h('button', { class: 'choice-card', onclick: () => go('board') }, h('strong', {}, 'La pizarra'), h('span', { class: 'muted' }, 'Lo dibujado, el fondo, los monigotes y las cámaras. Funciona en el celular.')),
+        canRecordScreen()
+          ? h('button', { class: 'choice-card', onclick: () => go('screen') }, h('strong', {}, 'Una pantalla o ventana'), h('span', { class: 'muted' }, 'Por ejemplo PowerPoint con las marcas encima (eliges qué compartir).'))
+          : null,
+      ),
+      h('label', { class: 'check' }, mic, 'Incluir mi micrófono'),
+      h('div', { class: 'row end' }, h('button', { class: 'btn ghost', onclick: () => close() }, 'Cancelar')),
+    ),
+  );
+}
+const recItem = menuItem('record', 'Grabar la sesión', () => openRecordDialog());
+const installItem = menuItem('install', 'Instalar Trazo como app', () => promptInstall());
+installItem.hidden = true;
+if (!OVERLAY) {
+  setupPwa();
+  onInstallable((ok) => (installItem.hidden = !ok));
+}
 let openAvatarDialog = () => {};
 const avatarItem = menuItem('camera', 'Mi cámara y avatar (monigote)', () => openAvatarDialog());
 let toggleWatch = () => {};
@@ -535,6 +613,8 @@ menu.append(
   menuItem('attach', 'Adjuntar archivo (foto, PDF, PowerPoint…)', () => attachments.pick(), 'needs-edit'),
   menuItem('paper', 'Fondo de la hoja', openBackgroundDialog, 'needs-edit'),
   participantsItem,
+  recItem,
+  installItem,
   avatarItem,
   watchItem,
   menuItem('unlock', 'Desbloquear elementos de esta página', () => unlockPage(), 'needs-edit'),

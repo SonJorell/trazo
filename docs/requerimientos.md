@@ -84,6 +84,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-62 | *(v2.5)* Descargar los resultados de la votación en CSV. |
 | RF-63 | *(v2.6)* Cada participante puede ver las cámaras de los demás (malla WebRTC limitada, calidad reducida para espectadores). |
 | RF-64 | *(v2.6)* Accesorios y gestos del monigote al reaccionar. |
+| RF-65 | *(v2.7)* Grabar la sesión (pizarra compuesta o pantalla) con micrófono opcional; el video se descarga localmente. |
+| RF-66 | *(v2.7)* Aplicación instalable (manifest, service worker, página sin conexión). |
+| RF-67 | *(v2.7)* La nota adhesiva crece para mostrar todo su texto y se edita en su mismo lugar y estilo. |
+| RF-68 | *(v2.7)* Interfaz usable desde 360 px de ancho, en tablet y en horizontal. |
 | RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
@@ -188,6 +192,11 @@ y el linter pasa.
 | T-49 | Cámaras para todos | `cam-watch`/`peer-watch`, señales con `role`, límite de espectadores y bitrate | Terminado |
 | T-50 | Monigote expresivo | Accesorios (`acc`) y gestos por reacción | Terminado |
 | T-51 | Pruebas v2.6 | Integración (51) + E2E `v26.py` con cámaras simuladas (7) + regresión | Terminado |
+| T-52 | Grabación | `media/recorder.js` (composición del lienzo + burbujas, mezcla de audio), indicador y diálogo | Terminado |
+| T-53 | PWA | `manifest.webmanifest`, `sw.js`, `offline.html`, iconos, `util/pwa.js`, botón *Instalar app* | Terminado |
+| T-54 | Notas que calzan | `wrapText` como `pre-wrap`, `noteHeightFor`, editor sobre la nota, «…» si no cabe | Terminado |
+| T-55 | Revisión responsiva | Auditoría con capturas a 360/390/horizontal/tablet y correcciones CSS | Terminado |
+| T-56 | Pruebas v2.7 | E2E `v27.py` (16) + regresión completa | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro
