@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trazo · Sin conexión</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; color: #1e1e1e; }
+      main { max-width: 420px; padding: 28px; text-align: center; }
+      img { width: 64px; height: 64px; }
+      h1 { font-size: 1.3rem; margin: 16px 0 8px; }
+      p { color: #495057; line-height: 1.5; }
+      button { margin-top: 12px; padding: 10px 18px; border: none; border-radius: 10px; background: #4263eb; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/favicon.svg" alt="" />
+      <h1>No hay conexión con Trazo</h1>
+      <p>Revisa que estés en la misma red Wi-Fi que el PC anfitrión y que Trazo esté abierto en ese PC.</p>
+      <button onclick="location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

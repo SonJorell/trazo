@@ -22,7 +22,7 @@ export class TextEditor {
     this.commit();
     this.state = state;
     const area = document.createElement('textarea');
-    area.className = state.width ? 'text-editor wrap' : 'text-editor';
+    area.className = state.note ? 'text-editor wrap note-editor' : state.width ? 'text-editor wrap' : 'text-editor';
     area.value = state.text;
     area.spellcheck = false;
     area.setAttribute('aria-label', 'Texto');
@@ -31,7 +31,13 @@ export class TextEditor {
     this.host.append(area);
 
     const grow = () => {
-      if (state.width) return; // las notas tienen tamaño fijo
+      if (state.note) {
+        // La nota crece hacia abajo mientras escribes (igual que al guardarla).
+        area.style.height = 'auto';
+        area.style.height = `${Math.max(area.scrollHeight, state.height * this.viewport.zoom)}px`;
+        return;
+      }
+      if (state.width) return;
       area.style.height = 'auto';
       area.style.height = `${area.scrollHeight}px`;
       area.style.width = 'auto';
@@ -55,10 +61,27 @@ export class TextEditor {
 
   reposition() {
     if (!this.area) return;
-    const { x, y, fontSize, color, width, height, padding = 0 } = this.state;
+    const { x, y, fontSize, color, width, height, padding = 0, note, fill } = this.state;
     const z = this.viewport.zoom;
-    const p = this.viewport.toScreen(x + padding, y + padding);
     const size = fontSize * z;
+    if (note) {
+      // La nota se edita «en sí misma»: mismo fondo, relleno, fuente e interlineado que al dibujarla.
+      const p = this.viewport.toScreen(x, y);
+      Object.assign(this.area.style, {
+        left: `${p.x}px`,
+        top: `${p.y}px`,
+        width: `${width * z}px`,
+        minHeight: `${height * z}px`,
+        padding: `${padding * z}px`,
+        borderRadius: `${6 * z}px`,
+        background: fill,
+        font: fontFor(size),
+        lineHeight: String(LINE_HEIGHT),
+        color,
+      });
+      return;
+    }
+    const p = this.viewport.toScreen(x + padding, y + padding);
     Object.assign(this.area.style, {
       left: `${p.x}px`,
       top: `${p.y}px`,

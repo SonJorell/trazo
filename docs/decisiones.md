@@ -422,3 +422,32 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Decisión**: no se implementa. Los navegadores móviles (Chrome Android, Safari iOS) no ofrecen
   `getDisplayMedia`; la única vía sería una app nativa. Se documenta la alternativa de reflejar el
   celular en el PC y transmitir esa ventana.
+
+## ADR-047 — Grabación compuesta en el propio equipo
+
+- **Decisión**: la opción «La pizarra» dibuja a 30 fps, en un lienzo oculto, el lienzo de la
+  pizarra más las burbujas de cámara, y lo graba con `MediaRecorder` (4 Mbps, MP4 si el navegador
+  lo soporta, si no WebM). El audio del micrófono se mezcla con `AudioContext`. «Una pantalla o
+  ventana» usa `getDisplayMedia`. El archivo se descarga; nunca pasa por el servidor.
+- **Alternativas**: grabar en el servidor (requiere ffmpeg y recibir todos los flujos) o solo
+  `getDisplayMedia` (no existe en celulares).
+- **Consecuencias**: funciona en el celular y sin instalar nada; la calidad depende del equipo
+  que graba.
+
+## ADR-048 — PWA con service worker «red primero»
+
+- **Decisión**: el service worker pide siempre a la red y usa la caché solo si falla; las rutas
+  `/api/` y `/assets/` nunca se guardan. Solo se registra en contexto seguro y nunca en el overlay.
+- **Alternativas**: «caché primero» daría arranque más rápido pero arriesga servir una versión
+  vieja del cliente contra un servidor nuevo en la misma red.
+- **Consecuencias**: siempre se usa la versión del servidor; sin red se muestra `offline.html`.
+  En celulares por HTTP de la red local no se puede instalar (limitación del navegador).
+
+## ADR-049 — La nota crece con su texto
+
+- **Decisión**: el ajuste de líneas del lienzo imita `white-space: pre-wrap` y
+  `overflow-wrap: break-word` del editor; al confirmar, la altura pasa a
+  `max(altura actual, noteHeightFor(texto))`. Nunca se achica sola.
+- **Consecuencias**: lo que se ve al editar es lo que queda guardado; si alguien achica la nota a
+  mano, el texto sobrante se indica con «…».
+

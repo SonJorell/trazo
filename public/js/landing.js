@@ -1,6 +1,11 @@
 import { api, parseRoomCode } from './util/api.js';
 import { recentRooms, savedName, saveName, savePin, saveHostKey, hostKeyOf, forgetRoom } from './util/storage.js';
 import { h } from './ui/dom.js';
+import { setupPwa, onInstallable, promptInstall } from './util/pwa.js';
+
+setupPwa();
+onInstallable((ok) => (document.querySelector('#install-btn').hidden = !ok));
+document.querySelector('#install-btn').addEventListener('click', () => promptInstall());
 
 const $ = (sel) => document.querySelector(sel);
 const nameInput = $('#name');

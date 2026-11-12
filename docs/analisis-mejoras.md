@@ -149,6 +149,10 @@ gestos del monigote (19) y compartir la pantalla del celular (13).
 La 13 queda descartada en la web (ver ADR-046). Próximas candidatas: SFU opcional para salas
 grandes, audio opcional, grabación de la sesión y PWA instalable.
 
+**v2.7** agregó la grabación de la sesión y la PWA instalable, hizo que las notas calcen con su
+texto y revisó toda la interfaz en celular. Próximas candidatas: HTTPS con certificado de
+confianza local (mkcert) para instalar en celulares, audio en vivo opcional y SFU para salas grandes.
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:
