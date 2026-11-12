@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { safeExt, safeName, OFFICE_EXT, httpError } from '../assets/AssetStore.js';
 import { convertToPdf } from '../assets/officeConvert.js';
 import { getLanAddresses } from '../util/network.js';
+import { exportRoom, importRoom, MAX_ARCHIVE_BYTES } from '../rooms/archive.js';
 
 const MAX_BODY = 4 * 1024;
 
@@ -16,14 +17,14 @@ function sendJson(res, status, body) {
   res.end(data);
 }
 
-function readJson(req) {
+function readJson(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_BODY) {
-        reject(Object.assign(new Error('Cuerpo demasiado grande'), { status: 413 }));
+      if (size > max) {
+        reject(Object.assign(new Error(max > MAX_BODY ? 'El archivo es demasiado grande' : 'Cuerpo demasiado grande'), { status: 413 }));
         req.destroy();
       } else chunks.push(c);
     });
@@ -48,6 +49,9 @@ function readJson(req) {
  *   GET  /api/qr.svg?text=   → código QR en SVG (solo para URLs de este servidor)
  *   POST /api/rooms/:id/assets  (cuerpo = el archivo; cabeceras X-Trazo-Token y X-Trazo-Name)
  *                            → { url, name, size, pdf? }  (pdf = versión PDF de un archivo de Office)
+ *   GET  /api/rooms/:id/export  (cabecera X-Trazo-Host = clave de anfitrión)
+ *                            → archivo .trazo (JSON con páginas, notas, elementos y adjuntos)
+ *   POST /api/rooms/import   (cuerpo = archivo .trazo) → sala nueva { id, hostKey }
  */
 export function createApiHandler({ rooms, config, assets, logger }) {
   const lanUrls = () => getLanAddresses().map((ip) => `http://${ip}:${config.port}`);
@@ -74,6 +78,31 @@ export function createApiHandler({ rooms, config, assets, logger }) {
         const room = await rooms.create({ pin: body.pin, mode: body.mode ?? 'blank' });
         sendJson(res, 201, { id: room.id, hasPin: room.hasPin, mode: room.mode, hostKey: room.issuedHostKey });
         delete room.issuedHostKey;
+        return true;
+      }
+
+      if (req.method === 'POST' && pathname === '/api/rooms/import') {
+        const archive = await readJson(req, MAX_ARCHIVE_BYTES);
+        const room = await importRoom(rooms, assets, archive);
+        logger?.info(`Sala ${room.id} abierta desde un archivo (${room.elements.size} elementos)`);
+        sendJson(res, 201, { id: room.id, hasPin: false, mode: room.mode, hostKey: room.issuedHostKey });
+        delete room.issuedHostKey;
+        return true;
+      }
+
+      const ex = pathname.match(/^\/api\/rooms\/([a-z0-9]{4,24})\/export$/);
+      if (req.method === 'GET' && ex) {
+        const room = await rooms.get(ex[1]);
+        if (!room) throw httpError(404, 'La sala no existe');
+        if (!room.isHostKey(req.headers['x-trazo-host'])) throw httpError(403, 'Solo el anfitrión puede guardar la sala');
+        const data = JSON.stringify(await exportRoom(room, assets));
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(data),
+          'Content-Disposition': `attachment; filename="trazo-${room.id}.trazo"`,
+          'Cache-Control': 'no-store',
+        });
+        res.end(data);
         return true;
       }
 

@@ -98,6 +98,11 @@ export function sanitizeElement(raw) {
     }
     if (pts.length === 0) return null;
     el.points = pts;
+    // Flechas y líneas pegadas a formas (id de la forma en cada extremo).
+    if (el.type !== 'pen') {
+      if (typeof raw.startBind === 'string' && ID_RE.test(raw.startBind)) el.startBind = raw.startBind;
+      if (typeof raw.endBind === 'string' && ID_RE.test(raw.endBind)) el.endBind = raw.endBind;
+    }
   }
 
   if (el.type === 'stamp') {

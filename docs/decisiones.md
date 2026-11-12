@@ -451,3 +451,34 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Consecuencias**: lo que se ve al editar es lo que queda guardado; si alguien achica la nota a
   mano, el texto sobrante se indica con «…».
 
+## ADR-050 — Flechas pegadas calculadas por quien mueve la forma
+
+- **Decisión**: la flecha guarda solo el id de la forma de cada extremo (`startBind`/`endBind`).
+  Cuando una transacción mueve o redimensiona una forma, el mismo cliente recalcula las flechas
+  pegadas (punto del borde en dirección al otro extremo, con 6 px de margen) y las envía en la
+  misma transacción, como cualquier otro cambio last-writer-wins.
+- **Alternativas**: calcular la geometría al dibujar en cada cliente (sin enviarla) evitaría
+  conflictos, pero obligaría a resolver enlaces también en selección, exportación y PDF.
+- **Consecuencias**: todo el código que usa `points` sigue funcionando; deshacer revierte forma y
+  flecha juntas. Si dos personas mueven a la vez las dos formas de una flecha, gana el último cambio
+  de la flecha (se corrige al siguiente movimiento).
+
+## ADR-051 — Archivo de sala `.trazo` como JSON con adjuntos en base64
+
+- **Decisión**: un solo JSON (`format: "trazo-sala"`, `version: 1`) con metadatos de páginas,
+  elementos vigentes y adjuntos en base64. Exportar exige la clave de anfitrión (incluye notas
+  privadas). Importar crea siempre una sala **nueva**, valida cada elemento con `sanitizeElement`,
+  re-apunta las URLs de adjuntos y descarta la sala si algo falla.
+- **Alternativas**: ZIP (más compacto, pero exige una dependencia o implementar el formato);
+  restaurar sobre la misma sala (riesgo de pisar trabajo y de reutilizar códigos ya compartidos).
+- **Consecuencias**: sin dependencias nuevas; el archivo pesa ~33 % más que los adjuntos. Límite de
+  200 MB al abrir.
+
+## ADR-052 — Compatibilidad probada con WebKitGTK y Selenium
+
+- **Decisión**: las pruebas en otros motores usan Selenium con WebKitGTK (mismo motor que Safari)
+  y Firefox; en GitHub Actions corren en cada cambio. No se puede automatizar un iPhone real.
+- **Hallazgo**: el perfil H.264 fijo `avc1.42E01E` (nivel 3.0) hacía que Safari generara un video
+  vacío sobre ~720p. Se deja que el navegador elija el perfil (`video/mp4`) y se avisa si el archivo
+  resultante está vacío.
+

@@ -697,3 +697,24 @@ test('v2.6: ver las cámaras de todos (peer-watch) y señales de visitas que sol
   assert.equal((await ana.next('pong')).ts, 5);
   for (const c of [host, ana, vale]) c.ws.close();
 });
+
+test('API: guardar la sala exige la clave de anfitrión y abrir el archivo crea una sala nueva', async () => {
+  const created = await (await fetch(`${base}/api/rooms`, { method: 'POST', body: '{}' })).json();
+  const denied = await fetch(`${base}/api/rooms/${created.id}/export`, { headers: { 'X-Trazo-Host': 'otra-clave' } });
+  assert.equal(denied.status, 403);
+  const res = await fetch(`${base}/api/rooms/${created.id}/export`, { headers: { 'X-Trazo-Host': created.hostKey } });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-disposition'), /\.trazo"/);
+  const archive = await res.json();
+  assert.equal(archive.format, 'trazo-sala');
+
+  archive.room.pageTitles = { 0: 'Portada' };
+  const opened = await fetch(`${base}/api/rooms/import`, { method: 'POST', body: JSON.stringify(archive) });
+  assert.equal(opened.status, 201);
+  const body = await opened.json();
+  assert.notEqual(body.id, created.id);
+  assert.ok(body.hostKey);
+
+  const bad = await fetch(`${base}/api/rooms/import`, { method: 'POST', body: '{"format":"x"}' });
+  assert.equal(bad.status, 400);
+});

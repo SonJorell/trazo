@@ -170,6 +170,17 @@ desde el PC y el celular en la misma red.
 | Regresión E2E | `v26.py` 7/7, `v25.py` 9/9, `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 | Defectos encontrados y corregidos | (1) barra inferior cortada en celular; (2) panel de notas tapando su botón; (3) panel de estilo abierto al girar el celular; (4) temporizador sobre la barra de herramientas en tablet y horizontal; (5) botones de votación desbordados; (6) la tarjeta de votación tapaba el menú; (7) texto «nullnull» en el diálogo de avatar; (8) avisos sobre los títulos de los diálogos |
 
+### Versión 2.8 — Confiabilidad y flechas pegadas
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 58/58 (nuevas: archivo de sala ida y vuelta con adjuntos, archivo inválido o peligroso sin salas a medias, API de exportar/importar con clave de anfitrión, geometría de enlaces en rectángulo y elipse, validación de `startBind`/`endBind`) |
+| E2E `tests/e2e/v28.py` | 12/12: pista visual al dibujar, flecha pegada en ambos extremos, la punta sigue a la forma (y la ve la otra persona), deshacer conjunto, despegar al mover sola, nota sin duplicado, descarga `.trazo` solo para el anfitrión, sala nueva con todo el contenido |
+| E2E `tests/e2e/navegadores.py` (WebKitGTK 2.52 + Chrome en la misma sala) | 10/10: sincronización en ambos sentidos, nota, grabación real (456 KB en 3 s), barra inferior en celular, sin errores de JavaScript |
+| Integración continua | Flujo de GitHub Actions con lint y pruebas en Node 20 y 22, E2E en Chrome, Firefox y WebKit |
+| Regresión E2E | `v27.py` 16/16, `v26.py` 7/7, `v25.py` 9/9, `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) en Safari la grabación salía vacía (perfil H.264 fijo); (2) el clic que cerraba una nota creaba otra vacía; (3) las notas vacías quedaban en la pizarra |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

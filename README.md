@@ -223,6 +223,25 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.8
+
+- **Flechas que se pegan a las formas**: dibuja una línea o flecha que empiece o termine sobre
+  un rectángulo, elipse, nota, texto, imagen, documento, sello o silla; mientras la arrastras se
+  resalta la forma a la que se pegará. Al mover o agrandar la forma, la flecha la sigue (también
+  en los equipos de los demás, y *Deshacer* devuelve ambas juntas). Mantén **Alt** para no
+  pegarla. Si mueves solo la flecha, se despega.
+- **Guardar la sala** (anfitrión): menú → *Guardar la sala (.trazo)*. Descarga un archivo con
+  todas las páginas, títulos, fondos, notas del presentador, lo dibujado y los adjuntos. Para
+  retomarla —aunque la sala ya se haya cerrado o en otro PC—, en la portada usa *Abrir una sala
+  guardada (.trazo)*: se crea una sala nueva con su contenido y quien la abre es el anfitrión.
+  Máximo 200 MB por archivo. El archivo incluye las notas privadas: compártelo con cuidado.
+- **Funciona en Safari**: se probó con WebKit (el motor de Safari). Se corrigió que la grabación
+  en Safari generaba un video vacío.
+- **Notas**: el clic que cierra el editor de una nota ya no crea otra nota vacía, y una nota que
+  queda sin texto se quita sola.
+- **Integración continua**: cada cambio que se sube a GitHub pasa por lint, pruebas y pruebas de
+  punta a punta en Chrome, Firefox y WebKit (`.github/workflows/ci.yml`).
+
 ## Novedades de la versión 2.7
 
 - **Grabar la sesión**: menú → *Grabar la sesión*. Elige **La pizarra** (lo dibujado, el fondo,
@@ -390,6 +409,11 @@ Ejemplo en Windows: `set PORT=3090 && npm start`.
 | `python tests/e2e/sesion_completa.py` | Pruebas de punta a punta opcionales (Playwright; ver cabecera del archivo) |
 | `python tests/e2e/v22.py` | Punta a punta de v2.2 (escritorio, tablet y celular) |
 | `python tests/e2e/adjuntos.py` | Punta a punta de fondos, adjuntos, documentos y trazos en vivo |
+| `python tests/e2e/v28.py` | Punta a punta de v2.8 (flechas pegadas, guardar/abrir sala) |
+| `TRAZO_BROWSER=webkit python tests/e2e/navegadores.py` | Compatibilidad con WebKit (Safari) o Firefox vía Selenium (ver cabecera) |
+
+Las mismas pruebas corren solas en GitHub Actions en cada *push* y *pull request*
+(`.github/workflows/ci.yml`); los resultados y capturas quedan como artefactos del flujo.
 
 ## Estructura
 

@@ -6,6 +6,7 @@ export function createTextTool(ctx) {
     down() {},
     move() {},
     up(p) {
+      if (ctx.justCommittedText?.()) return;
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(4));
       if (hit && (hit.type === 'text' || hit.type === 'note')) ctx.editText(hit);
       else ctx.editText(null, p);

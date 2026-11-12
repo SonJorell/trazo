@@ -1,5 +1,9 @@
 import { bump } from '/shared/elements.js';
 import { Emitter } from '../util/emitter.js';
+import { BINDABLE, routeArrow, arrowsBoundTo } from '/shared/binding.js';
+
+/** Cambios que mueven o redimensionan una forma (y por lo tanto sus flechas pegadas). */
+const GEOMETRY_KEYS = ['x', 'y', 'w', 'h'];
 
 const MAX_ENTRIES = 200;
 
@@ -101,7 +105,16 @@ export class Transaction {
     if (!this.before.has(id)) this.before.set(id, current);
     const next = bump(current, changes);
     this.scene.applyLocal(next, opts);
+    if (BINDABLE.has(next.type) && GEOMETRY_KEYS.some((k) => k in changes)) this.reroute(id, opts);
     return next;
+  }
+
+  /** Recoloca las flechas pegadas a una forma que se movió o cambió de tamaño. */
+  reroute(id, opts) {
+    for (const arrow of arrowsBoundTo(this.scene.alive(), id)) {
+      const route = routeArrow(arrow, (i) => this.scene.get(i));
+      if (route) this.update(arrow.id, route, opts);
+    }
   }
 
   commit() {

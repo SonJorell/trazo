@@ -14,6 +14,22 @@ export const api = {
   info: () => request('GET', '/api/info'),
   createRoom: ({ pin, mode = 'blank' } = {}) => request('POST', '/api/rooms', pin ? { pin, mode } : { mode }),
   getRoom: (id) => request('GET', `/api/rooms/${encodeURIComponent(id)}`),
+  /** Descarga el archivo .trazo de la sala (solo el anfitrión). */
+  exportRoom: async (id, hostKey) => {
+    const res = await fetch(`/api/rooms/${encodeURIComponent(id)}/export`, { headers: { 'X-Trazo-Host': hostKey } });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw Object.assign(new Error(data.error || `Error ${res.status}`), { status: res.status });
+    }
+    return res.blob();
+  },
+  /** Abre un archivo .trazo como sala nueva → { id, hostKey }. */
+  importRoom: async (file) => {
+    const res = await fetch('/api/rooms/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || `Error ${res.status}`), { status: res.status });
+    return data;
+  },
   qrUrl: (text) => `/api/qr.svg?text=${encodeURIComponent(text)}`,
 };
 

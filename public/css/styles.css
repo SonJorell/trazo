@@ -2569,3 +2569,5 @@ body.simple[data-role='visita'] .toolbar .tool[data-tool='hand'] { display: inli
   .bottombar #zoom-label { min-width: 40px; padding: 0 4px; font-size: 12px; }
   .bottombar { gap: 2px; padding: 4px; }
 }
+/* Portada: abrir una sala guardada. */
+.open-saved { display: flex; justify-content: center; margin-top: 10px; }
