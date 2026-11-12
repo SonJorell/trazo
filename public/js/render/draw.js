@@ -67,21 +67,53 @@ function drawArrowHead(ctx, el) {
 
 export const NOTE_PADDING = 12;
 
-/** Parte un texto en líneas que quepan en `maxWidth` (respeta los saltos de línea). */
+/**
+ * Parte un texto en líneas que quepan en `maxWidth` (respeta los saltos de línea).
+ * Igual que el editor (`pre-wrap` + `overflow-wrap: break-word`): corta en espacios y, si una
+ * palabra sola no cabe, la corta por letras. Así lo que se ve al escribir coincide con lo dibujado.
+ */
 export function wrapText(ctx, text, maxWidth) {
   const out = [];
+  const width = (s) => ctx.measureText(s).width;
   for (const para of text.split('\n')) {
     let line = '';
-    for (const word of para.split(/(\s+)/)) {
-      const next = line + word;
-      if (line && ctx.measureText(next).width > maxWidth) {
+    for (const token of para.split(/(\s+)/)) {
+      if (!token) continue;
+      if (width(line + token) <= maxWidth) {
+        line += token;
+        continue;
+      }
+      if (/^\s+$/.test(token)) {
+        // El espacio que no cabe termina la línea.
         out.push(line.trimEnd());
-        line = word.trimStart();
-      } else line = next;
+        line = '';
+        continue;
+      }
+      if (line.trim()) out.push(line.trimEnd());
+      line = '';
+      if (width(token) <= maxWidth) {
+        line = token;
+        continue;
+      }
+      // Palabra más larga que el ancho: se corta por letras.
+      for (const ch of token) {
+        if (line && width(line + ch) > maxWidth) {
+          out.push(line);
+          line = ch;
+        } else line += ch;
+      }
     }
-    out.push(line);
+    out.push(line.trimEnd());
   }
   return out;
+}
+
+/** Alto que necesita una nota para mostrar todo su texto con su ancho actual. */
+export function noteHeightFor(text, fontSize, width) {
+  measureCtx ??= document.createElement('canvas').getContext('2d');
+  measureCtx.font = fontFor(fontSize);
+  const lines = wrapText(measureCtx, text || ' ', Math.max(10, width - NOTE_PADDING * 2));
+  return Math.ceil(NOTE_PADDING * 2 + lines.length * fontSize * LINE_HEIGHT);
 }
 
 const BRUSH_ALPHA = { pen: 1, marker: 0.85, highlighter: 0.38, neon: 1 };
@@ -157,8 +189,18 @@ function drawShape(ctx, el, width, color, { fill = true } = {}) {
       ctx.textBaseline = 'top';
       const pad = NOTE_PADDING;
       const lh = el.fontSize * LINE_HEIGHT;
-      wrapText(ctx, el.text, r.w - pad * 2).forEach((line, i) => {
-        if (pad + (i + 1) * lh <= r.h) ctx.fillText(line, r.x + pad, r.y + pad + i * lh);
+      // Mismo interlineado que el editor: el texto va centrado en cada línea.
+      const offset = (lh - el.fontSize) / 2;
+      const lines = wrapText(ctx, el.text, r.w - pad * 2);
+      const max = Math.max(1, Math.floor((r.h - pad * 2 + 0.5) / lh));
+      lines.slice(0, max).forEach((line, i) => {
+        let shown = line;
+        if (i === max - 1 && lines.length > max) {
+          // Si la nota quedó chica, la última línea visible termina en «…».
+          while (shown && ctx.measureText(`${shown}…`).width > r.w - pad * 2) shown = shown.slice(0, -1);
+          shown += '…';
+        }
+        ctx.fillText(shown, r.x + pad, r.y + pad + i * lh + offset);
       });
       break;
     }
