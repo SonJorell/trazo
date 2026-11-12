@@ -1,0 +1,114 @@
+# Integración continua: cada push y pull request a main/develop pasa por lint, pruebas
+# unitarias/integración y pruebas de punta a punta en Chrome, Firefox y WebKit (Safari).
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calidad:
+    name: Lint y pruebas
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  e2e-chrome:
+    name: E2E (Chrome)
+    needs: calidad
+    runs-on: ubuntu-24.04
+    env:
+      TRAZO_URL: http://localhost:3096
+      TRAZO_E2E_OUT: e2e-out
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: pip install playwright selenium reportlab python-pptx pillow
+      - run: python -m playwright install --with-deps chromium
+      - name: Servidor de pruebas
+        run: |
+          mkdir -p e2e-out
+          PORT=3096 HTTPS_PORT=0 DATA_DIR=e2e-data node server/index.js > e2e-out/servidor.log 2>&1 &
+          npx --yes wait-on -t 30000 http://localhost:3096/
+      - name: Pruebas de punta a punta
+        run: |
+          for t in sesion_completa proyector sellos v22 v23 v24 v25 v26 v27 v28; do
+            echo "::group::$t"; python tests/e2e/$t.py; echo "::endgroup::"
+          done
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-chrome
+          path: e2e-out
+          retention-days: 7
+
+  e2e-navegadores:
+    name: E2E (${{ matrix.browser }})
+    needs: calidad
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    env:
+      TRAZO_URL: http://localhost:3096
+      TRAZO_E2E_OUT: e2e-out
+      TRAZO_BROWSER: ${{ matrix.browser }}
+      DISPLAY: ':99'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: pip install playwright selenium
+      - run: python -m playwright install --with-deps chromium
+      - name: WebKitGTK y códecs
+        if: matrix.browser == 'webkit'
+        run: sudo apt-get update && sudo apt-get install -y webkit2gtk-driver gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
+      - name: Pantalla virtual
+        run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x900x24 &
+      - name: Servidor de pruebas
+        run: |
+          mkdir -p e2e-out
+          PORT=3096 HTTPS_PORT=0 DATA_DIR=e2e-data node server/index.js > e2e-out/servidor.log 2>&1 &
+          npx --yes wait-on -t 30000 http://localhost:3096/
+      - run: python tests/e2e/navegadores.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.browser }}
+          path: e2e-out
+          retention-days: 7
