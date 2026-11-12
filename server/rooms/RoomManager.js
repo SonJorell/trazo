@@ -65,6 +65,15 @@ export class RoomManager {
     return room;
   }
 
+  /** Borra de inmediato una sala recién creada (p. ej. si falló abrir un archivo .trazo). */
+  async discard(id) {
+    clearTimeout(this._timers.get(id));
+    this._timers.delete(id);
+    this.rooms.delete(id);
+    await this.store.delete(id).catch(() => {});
+    await this.assets?.removeRoom(id).catch(() => {});
+  }
+
   /** Obtiene una sala (de memoria o disco). Devuelve null si no existe. */
   async get(id) {
     if (!RoomManager.isValidId(id)) return null;

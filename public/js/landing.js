@@ -50,6 +50,28 @@ $('#create-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Abrir un archivo .trazo: crea una sala nueva con su contenido y quien la abre es el anfitrión.
+$('#open-saved').addEventListener('click', () => $('#open-file').click());
+$('#open-file').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  showError('');
+  const button = $('#open-saved');
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Abriendo…';
+  try {
+    const room = await api.importRoom(file);
+    saveHostKey(room.id, room.hostKey);
+    goTo(room.id);
+  } catch (err) {
+    showError(err.status === 413 ? 'El archivo es demasiado grande (máximo 200 MB).' : err.message);
+    button.disabled = false;
+    button.textContent = label;
+  }
+});
+
 $('#join-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   showError('');

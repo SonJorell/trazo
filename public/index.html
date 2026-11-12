@@ -53,6 +53,10 @@
           <input id="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="PIN de 4 a 8 dígitos" autocomplete="off" hidden />
           <button class="btn primary" type="submit">Crear pizarra</button>
         </form>
+        <div class="open-saved">
+          <button id="open-saved" class="btn ghost small" type="button">Abrir una sala guardada (.trazo)</button>
+          <input id="open-file" type="file" accept=".trazo,application/json" hidden />
+        </div>
       </section>
 
       <section class="card">
