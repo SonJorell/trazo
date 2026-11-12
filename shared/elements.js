@@ -66,6 +66,7 @@ export function sanitizeElement(raw) {
     version: Math.floor(raw.version),
     nonce: isNum(raw.nonce) ? Math.floor(raw.nonce) : 0,
     isDeleted: raw.isDeleted === true,
+    locked: raw.locked === true, // bloqueado: no se selecciona, mueve ni borra con las herramientas
     z: isNum(raw.z) ? raw.z : 0,
     x: coord(raw.x),
     y: coord(raw.y),
