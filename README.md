@@ -1,56 +1,82 @@
-# Trazo
+<p align="center">
+  <img src="public/favicon.svg" width="84" alt="Logo de Trazo" />
+</p>
 
-Pizarra colaborativa en tiempo real, **gratuita y autoalojada**. Corre en tu PC y la abres desde
-el celular, una tablet u otro computador conectado a la **misma red Wi-Fi**. Sin cuentas, sin
-servicios externos y sin internet.
+<h1 align="center">Trazo</h1>
 
-- Lápiz, rectángulo, elipse, línea, flecha, texto y borrador
-- **Pinceles**: lápiz, marcador, resaltador y **neón**; 18 colores (6 neón) + personalizado;
-  líneas continuas, discontinuas y punteadas; opacidad regulable
-- **Puntero láser** que se desvanece solo y **reacciones** con íconos sobre la proyección
-- **Páginas**: una por diapositiva (las marcas vuelven al regresar) o varias hojas de pizarra
-- **Seguir al presentador**: los participantes ven lo mismo que encuadra el anfitrión
-- **Notas adhesivas** y **sellos** vectoriales (visto bueno, estrella, números…), **temporizador** y **votación rápida**
-- **Exportar PDF** con todas las páginas y **modo simple** para celulares
-- **Presentar con un clic** (`presentar.bat`) con QR grande en el proyector
-- Seleccionar, mover, redimensionar y eliminar; colores, relleno y grosor
-- Zoom y desplazamiento con rueda, botones o **pellizco con dos dedos**
-- Deshacer / rehacer, exportar a PNG, limpiar pizarra
-- Varias personas a la vez: ves sus trazos **mientras dibujan**, sus cursores y sus nombres
-- Salas con código corto, **PIN opcional** y enlace + **código QR** para el celular
-- Al crear eliges **En blanco** o **En directo** (transmites tu pantalla y los demás marcan encima)
-- En el celular la transmisión se ve **a pantalla completa** y se reajusta al girar el teléfono
-- Las salas **se cierran solas** cuando no queda nadie (2 minutos después, configurable)
-- **Control remoto desde el celular**: pasar diapositivas (PowerPoint, Google Slides, PDF, Canva,
-  HTML) y **lupa** para ampliar una zona de la proyección
-- **Cámaras de los participantes** sobre la presentación (solo video, por WebRTC en la red local)
-- Los participantes pueden **pedir pasar diapositivas** y el anfitrión lo aprueba o lo quita
-- Se guarda sola en disco; si se corta la Wi-Fi puedes seguir dibujando y se sincroniza al volver
-- **Modo sobre la pantalla**: una capa transparente encima de todo para marcar sobre cualquier
-  programa, y **transmisión de la pantalla del PC** a la sala para marcarla desde el celular
+<p align="center">
+  <b>La pizarra colaborativa en tiempo real que corre en tu propia red.</b><br />
+  Gratis, sin cuentas y sin internet: la inicias en tu PC y todos se unen con un QR desde el celular, la tablet o el computador.
+</p>
 
-## Requisitos
+<p align="center">
+  <a href="https://github.com/SonJorell/trazo/actions/workflows/ci.yml"><img src="https://github.com/SonJorell/trazo/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/versión-2.8.0-4263eb" alt="Versión 2.8.0" />
+  <img src="https://img.shields.io/badge/node-%E2%89%A518.17-339933?logo=node.js&logoColor=white" alt="Node.js 18.17 o superior" />
+  <img src="https://img.shields.io/badge/licencia-MIT-lightgrey" alt="Licencia MIT" />
+</p>
 
-- [Node.js](https://nodejs.org) 18.17 o superior (`node -v`)
-- PC y celular en la misma red
-- Opcional, para adjuntar PowerPoint/Word/Excel: Microsoft Office **o** [LibreOffice](https://es.libreoffice.org/) (gratis) en el PC anfitrión. Los PDF e imágenes no necesitan nada más.
+<p align="center">
+  <img src="docs/img/hero.jpg" alt="Dos personas dibujando a la vez en Trazo, una desde el PC y otra desde el celular" width="900" />
+</p>
 
-## Instalación y uso
+<p align="center">
+  <a href="#inicio-rápido">Inicio rápido</a> ·
+  <a href="#funciones">Funciones</a> ·
+  <a href="#guía-de-uso">Guía de uso</a> ·
+  <a href="#desarrollo">Desarrollo</a> ·
+  <a href="#solución-de-problemas">Problemas</a> ·
+  <a href="CHANGELOG.md">Novedades</a>
+</p>
 
-### Windows (rápido)
+---
 
-Doble clic en **`iniciar.bat`**. La primera vez instala las dependencias.
+## ¿Por qué Trazo?
 
-### Cualquier sistema
+- **Sin fricción**: nadie crea cuentas ni instala nada. Se escanea un QR y se empieza a dibujar.
+- **Tus datos se quedan contigo**: todo corre en tu PC y viaja solo por tu Wi-Fi. Funciona aunque no haya internet.
+- **Hecha para clases y reuniones**: presentar PDF y PowerPoint con anotaciones, votar, cronometrar, reaccionar, grabar y dar permisos por rol.
+
+## Funciones
+
+| Área | Qué incluye |
+|------|-------------|
+| **Dibujo** | Lápiz, marcador, resaltador y **neón**; rectángulo, elipse, línea, **flechas que se pegan a las formas**, texto, notas adhesivas, sellos y borrador. Paleta de 18 colores + personalizado, tamaño y opacidad en %. |
+| **Tiempo real** | Los trazos se ven **mientras se dibujan**, con cursores y nombres de cada persona. Indicador de latencia y reconexión automática sin perder lo dibujado. |
+| **Páginas y fondos** | Varias páginas con título y miniaturas (mover, duplicar, borrar). Fondos punteado, cuadriculado, rayado, milimetrado, isométrico, pentagrama o liso, también en pizarra negra o verde. |
+| **Documentos** | Adjunta fotos, **PDF, PowerPoint, Word y Excel** (se convierten en el PC). Las anotaciones quedan en su página del documento. |
+| **Presentar** | Seguir al presentador, puntero láser, notas privadas del presentador, **modo sobre la pantalla** para marcar encima de cualquier programa y **control remoto** de diapositivas desde el celular. |
+| **Participación** | Reacciones, **votación rápida** (con exportación a CSV), temporizador y **roles** (visita, editor, presentador) con permisos que hace cumplir el servidor. |
+| **Cámaras** | Cámaras de los participantes por WebRTC en la red local: fijas, siguiendo el puntero o como cabeza de un **monigote** que camina por la pizarra. |
+| **Guardar y compartir** | Exportar PNG y PDF, **grabar la sesión en video**, **guardar la sala** en un archivo `.trazo` y reabrirla después. |
+| **En cualquier equipo** | PC, tablet y celular (desde 360 px), probado en Chrome, Edge, Safari (WebKit) y Firefox. **Se instala como app** (PWA). |
+
+<p align="center">
+  <img src="docs/img/flechas.gif" alt="Al mover las notas, las flechas pegadas las siguen" width="640" />
+</p>
+
+## Inicio rápido
+
+### Requisitos
+
+- [Node.js](https://nodejs.org) **18.17 o superior** (`node -v`).
+- El PC y los demás equipos en la **misma red Wi-Fi**.
+- *Opcional*: Microsoft Office o [LibreOffice](https://es.libreoffice.org/) (gratis) en el PC, solo para adjuntar PowerPoint, Word o Excel. Los PDF e imágenes no necesitan nada más.
+
+### Instalar e iniciar
+
+**Windows:** doble clic en **`iniciar.bat`**. La primera vez instala las dependencias.
+
+**Cualquier sistema:**
 
 ```bash
-git clone <url-del-repositorio> trazo
+git clone https://github.com/SonJorell/trazo.git
 cd trazo
 npm install
 npm start
 ```
 
-La consola muestra algo así:
+La consola muestra las direcciones y un QR:
 
 ```
   En este PC:        http://localhost:3080
@@ -58,402 +84,252 @@ La consola muestra algo así:
   [código QR]
 ```
 
-1. En el PC abre `http://localhost:3080`, elige **En blanco** o **En directo** y pulsa **Crear pizarra**.
-   En directo, el navegador te pedirá qué pantalla o ventana compartir (Chrome o Edge en el PC).
-2. Dentro de la pizarra pulsa **Compartir**: aparece el enlace y un QR.
-3. Escanéalo con la cámara del celular (misma Wi-Fi) y a dibujar.
-4. Si la sala está en directo, en el celular toca el botón **pantalla completa** para verla a pantalla completa
-   (gira el teléfono para verla más grande; **⤡** para salir).
+### Primera pizarra en un minuto
 
-> **Cierre automático**: cuando sale el último participante, la sala se cierra y se borra a los
-> 2 minutos (`EMPTY_ROOM_TTL_MIN`). Exporta un PNG si quieres conservar el dibujo.
+1. En el PC abre `http://localhost:3080` y pulsa **Crear pizarra** (*En blanco* o *En directo* para transmitir tu pantalla).
+2. Dentro de la pizarra pulsa **Compartir**: aparecen el enlace y el QR.
+3. Los demás escanean el QR con la cámara del celular y ya pueden dibujar.
 
-> **Firewall de Windows**: la primera vez Windows preguntará si permites a Node.js comunicarse.
-> Marca **Redes privadas** y acepta. Si no aparece el aviso y el celular no conecta, revisa que la
-> red Wi-Fi esté marcada como *privada* en la configuración de Windows.
+> [!NOTE]
+> **Firewall de Windows**: la primera vez Windows pregunta si Node.js puede usar la red. Marca **Redes privadas** y acepta. Si el celular no conecta, revisa que tu Wi-Fi esté marcada como *privada*.
 
-## Presentar con un clic
+> [!TIP]
+> Las salas se cierran solas 2 minutos después de que sale el último participante (`EMPTY_ROOM_TTL_MIN`). Para conservarla, usa **☰ → Guardar la sala (.trazo)**.
 
-1. Abre tu presentación en el PC del proyector.
-2. Doble clic en **`presentar.bat`**. Se abre la capa sobre la pantalla (y el servidor si no estaba
-   abierto), se crea la sala y aparece un **QR grande** para que el público se una.
-3. Durante la presentación, desde la barra del overlay:
-   - **Marcas: por diapositiva / se borran / se quedan**: qué pasa con lo dibujado al pasar de
-     diapositiva desde el control remoto o un participante con permiso. «Por diapositiva» guarda las
-     marcas de cada una y las muestra de nuevo al volver.
-   - **Temporizador** (1 a 15 min) y **Votación rápida** (Sí/No, A-D, De acuerdo/En desacuerdo, Bien/Regular/Mal, 1-5 o tus opciones).
-   - **Personas → Permitir a todos** para que cualquiera pase diapositivas sin aprobar uno por uno.
-   - **QR**: muestra u oculta el QR grande para el público.
+## Guía de uso
 
-## Dibujar sobre la pantalla (overlay)
+### Salas, invitaciones y roles
 
-Doble clic en **`iniciar-overlay.bat`**. La primera vez descarga Electron (unos 100 MB). Aparece
-una píldora arriba a la derecha y un icono en la bandeja del sistema.
+- Cada sala tiene un **código corto**, un enlace y un **QR**. Puedes protegerla con un **PIN** al crearla.
+- Quien crea la sala es la **presentación principal** (etiqueta *Principal* con estrella): proyecta, recibe las cámaras y administra permisos. El servidor le entrega una clave que solo guarda ese equipo.
+- En **☰ → Participantes y permisos** el anfitrión asigna roles, elige el rol de quien entre desde ahora o cambia a todos a la vez:
+
+| Rol | Puede |
+|-----|-------|
+| **Visita** | Mirar, reaccionar y votar. Puede *pedir permiso para dibujar*. |
+| **Editor** | Además dibujar, escribir, adjuntar, usar el láser, la cámara y el monigote. |
+| **Presentador** | Además pasar páginas o diapositivas y cambiar fondos y títulos. |
+
+- **Guardar la sala**: el anfitrión descarga un `.trazo` con páginas, títulos, fondos, notas del presentador, dibujos y adjuntos. En la portada, **Abrir una sala guardada** la recrea como sala nueva (máx. 200 MB). El archivo incluye las notas privadas: compártelo con cuidado.
+
+### Dibujar
+
+- Elige la herramienta en la barra superior; **Colores y grosor** abre el panel de estilo (en el celular, como hoja inferior).
+- **Flechas pegadas**: una línea o flecha que empieza o termina sobre una forma, nota, texto, imagen o documento queda pegada y la sigue al moverla. Mantén **Alt** para no pegarla; si mueves solo la flecha, se despega.
+- **Notas adhesivas**: se escriben en su lugar y crecen hasta mostrar todo el texto.
+- **Bloquear**: selecciona y toca el candado para que nada se mueva al anotar encima.
+- En el celular: un dedo dibuja, dos dedos mueven y hacen zoom. **Modo simple** (☰) deja solo lo esencial.
+
+<details>
+<summary><b>Atajos de teclado</b></summary>
+
+| Tecla | Acción | Tecla | Acción |
+|-------|--------|-------|--------|
+| `V` | Seleccionar | `T` | Texto |
+| `P` | Lápiz | `E` | Borrador |
+| `R` | Rectángulo | `O` | Elipse |
+| `A` | Flecha | `L` | Línea |
+| `N` | Nota adhesiva | `S` | Sello |
+| `K` | Puntero láser | `H` o `Espacio` + arrastrar | Mover vista |
+| `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer | `Supr` | Eliminar selección |
+| `Ctrl+C` / `Ctrl+V` / `Ctrl+X` | Copiar / pegar / cortar | `Ctrl+D` | Duplicar |
+| `Ctrl+A` | Seleccionar todo | `Ctrl` + rueda | Zoom |
+| `Mayús` al dibujar | Cuadrado, círculo o 45° | `Alt` al dibujar una flecha | No pegarla |
+| `←` / `→` | Página del documento activo | Doble toque en un texto | Editarlo |
+
+</details>
+
+### Páginas, fondos y documentos
+
+- **Páginas**: abajo, *‹ Pág. 1/3 ›*. Toca *Pág. N* para ver miniaturas, poner títulos y **mover, duplicar o borrar** páginas.
+- **Fondo de la hoja** (☰): para todas las páginas o solo la actual; lo ven todos y sale en las exportaciones. En pizarras oscuras la tinta negra se muestra blanca.
+- **Adjuntar** (clip de la barra, ☰, arrastrar y soltar o `Ctrl+V`):
+
+| Archivo | Cómo queda |
+|---------|------------|
+| Imagen (PNG, JPG, GIF, WebP; en el celular también la cámara) | Imagen que se mueve y agranda |
+| PDF, PowerPoint, Word, Excel, OpenDocument | **Documento para hojear** (‹ › en su barra) o **una página por diapositiva** |
+| Cualquier otro archivo | Tarjeta que se descarga con doble toque |
+
+Lo que dibujas sobre un documento **queda en esa página** y lo acompaña si lo mueves. Office se convierte a PDF en el PC (Microsoft Office o, si no, LibreOffice). Límites: 40 MB por archivo, 300 MB por sala y 300 páginas por documento.
+
+<table>
+  <tr>
+    <td><img src="docs/img/presentar.jpg" alt="Un PDF con anotaciones en rojo y reacciones del público" /></td>
+    <td><img src="docs/img/votar.jpg" alt="Votación rápida con resultados en vivo" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Presentar un PDF y anotarlo</sub></td>
+    <td align="center"><sub>Votación rápida con resultados en vivo</sub></td>
+  </tr>
+</table>
+
+### Presentar
+
+- **Seguir al presentador**: la vista de todos acompaña lo que encuadra el anfitrión; si alguien la mueve, aparece **Seguir** para volver.
+- **Puntero láser** (`K`), **reacciones** (botón de carita), **notas del presentador** (solo las ve el anfitrión) y **Borrar mis trazos**.
+- **Temporizador** y **votación rápida** en el menú ☰ (Sí/No, A–D, 1–5 u opciones propias; resultados en CSV).
+- **Presentar con un clic**: abre tu presentación y haz doble clic en **`presentar.bat`**. Se crea la sala y aparece un QR grande para el público.
+
+<details>
+<summary><b>Modo sobre la pantalla (overlay)</b></summary>
+
+Doble clic en **`iniciar-overlay.bat`** (la primera vez descarga Electron, unos 100 MB). Es una capa transparente sobre todo el escritorio para marcar encima de cualquier programa; esa ventana queda como presentación principal.
 
 | Atajo | Acción |
 |-------|--------|
-| `Ctrl+Shift+D` | Alternar **Dibujar** ↔ **Usar el PC** (los clics atraviesan la capa) |
+| `Ctrl+Shift+D` | Alternar **Dibujar** ↔ **Usar el PC** |
 | `Ctrl+Shift+S` | Transmitir / detener la pantalla a la sala |
 | `Ctrl+Shift+X` | Limpiar las marcas |
 | `Ctrl+Shift+H` | Ocultar / mostrar la capa |
 | `Ctrl+Shift+0` | Quitar la lupa |
 | `Ctrl+Shift+Q` | Salir |
 
-**Marcar la pantalla desde el celular**
+- **Transmitir**: el público ve la pantalla del PC de fondo y lo que dibuja en el celular aparece en el mismo lugar del PC. La capa no sale en la captura y solo se envían cuadros si alguien mira.
+- **Marcas**: *por diapositiva* (vuelven al regresar), *se borran* o *se quedan* al pasar de diapositiva.
+- **Personas → Permitir a todos** deja pasar diapositivas sin aprobar uno por uno.
+- Usa la transmisión solo en redes de confianza.
 
-1. En la capa pulsa **Dibujar** → **Invitar** (icono compartir) y escanea el QR con el celular.
-2. Pulsa **Transmitir**. En el celular verás la pantalla del PC de fondo («Pantalla en vivo»).
-3. Lo que dibujes en el celular aparece encima de la pantalla del PC, en el mismo lugar.
+</details>
 
-Notas:
+<details>
+<summary><b>Control remoto y pasar diapositivas</b></summary>
 
-- La capa se excluye de la captura, así la pantalla transmitida no la duplica.
-- Solo se envían cuadros cuando hay alguien mirando; la calidad se ajusta sola (~6 cuadros/s).
-- Si el servidor (`iniciar.bat`) ya está corriendo, el overlay lo usa; si no, lo inicia él mismo.
-- Para depurar, `set TRAZO_OVERLAY_CAPTURABLE=1` deja la capa visible en capturas.
-- La transmisión es para la red local: no la uses en redes públicas.
+Requiere el overlay abierto en el PC.
 
-## Roles: presentación principal y participantes
+1. En la barra del overlay pulsa **Control remoto** y escanea el QR con tu celular. **Ese QR lleva una clave secreta: no lo muestres al público.**
+2. Deja la presentación (PowerPoint, Google Slides, PDF, Canva o HTML) en primer plano.
+3. En el celular: anterior/siguiente (o desliza), iniciar (F5), inicio, fin, negro, blanco y salir; teclas de *Flechas*, *AvPág* o *Espacio*.
+4. **Lupa**: toca un punto para ampliarlo 2×, pellizca para cambiar el zoom y activa *Ver pantalla* para ver el PC en el celular.
 
-| | **Presentación principal (anfitrión)** | **Participantes** |
-|---|---|---|
-| Qué es | La ventana del PC conectado al proyector o a la pantalla grande | Celulares, tablets u otros PC |
-| Cómo se abre | `iniciar-overlay.bat` (encima de PowerPoint o de lo que sea) **o** la pizarra que creaste desde el inicio | Escaneando el QR de **Invitar / Compartir** |
-| Puede | Proyectar, recibir cámaras, recibir el control de diapositivas, transmitir su pantalla, dar y quitar permisos | Dibujar y escribir, encender su cámara, pedir pasar diapositivas |
-| Se reconoce por | La etiqueta **Principal** (con una estrella) junto al código de la sala | — |
+Un participante también puede pedir **☰ → Pedir pasar diapositivas**; el anfitrión lo permite, lo rechaza o lo quita desde el icono de personas.
 
-Solo puede haber **una** presentación principal por sala: la de quien la **creó**. Al crearla,
-el servidor le entrega una clave de anfitrión que guarda ese PC; nadie más puede proyectar,
-transmitir ni registrarse para el control, aunque tenga el enlace.
+</details>
 
-Flujo recomendado para presentar:
+### Cámaras y monigote
 
-1. En el PC del proyector abre tu presentación (PowerPoint, Slides, PDF…).
-2. Doble clic en `iniciar-overlay.bat`: crea la sala y esa capa queda como **presentación principal**.
-3. Pulsa **Invitar** en la barra del overlay y que los demás escaneen el QR.
-4. Ellos dibujan, encienden su cámara o piden pasar diapositivas; tú apruebas desde el PC.
-5. Para manejarlo tú desde tu celular, usa el QR de **Control remoto** (no lo muestres).
+- Comparte la sala con **Compartir**: el QR apunta a **HTTPS** (`https://IP:3443`), porque el celular solo permite la cámara en páginas seguras. La primera vez el navegador avisa que la conexión «no es privada» (es el certificado local de tu PC): **Avanzado → Continuar** (en iPhone: *Mostrar detalles → visitar el sitio*).
+- Cada persona enciende su cámara con el botón de cámara y elige en **☰ → Mi cámara y avatar** su forma y dónde se ve: fija, **siguiendo su puntero**, en un lugar de la pizarra o como **monigote** (con color, figura y accesorios) que camina, salta, se sienta en sillas y hace gestos al reaccionar.
+- **☰ → Ver las cámaras de todos**: cada cámara llega a la presentación en calidad completa y hasta a 8 espectadores en calidad reducida, directo por la red local y sin audio.
 
-## Cámaras de los participantes
+### Grabar la sesión
 
-El anfitrión proyecta (con la app de overlay o desde la pizarra que creó) y los demás pueden
-sumar su cámara, que aparece como una burbuja encima de la presentación.
+**☰ → Grabar la sesión**: elige **La pizarra** (dibujos, fondo, monigotes y cámaras; funciona en el celular) o **Una pantalla o ventana**, con micrófono opcional. Al detener, el video (MP4 o WebM según el navegador) se descarga en tu equipo; no pasa por el servidor.
 
-1. Comparte la sala con **Compartir**: el QR apunta a la dirección **HTTPS**
-   (`https://IP:3443`), porque el celular solo permite usar la cámara en páginas seguras.
-2. La primera vez el celular avisará que la conexión «no es privada»: es tu propio PC con un
-   certificado local. Toca **Avanzado → Continuar** (en iPhone: **Mostrar detalles → visitar el sitio**).
-3. El participante pulsa el botón de **cámara** (arriba a la derecha). Puede cambiar entre la cámara
-   frontal y la trasera, o apagarla desde su vista previa.
-4. En el proyector, las burbujas se **arrastran**, cambian de tamaño con **doble clic** y se
-   quitan con la **X**.
+### Instalar como app
 
-Las cámaras van directo del celular al PC por la red local (WebRTC, sin audio). Si una cámara no
-llega, revisa que el firewall de Windows permita Node.js y Electron en redes privadas.
-
-## Pasar diapositivas desde la pizarra (con permiso)
-
-Con la app de overlay abierta, un participante puede elegir **☰ → Pedir pasar diapositivas**. En
-el PC aparece «X quiere pasar las diapositivas»: **Permitir** o **Rechazar**. Al permitirlo, el
-participante ve los botones **‹ ›**. El anfitrión quita el permiso desde el icono de
-**personas** de la barra del overlay. Los permisos se borran al cerrar el overlay.
-
-## Control remoto desde el celular (presentaciones)
-
-Requiere la app de overlay abierta en el PC (`iniciar-overlay.bat`).
-
-1. En el PC, en la barra del overlay pulsa **Control remoto** (icono de celular) o usa el menú de
-   la bandeja. Escanea el QR con tu celular. **Ese QR lleva una clave secreta: no lo muestres al
-   público.**
-2. Abre tu presentación en el PC (PowerPoint, Google Slides, PDF, Canva o HTML) y déjala en primer plano.
-3. En el celular:
-   - **Anterior / Siguiente** (o desliza el dedo a izquierda o derecha sobre los botones).
-   - **Iniciar** (F5), **Inicio**, **Fin**, **Negro** (B), **Blanco** (W) y **Salir** (Esc).
-   - **Teclas**: *Flechas* (por defecto), *AvPág* (algunos visores de PDF) o *Espacio*.
-   - **Lupa**: toca un punto del recuadro para ampliarlo 2×, pellizca para cambiar el zoom,
-     arrastra para moverte y pulsa **Quitar zoom** para volver. Activa **Ver pantalla** para ver
-     la pantalla del PC en el recuadro.
-4. En el PC, `Ctrl+Shift+0` también quita la lupa.
-
-Las teclas se envían a la ventana que esté en primer plano. Si estabas dibujando, Trazo le
-devuelve el foco a la presentación antes de pulsar la tecla.
-
-## Herramientas para presentar en conjunto
-
-- **Páginas** (abajo: ‹ Pág. 1/3 ›): el anfitrión, o quien tenga permiso, cambia de página para
-  todos. En una pizarra en blanco funcionan como hojas; con diapositivas, una página por diapositiva.
-- **Seguir al presentador**: tu vista acompaña lo que encuadra el anfitrión. Si la mueves a mano,
-  aparece **Seguir** para volver.
-- **Notas adhesivas** (`N`, 6 colores) y **sellos** (`S`: visto bueno, incorrecto, estrella, corazón, atención, pregunta, flecha, advertencia y números 1–4; son vectoriales y se pueden agrandar).
-- **Modo simple** (menú ☰): en celulares de participantes viene activado; deja solo lápiz, láser,
-  notas, sellos y borrador.
-- **Exportar PDF** (menú ☰): una hoja por página, listo para compartir al terminar.
-
-- **Puntero láser** (`K`): señala con una estela brillante que se borra sola en ~1 segundo. Cada
-  persona tiene su color.
-- **Reacciones** (botón de carita arriba a la derecha): me gusta, me encanta, divertido, sorprendente, celebrar, buena idea, duda y levantar la mano; flotan como íconos sobre la pantalla de
-  todos, también sobre la proyección.
-- **Borrar mis trazos** (menú ☰): elimina solo lo que dibujaste tú; se puede deshacer.
-- **Auto-limpiar** (barra del overlay): al pasar de diapositiva desde el control remoto o con
-  permiso, las marcas se borran solas (también se puede deshacer).
-
-Análisis completo y hoja de ruta: [docs/analisis-mejoras.md](docs/analisis-mejoras.md).
-
-## Fondos de hoja y archivos adjuntos (v2.1)
-
-**Fondo de la hoja** (menú ☰ → *Fondo de la hoja*): puntos, cuadriculada, rayada (con margen),
-milimetrada, isométrica, pentagrama o lisa, en papel blanco, crema, celeste, **pizarra negra** o
-**pizarra verde**. Lo elige el anfitrión (o quien tenga permiso) y lo ven todos; también sale en
-las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca automáticamente.
-
-**Adjuntar** (botón de clip de la barra, menú ☰, arrastrar y soltar, o `Ctrl+V`):
-
-| Archivo | Cómo queda en la pizarra |
-|---------|--------------------------|
-| Foto o imagen (PNG, JPG, GIF, WebP; en el celular también la cámara) | Imagen que se mueve y se agranda (mantiene la proporción) |
-| PDF, PowerPoint, Word, Excel, OpenDocument | Eliges: **documento para hojear** (‹ › en su barra o flechas del teclado) o **una página por diapositiva** (cada página va a una página de Trazo) |
-| Cualquier otro archivo | Tarjeta: doble toque para descargarlo |
-
-- Lo que dibujes **encima de un documento queda en esa página**: al pasar a la siguiente se
-  oculta y vuelve al regresar. Si mueves o agrandas el documento, las anotaciones lo acompañan.
-- Doble toque (con Seleccionar) sobre una imagen o documento lo encuadra en tu pantalla.
-- PowerPoint/Word/Excel se convierten a PDF **en el PC anfitrión**, con Microsoft Office si está
-  instalado o, si no, con [LibreOffice](https://es.libreoffice.org/) (gratis). Sin ninguno de los
-  dos, el archivo queda como tarjeta descargable (puedes exportarlo tú como PDF y adjuntar el PDF).
-- Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
-  junto con la sala.
-
-## Novedades de la versión 2.8
-
-- **Flechas que se pegan a las formas**: dibuja una línea o flecha que empiece o termine sobre
-  un rectángulo, elipse, nota, texto, imagen, documento, sello o silla; mientras la arrastras se
-  resalta la forma a la que se pegará. Al mover o agrandar la forma, la flecha la sigue (también
-  en los equipos de los demás, y *Deshacer* devuelve ambas juntas). Mantén **Alt** para no
-  pegarla. Si mueves solo la flecha, se despega.
-- **Guardar la sala** (anfitrión): menú → *Guardar la sala (.trazo)*. Descarga un archivo con
-  todas las páginas, títulos, fondos, notas del presentador, lo dibujado y los adjuntos. Para
-  retomarla —aunque la sala ya se haya cerrado o en otro PC—, en la portada usa *Abrir una sala
-  guardada (.trazo)*: se crea una sala nueva con su contenido y quien la abre es el anfitrión.
-  Máximo 200 MB por archivo. El archivo incluye las notas privadas: compártelo con cuidado.
-- **Funciona en Safari**: se probó con WebKit (el motor de Safari). Se corrigió que la grabación
-  en Safari generaba un video vacío.
-- **Notas**: el clic que cierra el editor de una nota ya no crea otra nota vacía, y una nota que
-  queda sin texto se quita sola.
-- **Integración continua**: cada cambio que se sube a GitHub pasa por lint, pruebas y pruebas de
-  punta a punta en Chrome, Firefox y WebKit (`.github/workflows/ci.yml`).
-
-## Novedades de la versión 2.7
-
-- **Grabar la sesión**: menú → *Grabar la sesión*. Elige **La pizarra** (lo dibujado, el fondo,
-  los monigotes y las cámaras; funciona también en el celular) o **Una pantalla o ventana**
-  (p. ej. PowerPoint con las marcas encima). Opcionalmente incluye tu micrófono. Mientras graba
-  aparece un indicador rojo con el tiempo; al detener, el video (MP4 o WebM según el navegador)
-  se descarga en tu equipo. Nada se sube al servidor.
-- **Aplicación instalable (PWA)**: en el PC anfitrión abre `http://localhost:3080` y usa
-  *Instalar app* (portada o menú) para tenerla como aplicación con su propio icono y ventana.
-  Si se cae la red, muestra una página sin conexión en vez de un error.
-  *Limitación*: los navegadores solo permiten instalar desde `localhost` o HTTPS con certificado
-  de confianza. En el celular por la red local (HTTP o el certificado autofirmado) usa
-  *Agregar a pantalla de inicio* del navegador: abre Trazo a pantalla completa, sin modo sin conexión.
-- **Notas adhesivas que calzan con el texto**: al escribir, el editor ocupa exactamente la nota
-  (mismo color, margen, letra e interlineado) y la nota **crece hacia abajo** para mostrar todo
-  lo escrito. Las palabras muy largas se cortan igual que en el editor; si achicas la nota a mano,
-  el texto que no cabe termina en «…».
-- **Celular, tablet y horizontal revisados**: barra inferior que cabe en pantallas de 360 px,
-  paneles (notas, cámara) como hojas inferiores, menús y diálogos con desplazamiento, temporizador
-  que ya no tapa las herramientas en tablet, panel de estilo cerrado al girar el celular y
-  avisos que no tapan los títulos de los diálogos.
-
-## Novedades de la versión 2.6
-
-- **Todos ven las cámaras de todos**: cada participante recibe las cámaras de los demás (en la
-  red local, sin servidor de video). La presentación principal las recibe en calidad completa y
-  los demás en calidad reducida; cada cámara se envía a como máximo 8 espectadores además de la
-  presentación. Menú → *Ver las cámaras de todos* / *Ocultar las cámaras de los demás*. Las
-  visitas no las reciben por defecto (pueden activarlo).
-- Con eso, los **monigotes y las cámaras que siguen el puntero** muestran el video real en todos
-  los equipos que las ven, no solo en la presentación.
-- **Accesorios del monigote**: sombrero, gorra, lentes, audífonos, corona o moño.
-- **Gestos**: al reaccionar, tu monigote levanta la mano, celebra con saltos, lanza corazones,
-  muestra el pulgar arriba o se ríe.
-- **Compartir la pantalla del celular**: los navegadores de Android e iPhone no permiten capturar
-  la pantalla desde una página web (`getDisplayMedia` no existe en móviles), así que no se puede
-  hacer con Trazo en el navegador. Alternativa: proyecta el celular en el PC (p. ej. *Enlace
-  Móvil* de Windows o *scrcpy* para Android) y comparte esa ventana con *Transmitir mi pantalla*.
-
-## Novedades de la versión 2.5
-
-- **Organizar páginas**: en la vista de páginas (toca *Pág. N* abajo) cada página tiene botones
-  para **mover antes/después**, **duplicar** y **borrar**. El servidor lo hace de una vez para
-  todos, con sus títulos, fondos y notas.
-- **Bloquear**: selecciona y toca el candado de la barra inferior. Lo bloqueado no se selecciona,
-  mueve ni borra al anotar encima (un documento bloqueado se sigue hojeando con su barra).
-  Para soltarlo: menú → *Desbloquear elementos de esta página*.
-- **Notas del presentador**: botón de hoja en la barra inferior (solo el anfitrión). Notas por
-  página que se guardan en la sala y nadie más ve.
-- **Resultados de votación en CSV**: botón *CSV* en la tarjeta de la votación (se abre en Excel).
-
-## Novedades de la versión 2.4
-
-- **Cámara que sigue tu puntero**: la burbuja (con la forma que elijas) acompaña tu cursor con un
-  leve retraso elástico y tu nombre debajo; el cursor ya no repite la etiqueta.
-- **Monigote más fluido**: la física corre en cada cuadro de pantalla, se comparte posición y
-  velocidad 20 veces por segundo y los demás la **predicen y suavizan**; las piernas y los brazos
-  se animan según el movimiento que cada equipo ve (con rodillas y codos, rebote al caminar,
-  inclinación, sombra y pose de salto). La figura **neutra** es la predeterminada.
-- **Interfaz sin emojis**: reacciones, sellos, temporizador, barras y botones usan íconos
-  vectoriales propios, para un aspecto profesional y idéntico en cualquier equipo.
-
-## Roles y permisos (v2.3)
-
-El anfitrión abre **☰ → Participantes y permisos** (o toca los avatares de arriba):
-
-| Rol | Puede |
-|-----|-------|
-| **Visita** | Mirar, reaccionar y votar. Ve una barra con *Pedir permiso para dibujar*. |
-| **Editor** | Además dibujar, escribir, adjuntar, usar láser, cámara y monigote. |
-| **Presentador** | Además pasar páginas/diapositivas y cambiar fondo y títulos. |
-
-- **Quien entre desde ahora será…**: ideal para votaciones con mucha gente (elige *Visita*).
-- **Todos a la vez**: pasa a todos a un rol con un toque (p. ej. «todos visita» para cerrar la pizarra).
-- Cuando una visita pide permiso aparece un aviso con **Permitir / Ahora no**.
-- El rol se recuerda: si alguien se desconecta y vuelve desde el mismo navegador, conserva el suyo.
-- El servidor hace cumplir los permisos (una visita no puede dibujar aunque modifique la página).
-
-## Mi cámara y avatar (monigote)
-
-En **☰ → Mi cámara y avatar** (o el botón de carita junto a tu vista previa de cámara) cada persona elige:
-
-- **Forma**: automática (la del anfitrión), círculo, redondeada o cuadrada.
-- **Dónde se ve**: *fija en la presentación*, *sigue mi puntero*, *en un lugar de la pizarra*
-  (tocas dónde dejarla) o **monigote**.
-- **Monigote**: tu cámara es la cabeza de un personaje que **camina hacia tu puntero**, cae con
-  gravedad, se para sobre figuras, notas, imágenes y documentos, **salta** para subirse a ellas y
-  se **sienta en una silla** (*Agregar silla* → *Sentarme*). Eliges **color** y **figura**
-  (hombre, mujer o neutro). Sin cámara, la cabeza muestra tus iniciales.
-- Todos ven los monigotes; el video de las cámaras se ve en la presentación principal (y tú ves
-  el tuyo).
-
-## Novedades de la versión 2.2
-
-- **Colores y pinceles**: una sola paleta para todos los pinceles (con el Neón brilla cualquier
-  color), **color personalizado** con los últimos 6 usados, vista previa del trazo, y
-  **tamaño y opacidad en %** con control deslizante y atajos rápidos.
-- **Fondo por página**: en *Fondo de la hoja* eliges si se aplica a **todas las páginas** o
-  **solo a la actual**. Todos ven siempre el mismo fondo en cada página (también a pantalla
-  completa en el celular).
-- **Títulos y vista de páginas**: toca *Pág. N* abajo para ver todas las páginas en miniatura,
-  saltar a una o escribirle un título (lo ven todos y sale en el PDF).
-- **Cámaras**: botón de cámara abajo a la derecha (en la presentación principal) para elegir **forma**
-  (círculo, redondeada, rectángulo), **tamaño**, **ubicación** (libre, esquinas, fila, columna,
-  cuadrícula), nombres y efecto espejo.
-- **Copiar, pegar y duplicar**: `Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+D`, `Ctrl+A`, y botón
-  *Duplicar* junto a *Eliminar* (útil en el celular).
-- **Sincronización**: los cursores y el láser solo se ven en la página donde están; al pasar
-  páginas rápido ya no hay saltos; si el celular se bloquea o pierde la red, se reconecta solo
-  al volver (y detecta conexiones «muertas» con el ping).
-- **Interfaz**: en tablet la barra de herramientas baja a una segunda fila; en el celular el
-  estilo se abre como hoja inferior a lo ancho, con botones más grandes para el dedo.
-
-**Tiempo real más fluido**: los trazos viajan en vivo a trocitos (~60 veces por segundo) en lugar
-de reenviar el trazo completo; los cursores de los demás se deslizan suavemente; junto al código
-de la sala ves la **latencia** (verde < 80 ms, amarillo < 200 ms, rojo más).
-
-### Atajos de teclado
-
-| Tecla | Acción | Tecla | Acción |
-|-------|--------|-------|--------|
-| `V` | Seleccionar | `T` | Texto |
-| `P` | Lápiz | `E` | Borrador |
-| `K` | Puntero láser | `N` | Nota adhesiva |
-| `S` | Sello | `←` / `→` | Página del documento activo |
-| `Ctrl+C` / `Ctrl+V` | Copiar / pegar | `Ctrl+D` | Duplicar |
-| `Ctrl+X` | Cortar | `Ctrl+A` | Seleccionar todo |
-| `R` | Rectángulo | `H` | Mover vista |
-| `O` | Elipse | `Espacio` + arrastrar | Mover vista |
-| `A` | Flecha | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
-| `L` | Línea | `Supr` | Eliminar selección |
-| `Mayús` al dibujar | Cuadrado / círculo / 45° | `Ctrl` + rueda | Zoom |
-
-En el celular: un dedo dibuja, dos dedos mueven y hacen zoom. Doble toque sobre un texto (con
-Seleccionar) para editarlo.
+En el PC abre `http://localhost:3080` y usa **Instalar app** (portada o menú): Trazo queda con su icono y ventana propios, y muestra una página sin conexión si se cae la red. En el celular, por la red local, usa *Agregar a pantalla de inicio* del navegador (los navegadores solo permiten instalar desde `localhost` o HTTPS de confianza).
 
 ## Configuración
 
-Variables de entorno (ver `.env.example`):
+Variables de entorno (plantilla en [`.env.example`](.env.example)):
 
 | Variable | Por defecto | Descripción |
 |----------|-------------|-------------|
-| `PORT` | `3080` | Puerto HTTP/WebSocket |
-| `HOST` | `0.0.0.0` | `127.0.0.1` para que solo funcione en este PC |
-| `DATA_DIR` | `data` | Carpeta donde se guardan las salas |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
-| `EMPTY_ROOM_TTL_MIN` | `2` | Minutos que una sala vacía sigue abierta antes de borrarse |
+| `PORT` | `3080` | Puerto HTTP y WebSocket |
 | `HTTPS_PORT` | `3443` | Puerto HTTPS local (cámaras en el celular); `0` lo desactiva |
+| `HOST` | `0.0.0.0` | `127.0.0.1` para que solo funcione en este PC |
+| `DATA_DIR` | `data` | Carpeta de salas y adjuntos |
+| `EMPTY_ROOM_TTL_MIN` | `2` | Minutos que una sala vacía sigue abierta antes de borrarse |
 | `SWEEP_INTERVAL_MS` | `30000` | Cada cuánto se revisan las salas vacías |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
 | `SOFFICE_PATH` | — | Ruta a `soffice` si LibreOffice no está en el lugar habitual |
-| `TRAZO_NO_MSOFFICE` | — | `1` para no usar Microsoft Office al convertir (solo LibreOffice) |
+| `TRAZO_NO_MSOFFICE` | — | `1` para convertir solo con LibreOffice |
 
-Ejemplo en Windows: `set PORT=3090 && npm start`.
+Ejemplo en Windows: `set PORT=3090 && npm start` · en macOS/Linux: `PORT=3090 npm start`.
 
-## Scripts
+## Desarrollo
+
+### Arquitectura
+
+Un solo proceso Node.js sirve el cliente, la API REST y el canal en tiempo real. El cliente es HTML, CSS y módulos JavaScript nativos, sin paso de compilación. Cada elemento de la pizarra se sincroniza con la regla *last-writer-wins* por versión, idéntica en servidor y clientes (`shared/`).
+
+```mermaid
+flowchart LR
+  subgraph Equipos["Navegadores (PC, tablet, celular)"]
+    UI["Cliente<br/>Canvas + módulos ES"]
+  end
+  subgraph PC["PC anfitrión · Node.js"]
+    HTTP["HTTP / HTTPS<br/>estáticos + API REST"]
+    WS["WebSocket<br/>protocolo de la sala"]
+    ROOMS["RoomManager<br/>salas, roles, LWW"]
+    STORE[("data/<br/>JSON + adjuntos")]
+    OFFICE["Conversión Office → PDF"]
+  end
+  UI -- "HTTP" --> HTTP
+  UI <-- "tiempo real" --> WS
+  UI <-. "WebRTC (cámaras, LAN)" .-> UI
+  WS --> ROOMS --> STORE
+  HTTP --> OFFICE --> STORE
+  OVERLAY["Overlay Electron"] <--> WS
+```
+
+Detalle de módulos, protocolo y reglas de dependencia en [docs/arquitectura.md](docs/arquitectura.md).
+
+### Estructura
+
+```
+server/    Servidor: HTTP, WebSocket, salas, persistencia, adjuntos y conversión de Office
+shared/    Modelo, geometría, flechas pegadas y protocolo (servidor y navegador)
+public/    Cliente sin compilación: HTML, CSS y módulos JS
+overlay/   App de escritorio (Electron) para dibujar sobre la pantalla
+tests/     Pruebas unitarias e integración (node:test) y de punta a punta (tests/e2e)
+docs/      Requerimientos, arquitectura, decisiones (ADR), informe y análisis
+.github/   Integración continua y plantilla de pull request
+```
+
+### Scripts
 
 | Comando | Descripción |
 |---------|-------------|
 | `npm start` | Inicia el servidor |
 | `npm run dev` | Inicia y reinicia al guardar cambios |
-| `npm test` | Pruebas unitarias y de integración (`node:test`) |
-| `npm run lint` | Revisa el estilo del código con ESLint |
-| `npm run check` | Lint + pruebas |
-| `npm run overlay` | Instala Electron (si falta) y abre el modo sobre la pantalla |
-| `python tests/e2e/sesion_completa.py` | Pruebas de punta a punta opcionales (Playwright; ver cabecera del archivo) |
-| `python tests/e2e/v22.py` | Punta a punta de v2.2 (escritorio, tablet y celular) |
-| `python tests/e2e/adjuntos.py` | Punta a punta de fondos, adjuntos, documentos y trazos en vivo |
-| `python tests/e2e/v28.py` | Punta a punta de v2.8 (flechas pegadas, guardar/abrir sala) |
-| `TRAZO_BROWSER=webkit python tests/e2e/navegadores.py` | Compatibilidad con WebKit (Safari) o Firefox vía Selenium (ver cabecera) |
+| `npm test` | Pruebas unitarias y de integración |
+| `npm run lint` | Revisa el estilo con ESLint |
+| `npm run check` | Lint + pruebas (lo mismo que exige la CI) |
+| `npm run overlay` | Instala Electron si falta y abre el modo sobre la pantalla |
 
-Las mismas pruebas corren solas en GitHub Actions en cada *push* y *pull request*
-(`.github/workflows/ci.yml`); los resultados y capturas quedan como artefactos del flujo.
+### Pruebas de punta a punta
 
-## Estructura
+Con el servidor corriendo y Python con Playwright (`pip install playwright && python -m playwright install chromium`):
 
-```
-server/   Servidor: HTTP, WebSocket, salas, persistencia, adjuntos y conversión de Office
-overlay/  App de escritorio (Electron) para dibujar sobre la pantalla
-shared/   Modelo, geometría y protocolo (usados por servidor y navegador)
-public/   Cliente sin compilación: HTML, CSS y módulos JS
-tests/    Pruebas automáticas
-docs/     Requerimientos, arquitectura, decisiones e informe
+```bash
+TRAZO_URL=http://localhost:3080 python tests/e2e/v28.py           # flechas pegadas, guardar/abrir sala
+TRAZO_URL=http://localhost:3080 python tests/e2e/sesion_completa.py
+TRAZO_BROWSER=webkit python tests/e2e/navegadores.py             # WebKit (Safari) o firefox, vía Selenium
 ```
 
-Detalle completo en [docs/arquitectura.md](docs/arquitectura.md).
+Cada archivo de `tests/e2e/` explica en su cabecera qué cubre y qué necesita. Todas corren en **GitHub Actions** en cada *push* y *pull request* (Node 20 y 22; Chrome, Firefox y WebKit), y guardan capturas como artefactos.
+
+### Contribuir
+
+1. Crea una rama desde `develop`: `feature/<tema>` (`main` es la versión estable).
+2. Usa commits semánticos: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
+3. Antes del pull request: `npm run check` en verde y, si cambia la interfaz, una prueba en `tests/e2e/`.
+4. Otra persona revisa el pull request antes de integrarlo. Las decisiones de diseño nuevas se registran como ADR en [docs/decisiones.md](docs/decisiones.md).
+
+## Solución de problemas
+
+| Problema | Solución |
+|----------|----------|
+| El celular no abre la página | Misma Wi-Fi; permite Node.js en el firewall (redes privadas); usa la IP de la consola, no `localhost` |
+| «La conexión no es privada» | Es el certificado local del PC: *Avanzado → Continuar*. Se necesita para la cámara |
+| La cámara no aparece | Abre la sala por `https://…:3443`, permite la cámara en el celular y revisa el firewall |
+| «El puerto 3080 está ocupado» | Cierra la otra ventana de Trazo o usa otro puerto (`PORT=3090`) |
+| Varias IP en la consola | Usa la que empieza por `192.168.` (suele ser la Wi-Fi) |
+| No se convierte un PowerPoint | Instala LibreOffice o indica su ruta con `SOFFICE_PATH`; mientras tanto, exporta a PDF y adjunta el PDF |
+| Se perdió la conexión | Se reconecta sola; lo dibujado mientras tanto se envía al volver |
+| No aparece «Instalar app» | Solo se ofrece en `localhost` o HTTPS de confianza; en el celular usa *Agregar a pantalla de inicio* |
 
 ## Documentación
 
+- [Historial de versiones](CHANGELOG.md)
 - [Requerimientos, MVP y backlog](docs/requerimientos.md)
 - [Arquitectura y protocolo](docs/arquitectura.md)
 - [Bitácora de decisiones (ADR)](docs/decisiones.md)
 - [Informe del proyecto](docs/informe.md)
 - [Análisis de mejoras y hoja de ruta](docs/analisis-mejoras.md)
 
-## Flujo de trabajo (contribuir)
-
-- Ramas: `main` (estable), `develop` (integración), `feature/<tema>` (cada cambio).
-- Commits semánticos: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
-- Antes de abrir un Pull Request hacia `develop`: `npm run check` debe pasar. Otra persona revisa
-  el PR antes de integrarlo.
-
-## Solución de problemas
-
-| Problema | Solución |
-|----------|----------|
-| El celular no abre la página | Misma Wi-Fi; permitir Node.js en el firewall (redes privadas); usar la IP que muestra la consola, no `localhost` |
-| «La conexión no es privada» | Normal con el certificado local: Avanzado → Continuar. Es necesario para la cámara |
-| La cámara no aparece en el proyector | Abrir la sala por `https://…:3443`; permitir la cámara en el celular; firewall en redes privadas |
-| «El puerto 3080 está ocupado» | Cierra la otra ventana de Trazo o usa `set PORT=3090` |
-| Varias IP en la consola | Usa la que empieza por `192.168.` (suele ser la Wi-Fi) |
-| Se perdió la conexión | Se reconecta sola; lo dibujado mientras tanto se envía al volver |
-
 ## Licencia
 
-MIT. Ver [LICENSE](LICENSE).
+[MIT](LICENSE). Úsala, modifícala y compártela libremente.
