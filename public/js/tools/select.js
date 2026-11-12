@@ -1,6 +1,9 @@
 import { getBounds, rectsIntersect, normalizeRect } from '/shared/geometry.js';
 import { RESIZABLE, KEEP_ASPECT, hitHandle } from '../core/handles.js';
 import { scaleAbout } from '../core/transform.js';
+import { routeArrow } from '/shared/binding.js';
+
+const isBoundLine = (el) => (el.type === 'line' || el.type === 'arrow') && (el.startBind || el.endBind);
 
 const DOUBLE_TAP_MS = 350;
 
@@ -98,6 +101,17 @@ export function createSelectTool(ctx) {
 
       if (mode === 'move') {
         for (const [id, orig] of originals) tx.update(id, { x: orig.x + dx, y: orig.y + dy });
+        // Flechas pegadas que se mueven: si va con alguna de sus formas, se recalcula (se estira
+        // hacia la que quedó quieta); si se mueve sola, se despega.
+        for (const [id, orig] of originals) {
+          if (!isBoundLine(orig)) continue;
+          if (originals.has(orig.startBind) || originals.has(orig.endBind)) {
+            const route = routeArrow(ctx.scene.get(id), (i) => ctx.scene.get(i));
+            if (route) tx.update(id, route);
+          } else if (ctx.scene.get(id).startBind || ctx.scene.get(id).endBind) {
+            tx.update(id, { startBind: undefined, endBind: undefined });
+          }
+        }
       } else if (mode === 'resize') {
         const [[id, orig]] = originals;
         if (KEEP_ASPECT.has(orig.type)) {
