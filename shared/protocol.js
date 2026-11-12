@@ -27,6 +27,7 @@
  *   role-request {}                     (visita) Pide permiso para dibujar → llega al anfitrión.
  *   avatar { mode, shape, color, figure, anchor? }  Cómo se muestra mi cámara/monigote.
  *   avatar-pos { x, y, f, w, s, p }     Posición del monigote (efímero).
+ *   cam-watch { on }                    Quiero ver las cámaras de los demás → peer-watch { id, on }.
  *   page-op { op, n, to? }              Mover/duplicar/borrar una página (anfitrión o con permiso)
  *                                       → ops + page-meta { pageTitles, pageBackgrounds } + page.
  *   notes { n, text }                   (anfitrión) Notas privadas de una página; solo las reciben
@@ -88,6 +89,8 @@ export const MSG = Object.freeze({
   AVATAR: 'avatar',
   AVATAR_POS: 'avatar-pos',
   PAGE_OP: 'page-op',
+  CAM_WATCH: 'cam-watch',
+  PEER_WATCH: 'peer-watch',
   PAGE_META: 'page-meta',
   NOTES: 'notes',
   STROKE: 'stroke',
@@ -202,6 +205,7 @@ export const CLIENT_ID_RE = /^[A-Za-z0-9_-]{4,40}$/;
 export const AVATAR_MODES = Object.freeze(['off', 'fixed', 'pointer', 'anchor', 'body']);
 export const AVATAR_SHAPES = Object.freeze(['auto', 'circle', 'rounded', 'square']);
 export const AVATAR_FIGURES = Object.freeze(['hombre', 'mujer', 'neutro']);
+export const AVATAR_ACCESSORIES = Object.freeze(['none', 'hat', 'cap', 'glasses', 'headphones', 'crown', 'bow']);
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const coordOk = (v) => Number.isFinite(v) && Math.abs(v) <= 1e7;
 
@@ -212,6 +216,7 @@ export function validateAvatar(msg) {
     shape: AVATAR_SHAPES.includes(msg.shape) ? msg.shape : 'auto',
     color: HEX_RE.test(msg.color) ? msg.color : '#4263eb',
     figure: AVATAR_FIGURES.includes(msg.figure) ? msg.figure : 'neutro',
+    acc: AVATAR_ACCESSORIES.includes(msg.acc) ? msg.acc : 'none',
   };
   const a = msg.anchor;
   if (a && coordOk(a.x) && coordOk(a.y)) out.anchor = { x: Math.round(a.x), y: Math.round(a.y), p: pageOf(a.p) ?? 0 };
