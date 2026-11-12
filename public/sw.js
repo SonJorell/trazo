@@ -4,7 +4,7 @@
  * versión vieja de la app); la copia en caché solo se usa sin conexión.
  * Nunca toca la API, los archivos de las salas ni el tiempo real.
  */
-const CACHE = 'trazo-v2.7.0';
+const CACHE = 'trazo-v2.8.0';
 const SHELL = ['/', '/sala', '/control', '/css/styles.css', '/offline.html', '/icons/icon-192.png', '/favicon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
