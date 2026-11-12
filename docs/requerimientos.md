@@ -82,6 +82,8 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-60 | *(v2.5)* Bloquear y desbloquear elementos. |
 | RF-61 | *(v2.5)* Notas privadas del presentador por página. |
 | RF-62 | *(v2.5)* Descargar los resultados de la votación en CSV. |
+| RF-63 | *(v2.6)* Cada participante puede ver las cámaras de los demás (malla WebRTC limitada, calidad reducida para espectadores). |
+| RF-64 | *(v2.6)* Accesorios y gestos del monigote al reaccionar. |
 | RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
@@ -183,6 +185,9 @@ y el linter pasa.
 | T-46 | Organizar páginas | `page-op` atómico en el servidor (elementos, títulos, fondos, notas), acciones en la vista | Terminado |
 | T-47 | Bloqueo, notas y CSV | Campo `locked`, mensaje `notes` solo para anfitriones, exportación CSV | Terminado |
 | T-48 | Pruebas v2.5 | Integración (50) + E2E `v25.py` (9) + regresión | Terminado |
+| T-49 | Cámaras para todos | `cam-watch`/`peer-watch`, señales con `role`, límite de espectadores y bitrate | Terminado |
+| T-50 | Monigote expresivo | Accesorios (`acc`) y gestos por reacción | Terminado |
+| T-51 | Pruebas v2.6 | Integración (51) + E2E `v26.py` con cámaras simuladas (7) + regresión | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro

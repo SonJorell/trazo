@@ -405,3 +405,20 @@ Cada entrada registra el contexto, la decisión y sus consecuencias.
 - **Decisión**: las notas se guardan en la sala (`notes`, por página) pero solo se envían a
   conexiones de anfitrión (en `welcome` y con el mensaje `notes`). Un participante nunca las recibe.
 - **Consecuencias**: el anfitrión puede preparar la charla en su PC y verla en otra ventana suya.
+
+## ADR-045 — Cámaras para todos con malla limitada (sin SFU)
+
+- **Decisión**: quien quiere ver las cámaras lo anuncia (`cam-watch`); cada emisor abre una
+  conexión WebRTC con la presentación (calidad completa) y con hasta 8 espectadores (300 kbps,
+  resolución ÷1,5, 20 fps). Cada señal lleva `role` (`send`/`recv`) porque dos personas pueden
+  enviarse cámara mutuamente. Las visitas solo pueden mandar señales de receptor.
+- **Alternativas**: un SFU (p. ej. mediasoup) escala mejor pero exige compilar módulos nativos y
+  más CPU en el PC anfitrión; para salas de una red local de hasta ~8 cámaras la malla basta.
+- **Consecuencias**: sin servidor de video y sin instalación extra; con muchas cámaras y
+  espectadores el uso de red crece (N×M), por eso el límite y la calidad reducida.
+
+## ADR-046 — Compartir la pantalla del celular: fuera del alcance web
+
+- **Decisión**: no se implementa. Los navegadores móviles (Chrome Android, Safari iOS) no ofrecen
+  `getDisplayMedia`; la única vía sería una app nativa. Se documenta la alternativa de reflejar el
+  celular en el PC y transmitir esa ventana.

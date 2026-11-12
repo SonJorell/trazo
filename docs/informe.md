@@ -151,6 +151,15 @@ desde el PC y el celular en la misma red.
 | E2E `tests/e2e/v25.py` | 9/9: duplicar, mover y borrar páginas vistos por la invitada, bloqueo (no se selecciona ni se borra), desbloqueo, notas privadas que sobreviven a recargar, CSV de votación |
 | Regresión E2E | `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
 
+### Versión 2.6 — Cámaras para todos y monigote expresivo
+
+| Evidencia | Resultado |
+|-----------|-----------|
+| `npm test` | 51/51 (nueva: `peer-watch`, visita que solo puede responder como receptora) |
+| E2E `tests/e2e/v26.py` (3 navegadores con cámara simulada + visita en celular) | 7/7: la presentación ve 2 cámaras, cada participante ve la del otro, la visita no las recibe hasta activarlo, al ocultarlas el emisor corta esa conexión, accesorio sincronizado, gesto al reaccionar |
+| Regresión E2E | `v25.py` 9/9, `v24.py` 8/8, `v23.py` 8/8, `v22.py` 15/15, `adjuntos.py` 12/12, `sesion_completa.py` 11/11, `proyector.py` 8/8, `sellos.py` correcto |
+| Defectos encontrados y corregidos | (1) en el celular la barra de visita tapaba las cámaras; (2) brazos del gesto ocultos detrás de la cabeza; (3) la gorra tapaba la cara |
+
 ## Escalabilidad y trabajo futuro
 
 - **Más usuarios.** Una sala en memoria soporta decenas de participantes en una red local. Para

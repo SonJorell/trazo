@@ -223,6 +223,23 @@ las exportaciones. En las pizarras oscuras la tinta negra se muestra blanca auto
 - Límites: 40 MB por archivo, 300 MB por sala, 300 páginas por documento. Los archivos se borran
   junto con la sala.
 
+## Novedades de la versión 2.6
+
+- **Todos ven las cámaras de todos**: cada participante recibe las cámaras de los demás (en la
+  red local, sin servidor de video). La presentación principal las recibe en calidad completa y
+  los demás en calidad reducida; cada cámara se envía a como máximo 8 espectadores además de la
+  presentación. Menú → *Ver las cámaras de todos* / *Ocultar las cámaras de los demás*. Las
+  visitas no las reciben por defecto (pueden activarlo).
+- Con eso, los **monigotes y las cámaras que siguen el puntero** muestran el video real en todos
+  los equipos que las ven, no solo en la presentación.
+- **Accesorios del monigote**: sombrero, gorra, lentes, audífonos, corona o moño.
+- **Gestos**: al reaccionar, tu monigote levanta la mano, celebra con saltos, lanza corazones,
+  muestra el pulgar arriba o se ríe.
+- **Compartir la pantalla del celular**: los navegadores de Android e iPhone no permiten capturar
+  la pantalla desde una página web (`getDisplayMedia` no existe en móviles), así que no se puede
+  hacer con Trazo en el navegador. Alternativa: proyecta el celular en el PC (p. ej. *Enlace
+  Móvil* de Windows o *scrcpy* para Android) y comparte esa ventana con *Transmitir mi pantalla*.
+
 ## Novedades de la versión 2.5
 
 - **Organizar páginas**: en la vista de páginas (toca *Pág. N* abajo) cada página tiene botones
