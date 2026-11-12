@@ -660,3 +660,40 @@ test('v2.5: mover, duplicar y borrar páginas; notas privadas del presentador; b
   assert.equal((await ana.next('error')).code, 'not_host');
   for (const c of [host, ana]) c.ws.close();
 });
+
+test('v2.6: ver las cámaras de todos (peer-watch) y señales de visitas que solo reciben', async () => {
+  const { id, hostKey } = await createRoom();
+  const host = connect();
+  const ana = connect();
+  const vale = connect();
+  await Promise.all([host.opened, ana.opened, vale.opened]);
+  host.send({ t: 'join', room: id, name: 'Anfitrión', hostKey });
+  await host.next('welcome');
+  host.send({ t: 'role', default: 'visita' });
+  await host.next('room-roles');
+  host.send({ t: 'role', default: 'editor' });
+  await host.next('room-roles');
+  ana.send({ t: 'join', room: id, name: 'Ana' });
+  const wa = await ana.next('welcome');
+  host.send({ t: 'role', default: 'visita' });
+  await host.next('room-roles');
+  vale.send({ t: 'join', room: id, name: 'Vale' });
+  const wv = await vale.next('welcome');
+  assert.equal(wv.you.role, 'visita');
+
+  // Vale quiere ver las cámaras → Ana se entera.
+  vale.send({ t: 'cam-watch', on: true });
+  const watch = await ana.next('peer-watch');
+  assert.deepEqual([watch.id, watch.on], [wv.you.id, true]);
+
+  // Ana (editora) le envía su oferta; Vale (visita) puede responder como receptora…
+  ana.send({ t: 'rtc', to: wv.you.id, data: { type: 'offer', sdp: 'v=0', role: 'send' } });
+  assert.equal((await vale.next('rtc')).data.type, 'offer');
+  vale.send({ t: 'rtc', to: wa.you.id, data: { type: 'answer', sdp: 'v=0', role: 'recv' } });
+  assert.equal((await ana.next('rtc')).data.role, 'recv');
+  // …pero no puede enviar su propia cámara.
+  vale.send({ t: 'rtc', to: wa.you.id, data: { type: 'offer', sdp: 'v=0', role: 'send' } });
+  ana.send({ t: 'ping', ts: 5 });
+  assert.equal((await ana.next('pong')).ts, 5);
+  for (const c of [host, ana, vale]) c.ws.close();
+});

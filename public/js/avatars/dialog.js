@@ -10,6 +10,7 @@ const MODES = {
   body: { label: 'Monigote', desc: 'Tu cámara es la cabeza de un personaje que camina hacia tu puntero, salta y se sienta.' },
 };
 const FIGURES = { neutro: 'Neutro', hombre: 'Hombre', mujer: 'Mujer' };
+const ACCESSORIES = { none: 'Ninguno', hat: 'Sombrero', cap: 'Gorra', glasses: 'Lentes', headphones: 'Audífonos', crown: 'Corona', bow: 'Moño' };
 const COLORS = ['#4263eb', '#e03131', '#2f9e44', '#f08c00', '#9c36b5', '#0c8599', '#c2255c', '#1e1e1e'];
 
 /**
@@ -71,6 +72,8 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
             ),
             h('h4', {}, 'Figura'),
             seg(FIGURES, look.figure, (v) => avatars.setLook({ figure: v })),
+            h('h4', {}, 'Accesorio'),
+            seg(ACCESSORIES, look.acc ?? 'none', (v) => avatars.setLook({ acc: v })),
             h(
               'div',
               { class: 'row wrap' },
@@ -79,7 +82,7 @@ export function avatarDialog({ avatars, cameraOn, onPlaceAnchor }) {
                 ? h('button', { class: 'btn small primary', onclick: () => (avatars.standUp(), paint()) }, 'Levantarme')
                 : h('button', { class: 'btn small primary', onclick: () => (avatars.sitDown(), paint()) }, 'Sentarme en la silla más cercana'),
             ),
-            h('p', { class: 'muted small' }, 'Mueve tu puntero para que camine; si lo subes mucho, salta. Se para sobre figuras, notas, imágenes y documentos.'),
+            h('p', { class: 'muted small' }, 'Mueve tu puntero para que camine; salta para subirse a figuras, notas, imágenes y documentos. Cuando reaccionas, tu monigote hace el gesto (saluda, celebra, lanza corazones…).'),
           )
         : null;
     const anchorOptions =

@@ -95,6 +95,8 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
         else if (!client.room) fail(ERR.NOT_JOINED, 'Primero debes unirte a una sala');
         else if (msg.t === MSG.ROLE) setRole(msg);
         else if (msg.t === MSG.ROLE_REQUEST) requestRole();
+        else if (msg.t === MSG.CAM_WATCH) camWatch(msg);
+        else if (msg.t === MSG.RTC && msg.data?.role === 'recv') relayRtc(msg); // ver cámaras: también las visitas
         else if (EDIT_ONLY.has(msg.t) && !client.room.canEdit(client.peer)) {
           // Las visitas solo reaccionan y votan: el resto se ignora (cursor) o se rechaza.
           if (msg.t === MSG.OPS) fail(ERR.READ_ONLY, 'Estás como visita: puedes reaccionar y votar, pero no dibujar');
@@ -295,6 +297,12 @@ export function attachSocketServer(httpServer, { rooms, config, logger, assets =
       client.lastRoleRequest = now;
       const payload = JSON.stringify({ t: MSG.ROLE_REQUEST, from: client.id, name: client.peer.name });
       for (const peer of client.room.peers.values()) if (peer.host) peer.send(payload);
+    }
+
+    /** Quiere (o ya no) ver las cámaras de los demás: los que envían cámara se conectan con él. */
+    function camWatch(msg) {
+      client.peer.watch = msg.on === true;
+      client.room.broadcast({ t: MSG.PEER_WATCH, id: client.id, on: client.peer.watch }, client.id);
     }
 
     function setAvatar(msg) {

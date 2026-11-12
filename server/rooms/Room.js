@@ -76,7 +76,7 @@ export class Room {
     const color = PEER_COLORS[this._colorIndex++ % PEER_COLORS.length];
     const cid = typeof clientId === 'string' && CLIENT_ID_RE.test(clientId) ? clientId : null;
     const role = host ? 'host' : (cid && this.roles[cid]) || this.defaultRole;
-    const peer = { id, name, color, send, display, host, clientId: cid, role, avatar: null, avatarPos: null };
+    const peer = { id, name, color, send, display, host, clientId: cid, role, avatar: null, avatarPos: null, watch: false };
     this.peers.set(id, peer);
     if (role === 'presentador') this.grants.add(id);
     this.lastActiveAt = Date.now();
@@ -103,8 +103,8 @@ export class Room {
     return [...this.peers.values()].map((p) => this.publicPeer(p));
   }
 
-  publicPeer({ id, name, color, display, host, role, avatar, avatarPos }) {
-    return { id, name, color, display, host, role, avatar, avatarPos };
+  publicPeer({ id, name, color, display, host, role, avatar, avatarPos, watch }) {
+    return { id, name, color, display, host, role, avatar, avatarPos, watch };
   }
 
   /** Cambia el rol de un participante (y lo recuerda para cuando vuelva a entrar). */
