@@ -8,6 +8,8 @@ export function createNoteTool(ctx) {
     down() {},
     move() {},
     up(p) {
+      // El clic que cierra el editor de una nota solo la confirma; no crea otra.
+      if (ctx.justCommittedText?.()) return;
       const hit = ctx.scene.hitTop(p.x, p.y, ctx.tol(4));
       if (hit?.type === 'note') return ctx.editText(hit);
       const tx = ctx.begin();

@@ -88,6 +88,10 @@ misma red (celular, tablet, otro PC) sin cuentas ni servicios de terceros.
 | RF-66 | *(v2.7)* Aplicación instalable (manifest, service worker, página sin conexión). |
 | RF-67 | *(v2.7)* La nota adhesiva crece para mostrar todo su texto y se edita en su mismo lugar y estilo. |
 | RF-68 | *(v2.7)* Interfaz usable desde 360 px de ancho, en tablet y en horizontal. |
+| RF-69 | *(v2.8)* Líneas y flechas pegadas a formas: siguen a la forma al moverla o redimensionarla. |
+| RF-70 | *(v2.8)* El anfitrión guarda la sala en un archivo `.trazo` y cualquiera la reabre como sala nueva. |
+| RF-71 | *(v2.8)* Compatibilidad verificada con WebKit (Safari) y Firefox. |
+| RNF-v2.8 | Cada cambio se valida automáticamente (lint, pruebas y E2E en 3 motores) antes de integrarse. |
 | RF-55 | *(v2.3)* Monigote con la cámara como cabeza: camina hacia el puntero, gravedad, superficies, salto, sillas para sentarse; color y figura personalizables. |
 
 ## 4. Reglas de negocio
@@ -197,6 +201,11 @@ y el linter pasa.
 | T-54 | Notas que calzan | `wrapText` como `pre-wrap`, `noteHeightFor`, editor sobre la nota, «…» si no cabe | Terminado |
 | T-55 | Revisión responsiva | Auditoría con capturas a 360/390/horizontal/tablet y correcciones CSS | Terminado |
 | T-56 | Pruebas v2.7 | E2E `v27.py` (16) + regresión completa | Terminado |
+| T-57 | Compatibilidad | `tests/e2e/navegadores.py` (WebKitGTK/Firefox + Selenium); corrección del códec de grabación en Safari | Terminado |
+| T-58 | Integración continua | `.github/workflows/ci.yml` (Node 20/22, E2E Chrome/Firefox/WebKit), plantilla de PR | Terminado |
+| T-59 | Guardar/abrir sala | `server/rooms/archive.js`, `GET /api/rooms/:id/export`, `POST /api/rooms/import`, menú y portada | Terminado |
+| T-60 | Flechas pegadas | `shared/binding.js`, recálculo en `Transaction.update`, pista visual, despegar al mover sola | Terminado |
+| T-61 | Pruebas v2.8 | 58 unitarias/integración + E2E `v28.py` (12) + `navegadores.py` (10) + regresión | Terminado |
 | T-33 | Pruebas v2.1 | Unitarias e integración (46) + E2E `adjuntos.py` (12 comprobaciones) | Terminado |
 
 ## 9. Backlog — Trabajo futuro

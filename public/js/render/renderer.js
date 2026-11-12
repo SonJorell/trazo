@@ -95,6 +95,7 @@ export class Renderer {
       for (const el of this.live.visible(this.scene.page)) drawElement(ctx, el);
     }
     if (this.avatars?.drawWorld(ctx)) this.requestRender();
+    this._drawBindHint();
     this._drawSelection();
     this._drawMarquee();
     // Puntero láser: mientras haya estelas, se sigue animando.
@@ -141,6 +142,28 @@ export class Renderer {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(h.x - h.size / 2, h.y - h.size / 2, h.size, h.size);
       ctx.strokeRect(h.x - h.size / 2, h.y - h.size / 2, h.size, h.size);
+    }
+    ctx.restore();
+  }
+
+  /** Formas a las que se pegará la flecha que se está dibujando. */
+  _drawBindHint() {
+    const { ctx, overlay, viewport: vp } = this;
+    if (!overlay.bindHint?.length) return;
+    const pad = 6 / vp.zoom;
+    ctx.save();
+    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 3 / vp.zoom;
+    for (const id of overlay.bindHint) {
+      const el = this.scene.get(id);
+      if (!el || el.isDeleted) continue;
+      const b = getBounds(el);
+      ctx.beginPath();
+      if (el.type === 'ellipse') ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w / 2 + pad, b.h / 2 + pad, 0, 0, Math.PI * 2);
+      else if (ctx.roundRect) ctx.roundRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, 8 / vp.zoom);
+      else ctx.rect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2);
+      ctx.stroke();
     }
     ctx.restore();
   }

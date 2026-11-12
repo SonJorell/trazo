@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/', 'data/', 'overlay/node_modules/'] },
+  { ignores: ['node_modules/', 'data/', 'overlay/node_modules/', 'e2e-data/', 'e2e-out/'] },
   js.configs.recommended,
   {
     languageOptions: { ecmaVersion: 2023, sourceType: 'module' },

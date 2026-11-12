@@ -122,7 +122,7 @@ const renderer = new Renderer(canvas, { scene, viewport, overlay, transparent: O
 const render = () => renderer.requestRender();
 onAssetLoad(render);
 // Gancho para las pruebas de punta a punta (?e2e=1): permite inspeccionar la escena.
-if (params.has('e2e')) window.__trazo = { scene, live, viewport };
+if (params.has('e2e')) window.__trazo = { scene, live, viewport, recorder: () => recorder, ctx: () => ctx };
 scene.on('live', render);
 // Al cambiar de página no queda seleccionado nada de la página anterior.
 scene.on('page', () => {
@@ -196,6 +196,11 @@ const ctx = {
     else overlay.selection.add(id);
     onSelectionChange();
   },
+  lastTextCommit: -Infinity,
+  /** ¿Se acaba de cerrar un editor de texto con este mismo clic? */
+  justCommittedText() {
+    return performance.now() - this.lastTextCommit < 400;
+  },
   editText(el, p) {
     if (el?.type === 'note') {
       overlay.editingId = el.id;
@@ -261,10 +266,13 @@ const textEditor = new TextEditor($('#editor-layer'), {
   viewport,
   onCommit({ id, x, y, text, fontSize, color, note }) {
     overlay.editingId = null;
+    ctx.lastTextCommit = performance.now();
     const tx = ctx.begin();
     if (note) {
       const cur = scene.get(id);
-      if (cur) {
+      // Una nota que queda vacía no sirve: se quita (como un texto vacío).
+      if (cur && !text.trim()) tx.update(id, { isDeleted: true });
+      else if (cur) {
         // La nota se agranda (nunca se achica) para que quepa todo el texto.
         const needed = noteHeightFor(text, cur.fontSize, Math.abs(cur.w));
         const h = Math.max(Math.abs(cur.h), needed);
@@ -534,6 +542,9 @@ const recorder = new SessionRecorder({
         const s = Math.floor(recorder.elapsed / 1000);
         time.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
       }, 500);
+    } else if (blob && blob.size < 2048) {
+      // Un archivo de pocos bytes es solo la cabecera: el navegador no logró codificar el video.
+      toast('No se pudo grabar en este navegador. Prueba con Chrome, Edge o Safari actualizado.', { ms: 5000 });
     } else if (blob?.size) {
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
       const a = h('a', { href: URL.createObjectURL(blob), download: `trazo-${room}-${stamp}.${ext}` });
@@ -573,6 +584,22 @@ function openRecordDialog() {
   );
 }
 const recItem = menuItem('record', 'Grabar la sesión', () => openRecordDialog());
+// Guardar la sala completa en un archivo .trazo (solo el anfitrión), para reabrirla después.
+const saveRoomItem = menuItem('save', 'Guardar la sala (.trazo)', async () => {
+  try {
+    toast('Preparando el archivo de la sala…');
+    const blob = await api.exportRoom(room, hostKeyOf(room));
+    const a = h('a', { href: URL.createObjectURL(blob), download: `trazo-${room}-${new Date().toISOString().slice(0, 10)}.trazo` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Sala guardada. Ábrela otra vez desde la portada: «Abrir una sala guardada».', { ms: 4500 });
+  } catch (err) {
+    toast(`No se pudo guardar la sala: ${err.message}`, { ms: 4500 });
+  }
+});
+saveRoomItem.hidden = OVERLAY || !hostKeyOf(room);
 const installItem = menuItem('install', 'Instalar Trazo como app', () => promptInstall());
 installItem.hidden = true;
 if (!OVERLAY) {
@@ -614,6 +641,7 @@ menu.append(
   menuItem('paper', 'Fondo de la hoja', openBackgroundDialog, 'needs-edit'),
   participantsItem,
   recItem,
+  saveRoomItem,
   installItem,
   avatarItem,
   watchItem,

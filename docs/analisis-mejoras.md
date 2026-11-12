@@ -150,7 +150,12 @@ La 13 queda descartada en la web (ver ADR-046). Próximas candidatas: SFU opcion
 grandes, audio opcional, grabación de la sesión y PWA instalable.
 
 **v2.7** agregó la grabación de la sesión y la PWA instalable, hizo que las notas calcen con su
-texto y revisó toda la interfaz en celular. Próximas candidatas: HTTPS con certificado de
+texto y revisó toda la interfaz en celular.
+
+**v2.8** se centró en confiabilidad: pruebas en WebKit (Safari) y Firefox, integración continua,
+guardar/abrir salas en archivos `.trazo` y flechas pegadas a formas. Pendientes priorizados:
+prueba de carga y compactación de elementos borrados, exportar PDF con anotaciones por página,
+puntero láser que se desvanece, plantillas, HTTPS con mkcert y audio en vivo. Próximas candidatas: HTTPS con certificado de
 confianza local (mkcert) para instalar en celulares, audio en vivo opcional y SFU para salas grandes.
 
 ## Conclusiones
