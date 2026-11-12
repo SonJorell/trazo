@@ -503,6 +503,9 @@ let openParticipants = () => {};
 const participantsItem = menuItem('users', 'Participantes y permisos', () => openParticipants());
 let openAvatarDialog = () => {};
 const avatarItem = menuItem('camera', 'Mi cámara y avatar (monigote)', () => openAvatarDialog());
+let toggleWatch = () => {};
+const watchItem = menuItem('users', 'Ver las cámaras de todos', () => toggleWatch());
+watchItem.hidden = true;
 avatarItem.classList.add('needs-edit');
 
 /** Para el modo «en un lugar de la pizarra»: el próximo toque ubica la cámara. */
@@ -533,6 +536,7 @@ menu.append(
   menuItem('paper', 'Fondo de la hoja', openBackgroundDialog, 'needs-edit'),
   participantsItem,
   avatarItem,
+  watchItem,
   menuItem('unlock', 'Desbloquear elementos de esta página', () => unlockPage(), 'needs-edit'),
   menuItem('simple', 'Modo simple (celular)', () => setSimple(!document.body.classList.contains('simple'))),
   menuItem('eraser', 'Borrar mis trazos', clearMine, 'needs-edit'),
@@ -1032,11 +1036,17 @@ async function start() {
   // Reacciones (emojis que flotan para todos).
   const reactions = new Reactions({
     button: $('#react-btn'),
-    onSend: (e) => connection.send({ t: 'reaction', e }),
+    onSend: (e) => {
+      connection.send({ t: 'reaction', e });
+      avatars?.gesture('me', e);
+    },
   });
   $('#react-btn').innerHTML = ICONS.smile;
   connection.on('message', (msg) => {
-    if (msg.t === 'reaction') reactions.show(msg.e, msg.name);
+    if (msg.t === 'reaction') {
+      reactions.show(msg.e, msg.name);
+      avatars?.gesture(msg.from, msg.e);
+    }
     if (msg.t === 'welcome') {
       myColor = msg.you.color;
       uploadToken = msg.uploadToken ?? null;
@@ -1200,17 +1210,29 @@ async function start() {
 function setupCamerasAndControl({ connection, presence, isDisplay }) {
   const getName = (id) => presence.peers.get(id)?.name ?? 'Invitado';
 
-  // ----- Recibir cámaras (overlay / anfitrión) -----
-  let receiver = null;
-  if (isDisplay) {
-    const bubbles = new CameraBubbles({ getName, onClose: (id) => receiver.close(id, true) });
-    camBubbles = bubbles;
-    receiver = new CameraReceiver({
-      connection,
-      onStream: (id, stream) => bubbles.show(id, stream),
-      onEnd: (id) => bubbles.remove(id),
-    });
-  }
+  // ----- Recibir cámaras: la presentación siempre; los demás si activan «Ver las cámaras de todos» -----
+  const bubbles = new CameraBubbles({
+    getName,
+    onClose: (id) => receiver.close(id, true),
+    defaults: isDisplay ? {} : { size: window.innerWidth < 760 ? 's' : 'm', layout: 'corner-tr' },
+  });
+  camBubbles = bubbles;
+  const receiver = new CameraReceiver({
+    connection,
+    onStream: (id, stream) => bubbles.show(id, stream),
+    onEnd: (id) => bubbles.remove(id),
+  });
+  let watching = false;
+  const setWatching = (on, save = true) => {
+    if (isDisplay) return;
+    watching = on;
+    if (save) local.set('trazo:watch', on);
+    watchItem.lastChild.textContent = on ? 'Ocultar las cámaras de los demás' : 'Ver las cámaras de todos';
+    connection.send({ t: 'cam-watch', on });
+    if (!on) for (const id of [...receiver.pcs.keys()]) receiver.close(id, true);
+  };
+  watchItem.hidden = isDisplay;
+  toggleWatch = () => setWatching(!watching);
 
   // ----- Enviar mi cámara (participantes) -----
   const camBtn = $('#cam-btn');
@@ -1221,9 +1243,14 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   $('#cam-look').addEventListener('click', () => openAvatarDialog());
   $('#cam-stop').innerHTML = ICONS.cameraOff;
   const displays = () => [...presence.peers.values()].filter((p) => p.display).map((p) => p.id);
+  // A quién enviar mi cámara: la presentación (calidad completa) y quienes quieren verla.
+  const targets = () =>
+    [...presence.peers.values()]
+      .filter((p) => p.id !== presence.me?.id && (p.display || p.watch))
+      .map((p) => ({ id: p.id, display: Boolean(p.display) }));
   const camera = new CameraSender({
     connection,
-    getDisplays: displays,
+    getTargets: targets,
     onState: (on) => {
       camBtn.classList.toggle('on', on);
       camBtn.title = on ? 'Apagar mi cámara' : 'Encender mi cámara';
@@ -1250,6 +1277,7 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
   $('#cam-flip').addEventListener('click', () => camera.switchCamera().catch((err) => toast(err.message)));
   $('#cam-stop').addEventListener('click', () => camera.stop());
   stopMyCamera = () => camera.active && camera.stop();
+  if (window.__trazo) window.__trazo.camera = camera;
   getSelfVideo = () => (camera.active ? selfVideo : null);
 
   // ----- Control de diapositivas con permiso -----
@@ -1280,9 +1308,17 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
         paintControl();
         if (camera.active) {
           for (const id of [...camera.pcs.keys()]) camera.disconnect(id);
-          for (const id of displays()) camera.connectTo(id);
+          camera.syncTargets();
         }
+        // Ver las cámaras de los demás: por defecto sí (las visitas, por defecto no).
+        setWatching(local.get('trazo:watch', msg.you.role !== 'visita'), false);
         break;
+      case 'peer-watch': {
+        const peer = presence.peers.get(msg.id);
+        if (peer) peer.watch = msg.on;
+        camera.syncTargets();
+        break;
+      }
       case 'controller':
         controllerOnline = msg.online;
         paintControl();
@@ -1295,14 +1331,17 @@ function setupCamerasAndControl({ connection, presence, isDisplay }) {
         session?.paintPages();
         break;
       case 'peer-join':
-        if (camera.active && msg.peer.display) camera.connectTo(msg.peer.id);
+        setTimeout(() => camera.syncTargets(), 0); // después de que Presence lo agregue
         break;
       case 'peer-leave':
         camera.disconnect(msg.id);
         receiver?.close(msg.id);
         break;
       case 'rtc':
-        if (camera.handles(msg.from) || !receiver) camera.handleSignal(msg.from, msg.data);
+        // `role` dice qué lado la envió: 'send' va a mi receptor y 'recv' a mi emisor.
+        if (msg.data?.role === 'send') receiver.handleSignal(msg.from, msg.data);
+        else if (msg.data?.role === 'recv') camera.handleSignal(msg.from, msg.data);
+        else if (camera.handles(msg.from)) camera.handleSignal(msg.from, msg.data);
         else receiver.handleSignal(msg.from, msg.data);
         break;
     }

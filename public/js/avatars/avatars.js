@@ -12,7 +12,8 @@ const STRIDE = 130; // unidades recorridas por ciclo de caminata (dos pasos)
 /** Tipos de elemento sobre los que el monigote puede pararse. */
 const SOLID = new Set(['rect', 'note', 'image', 'doc', 'file', 'chair', 'text', 'stamp']);
 
-export const DEFAULT_LOOK = { mode: 'fixed', shape: 'auto', color: '#4263eb', figure: 'neutro', anchor: null };
+export const DEFAULT_LOOK = { mode: 'fixed', shape: 'auto', color: '#4263eb', figure: 'neutro', acc: 'none', anchor: null };
+const GESTURE_MS = 1800;
 
 /** Suavizado exponencial independiente de los cuadros por segundo. */
 const ease = (rate, dt) => 1 - Math.exp(-rate * dt);
@@ -70,8 +71,8 @@ export class Avatars {
   /** Envía mi configuración a la sala. */
   publish() {
     if (!this.enabled) return;
-    const { mode, shape, color, figure, anchor } = this.mine;
-    this.send({ t: MSG.AVATAR, mode, shape, color, figure, ...(anchor ? { anchor } : {}) });
+    const { mode, shape, color, figure, acc, anchor } = this.mine;
+    this.send({ t: MSG.AVATAR, mode, shape, color, figure, acc, ...(anchor ? { anchor } : {}) });
     this._lastKey = '';
   }
 
@@ -94,6 +95,22 @@ export class Avatars {
   /** Su nombre ya se ve junto a su cámara o sobre su monigote: el cursor va sin etiqueta. */
   hidesLabel(id) {
     return this.followsPointer(id) || this.others.get(id)?.look.mode === 'body';
+  }
+
+  /** Gesto del monigote al reaccionar (saludar, celebrar, corazones…). Lo anima cada equipo. */
+  gesture(id, key) {
+    const me = this.getMe();
+    const target = id === me?.id || id === 'me' ? this.sim : this.others.get(id)?.shown;
+    if (!target) return;
+    target.gesture = { key, start: performance.now(), k: 0 };
+    this._ensureLoop();
+  }
+
+  _tickGesture(state, now) {
+    const g = state?.gesture;
+    if (!g) return;
+    g.k = (now - g.start) / GESTURE_MS;
+    if (g.k >= 1) state.gesture = null;
   }
 
   // ---------------- Mensajes ----------------
@@ -133,7 +150,7 @@ export class Avatars {
   }
 
   _setOther(id, look, pos) {
-    const clean = { mode: look.mode, shape: look.shape, color: look.color, figure: look.figure, anchor: look.anchor ?? null };
+    const clean = { mode: look.mode, shape: look.shape, color: look.color, figure: look.figure, acc: look.acc ?? 'none', anchor: look.anchor ?? null };
     const prev = this.others.get(id);
     const shown = prev?.shown ?? (pos ? { x: pos.x, y: pos.y, vx: 0, f: pos.f, amp: 0, air: 0, lean: 0, phase: 0, t: 0, p: pos.p } : null);
     this.others.set(id, { look: clean, pos: pos ?? prev?.pos ?? null, shown, at: performance.now() });
@@ -161,6 +178,8 @@ export class Avatars {
     this._lastFrame = now;
     if (this.enabled && this.mine.mode === 'body') this._stepSelf(dt, now);
     this._stepOthers(dt, now);
+    this._tickGesture(this.sim, now);
+    for (const o of this.others.values()) this._tickGesture(o.shown, now);
     this.render();
     if (this._busy()) this._raf = requestAnimationFrame(this._loop);
   }

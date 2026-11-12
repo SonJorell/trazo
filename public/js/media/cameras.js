@@ -4,8 +4,12 @@ import { MSG } from '/shared/protocol.js';
  * Cámaras con WebRTC (solo video) dentro de la red local.
  *
  * - CameraSender (celular / participante): envía su cámara a cada participante que proyecta
- *   (`display: true`, p. ej. la app de overlay o el anfitrión).
- * - CameraReceiver (quien proyecta): acepta esas conexiones y muestra burbujas de video.
+ *   (`display: true`, p. ej. la app de overlay o el anfitrión) y, en calidad reducida, a quienes
+ *   activaron «Ver las cámaras de todos» (máximo MAX_WATCHERS, malla dentro de la red local).
+ * - CameraReceiver (cualquiera): acepta esas conexiones y muestra burbujas de video.
+ *
+ * Cada señal lleva `role` ('send' o 'recv') para saber a cuál de las dos conexiones con la
+ * misma persona va dirigida (A puede enviarle su cámara a B y a la vez recibir la de B).
  *
  * La señalización (ofertas, respuestas y candidatos) viaja por el WebSocket de la sala con
  * mensajes `rtc` dirigidos. No se usan servidores STUN/TURN: en la misma red no hacen falta.
@@ -13,14 +17,18 @@ import { MSG } from '/shared/protocol.js';
 const RTC_CONFIG = { iceServers: [] };
 
 const sendSignal = (connection, to, data) => connection.send({ t: MSG.RTC, to, data });
+/** Máximo de espectadores (además de la presentación) a los que cada cámara se envía. */
+export const MAX_WATCHERS = 8;
+/** Calidad para espectadores: menos resolución y bitrate (la presentación recibe la completa). */
+const WATCHER_ENCODING = { maxBitrate: 300_000, scaleResolutionDownBy: 1.5, maxFramerate: 20 };
 
 export class CameraSender {
   /**
-   * @param {{ connection, getDisplays: () => string[], onState: (on:boolean) => void, onPreview: (stream|null) => void }} deps
+   * @param {{ connection, getTargets: () => { id: string, display: boolean }[], onState: (on:boolean) => void, onPreview: (stream|null) => void }} deps
    */
-  constructor({ connection, getDisplays, onState = () => {}, onPreview = () => {} }) {
+  constructor({ connection, getTargets, onState = () => {}, onPreview = () => {} }) {
     this.connection = connection;
-    this.getDisplays = getDisplays;
+    this.getTargets = getTargets;
     this.onState = onState;
     this.onPreview = onPreview;
     this.stream = null;
@@ -48,13 +56,29 @@ export class CameraSender {
     this.stream = await this._open(this.facing);
     this.onPreview(this.stream);
     this.onState(true);
-    for (const id of this.getDisplays()) this.connectTo(id);
+    this.syncTargets();
+  }
+
+  /** Conecta con la presentación y los espectadores actuales; corta a quien ya no mira. */
+  syncTargets() {
+    if (!this.active) return;
+    const targets = this.getTargets();
+    const wanted = new Map();
+    for (const t of targets.filter((t) => t.display)) wanted.set(t.id, true);
+    for (const t of targets.filter((t) => !t.display).slice(0, MAX_WATCHERS)) wanted.set(t.id, false);
+    for (const id of [...this.pcs.keys()]) {
+      if (!wanted.has(id)) {
+        sendSignal(this.connection, id, { type: 'bye', role: 'send' });
+        this.disconnect(id);
+      }
+    }
+    for (const [id, display] of wanted) this.connectTo(id, true, display);
   }
 
   stop() {
     if (!this.active) return;
     for (const [id, pc] of this.pcs) {
-      sendSignal(this.connection, id, { type: 'bye' });
+      sendSignal(this.connection, id, { type: 'bye', role: 'send' });
       pc.close();
     }
     this.pcs.clear();
@@ -80,21 +104,29 @@ export class CameraSender {
     this.onPreview(stream);
   }
 
-  async connectTo(id, retry = true) {
+  async connectTo(id, retry = true, display = true) {
     if (!this.active || this.pcs.has(id)) return;
     const pc = new RTCPeerConnection(RTC_CONFIG);
     this.pcs.set(id, pc);
-    for (const track of this.stream.getTracks()) pc.addTrack(track, this.stream);
-    pc.onicecandidate = (e) => e.candidate && sendSignal(this.connection, id, { type: 'candidate', candidate: e.candidate });
+    for (const track of this.stream.getTracks()) {
+      const sender = pc.addTrack(track, this.stream);
+      if (!display) {
+        // A los espectadores se les envía en calidad reducida para no saturar la red.
+        const params = sender.getParameters();
+        params.encodings = [{ ...(params.encodings?.[0] ?? {}), ...WATCHER_ENCODING }];
+        sender.setParameters(params).catch(() => {});
+      }
+    }
+    pc.onicecandidate = (e) => e.candidate && sendSignal(this.connection, id, { type: 'candidate', candidate: e.candidate, role: 'send' });
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'failed') {
         this.disconnect(id);
-        if (retry) setTimeout(() => this.connectTo(id, false), 2000);
+        if (retry) setTimeout(() => this.connectTo(id, false, display), 2000);
       }
     };
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    sendSignal(this.connection, id, { type: 'offer', sdp: pc.localDescription.sdp });
+    sendSignal(this.connection, id, { type: 'offer', sdp: pc.localDescription.sdp, role: 'send' });
   }
 
   disconnect(id) {
@@ -146,14 +178,14 @@ export class CameraReceiver {
       const pc = new RTCPeerConnection(RTC_CONFIG);
       this.pcs.set(from, pc);
       pc.ontrack = (e) => this.onStream(from, e.streams[0] ?? new MediaStream([e.track]));
-      pc.onicecandidate = (e) => e.candidate && sendSignal(this.connection, from, { type: 'candidate', candidate: e.candidate });
+      pc.onicecandidate = (e) => e.candidate && sendSignal(this.connection, from, { type: 'candidate', candidate: e.candidate, role: 'recv' });
       pc.onconnectionstatechange = () => {
         if (['failed', 'closed'].includes(pc.connectionState)) this.close(from);
       };
       await pc.setRemoteDescription({ type: 'offer', sdp: data.sdp });
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      sendSignal(this.connection, from, { type: 'answer', sdp: pc.localDescription.sdp });
+      sendSignal(this.connection, from, { type: 'answer', sdp: pc.localDescription.sdp, role: 'recv' });
     } else if (data?.type === 'candidate') {
       await this.pcs.get(from)?.addIceCandidate(data.candidate).catch(() => {});
     } else if (data?.type === 'bye') {
@@ -165,7 +197,7 @@ export class CameraReceiver {
   close(id, notify = false) {
     const pc = this.pcs.get(id);
     if (!pc) return;
-    if (notify) sendSignal(this.connection, id, { type: 'bye' });
+    if (notify) sendSignal(this.connection, id, { type: 'bye', role: 'recv' });
     pc.close();
     this.pcs.delete(id);
     this.onEnd(id);

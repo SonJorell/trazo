@@ -116,6 +116,10 @@ export function drawFigure(ctx, x, y, pose, look) {
   const r = FIGURE.head;
 
   // Cadera: baja un poco en cada paso (rebote) y al estar sentado.
+  const g = pose.gesture; // gesto en curso { key, k: progreso 0–1 }
+  const groundY = y;
+  const hop = g && (g.key === 'party' || g.key === 'laugh') ? Math.abs(Math.sin(g.k * Math.PI * (g.key === 'party' ? 3 : 5))) * (g.key === 'party' ? 26 : 8) : 0;
+  y -= hop; // saltitos al celebrar o reír (solo visual)
   const bob = Math.abs(Math.sin(ph)) * 4 * amp;
   const hip = { x, y: y - (pose.s ? 40 : 66) + bob };
   const lean = (pose.lean ?? 0) * 0.16;
@@ -128,7 +132,8 @@ export function drawFigure(ctx, x, y, pose, look) {
   if (!pose.s) {
     ctx.fillStyle = 'rgba(0,0,0,0.14)';
     ctx.beginPath();
-    ctx.ellipse(x, y + 2, 26 * (1 - air * 0.45), 6 * (1 - air * 0.45), 0, 0, TAU);
+    const lift = Math.max(air, Math.min(1, (groundY - y) / 40));
+    ctx.ellipse(x, groundY + 2, 26 * (1 - lift * 0.45), 6 * (1 - lift * 0.45), 0, 0, TAU);
     ctx.fill();
   }
   ctx.lineCap = 'round';
@@ -161,8 +166,24 @@ export function drawFigure(ctx, x, y, pose, look) {
   const arm = (side) => {
     const p = ph + (side ? 0 : Math.PI);
     const idleOut = (1 - amp) * 0.22 * (side ? -1 : 1);
-    const upper = Math.sin(p) * 0.6 * amp * f + idleOut + (pose.s ? 0.5 * f : 0) + air * (side ? -2.4 : 2.4) * 0.5;
-    const fore = (0.25 + 0.45 * amp) * f;
+    let upper = Math.sin(p) * 0.6 * amp * f + idleOut + (pose.s ? 0.5 * f : 0) + air * (side ? -2.4 : 2.4) * 0.5;
+    let fore = (0.25 + 0.45 * amp) * f;
+    if (g && side === 0) {
+      // Brazo de adelante: saludar, levantar la mano o celebrar.
+      const wave = Math.sin(g.k * Math.PI * 8) * 0.35;
+      if (g.key === 'hand' || g.key === 'question') {
+        upper = Math.PI * 0.66 * f;
+        fore = (g.key === 'hand' ? 0.35 + wave : 0.25) * f;
+      } else if (g.key === 'like' || g.key === 'idea') {
+        upper = Math.PI * 0.55 * f;
+        fore = 0.7 * f;
+      }
+    }
+    if (g && (g.key === 'party' || g.key === 'wow')) {
+      // Ambos brazos arriba.
+      upper = Math.PI * (side ? -0.66 : 0.66) * f;
+      fore = (side ? -0.3 : 0.3) * f;
+    }
     const hand = limb(ctx, shoulder.x, shoulder.y + 6, upper, 25, fore, 23);
     ctx.fillStyle = ctx.strokeStyle;
     ctx.beginPath();
@@ -222,8 +243,114 @@ export function drawFigure(ctx, x, y, pose, look) {
   ctx.restore();
 
   drawHead(ctx, head.x, head.y, r, look);
-  drawName(ctx, head.x, head.y - r - 26, look.name, look.ring ?? color, 12); // sobre la cabeza
+  drawAccessory(ctx, head.x, head.y, r, look.acc, f);
+  if (g?.key === 'love') {
+    // Corazones que suben sobre la cabeza.
+    ctx.save();
+    ctx.fillStyle = '#e03131';
+    for (let i = 0; i < 3; i++) {
+      const k = (g.k + i / 3) % 1;
+      ctx.globalAlpha = 1 - k;
+      heart(ctx, head.x + (i - 1) * 22, head.y - r - 20 - k * 50, 9);
+    }
+    ctx.restore();
+  }
+  drawName(ctx, head.x, head.y - r - (look.acc === 'hat' || look.acc === 'crown' ? 44 : 26), look.name, look.ring ?? color, 12);
   return head;
+}
+
+function heart(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.9);
+  ctx.bezierCurveTo(x - s * 1.6, y - s * 0.2, x - s * 0.6, y - s * 1.3, x, y - s * 0.4);
+  ctx.bezierCurveTo(x + s * 0.6, y - s * 1.3, x + s * 1.6, y - s * 0.2, x, y + s * 0.9);
+  ctx.fill();
+}
+
+/** Accesorios sobre la cabeza: sombrero, gorra, lentes, audífonos, corona o moño. */
+export function drawAccessory(ctx, x, y, r, acc, f = 1) {
+  if (!acc || acc === 'none') return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  switch (acc) {
+    case 'hat':
+      ctx.fillStyle = '#212529';
+      ctx.beginPath();
+      ctx.ellipse(x, y - r * 0.82, r * 1.25, r * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(x - r * 0.7, y - r * 1.6, r * 1.4, r * 0.8);
+      ctx.fillStyle = '#e03131';
+      ctx.fillRect(x - r * 0.7, y - r * 1.02, r * 1.4, r * 0.16);
+      break;
+    case 'cap':
+      ctx.fillStyle = '#e03131';
+      ctx.beginPath();
+      ctx.ellipse(x, y - r * 0.78, r * 0.92, r * 0.5, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + f * r * 0.75, y - r * 0.8, r * 0.62, r * 0.13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'glasses':
+      ctx.strokeStyle = '#212529';
+      ctx.lineWidth = Math.max(2, r * 0.1);
+      for (const dx of [-0.42, 0.42]) {
+        ctx.beginPath();
+        ctx.arc(x + dx * r, y - r * 0.08, r * 0.3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.12, y - r * 0.1);
+      ctx.lineTo(x + r * 0.12, y - r * 0.1);
+      ctx.stroke();
+      break;
+    case 'headphones':
+      ctx.strokeStyle = '#343a40';
+      ctx.lineWidth = Math.max(3, r * 0.16);
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.08, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+      ctx.fillStyle = '#343a40';
+      for (const dx of [-1, 1]) {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x + dx * r * 1.02 - r * 0.2, y - r * 0.3, r * 0.4, r * 0.62, r * 0.15);
+        else ctx.rect(x + dx * r * 1.02 - r * 0.2, y - r * 0.3, r * 0.4, r * 0.62);
+        ctx.fill();
+      }
+      break;
+    case 'crown':
+      ctx.fillStyle = '#fab005';
+      ctx.strokeStyle = '#e67700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.75, y - r * 0.82);
+      ctx.lineTo(x - r * 0.75, y - r * 1.45);
+      ctx.lineTo(x - r * 0.38, y - r * 1.12);
+      ctx.lineTo(x, y - r * 1.6);
+      ctx.lineTo(x + r * 0.38, y - r * 1.12);
+      ctx.lineTo(x + r * 0.75, y - r * 1.45);
+      ctx.lineTo(x + r * 0.75, y - r * 0.82);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case 'bow':
+      ctx.fillStyle = '#e64980';
+      for (const dx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(x + r * 0.45, y - r * 0.85);
+        ctx.lineTo(x + r * 0.45 + dx * r * 0.45, y - r * 1.15);
+        ctx.lineTo(x + r * 0.45 + dx * r * 0.45, y - r * 0.55);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(x + r * 0.45, y - r * 0.85, r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+  ctx.restore();
 }
 
 /** Silla (vista lateral): respaldo, asiento y patas. */

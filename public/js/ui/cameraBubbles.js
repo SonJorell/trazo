@@ -22,12 +22,12 @@ const SIZE_PX = { s: 150, m: 230, l: 340 };
  * En la disposición «Libre» se pueden arrastrar; doble clic cambia el tamaño de una sola.
  */
 export class CameraBubbles {
-  constructor({ getName, onClose }) {
+  constructor({ getName, onClose, defaults = {} }) {
     this.getName = getName;
     this.onClose = onClose;
     this.bubbles = new Map(); // id → { node, video, label }
     this.looks = new Map(); // id → forma y modo elegidos por cada persona
-    this.prefs = { ...DEFAULT_PREFS, ...local.get(PREFS_KEY, {}) };
+    this.prefs = { ...DEFAULT_PREFS, ...defaults, ...local.get(PREFS_KEY, {}) };
     this.layer = document.body.appendChild(h('div', { class: 'cam-layer' }));
     this.settingsBtn = h('button', {
       class: 'cam-settings ov-hit',

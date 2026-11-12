@@ -145,6 +145,10 @@ personalizables con modo monigote. Próximas candidatas:
 el CSV de la 20. Siguen abiertas: ver todas las cámaras en todos los equipos (18), accesorios y
 gestos del monigote (19) y compartir la pantalla del celular (13).
 
+**v2.6** resolvió la 18 (cámaras para todos, con malla limitada) y la 19 (accesorios y gestos).
+La 13 queda descartada en la web (ver ADR-046). Próximas candidatas: SFU opcional para salas
+grandes, audio opcional, grabación de la sesión y PWA instalable.
+
 ## Conclusiones
 
 Los cuatro objetivos específicos quedan atendidos en esta versión:

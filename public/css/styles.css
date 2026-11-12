@@ -2445,3 +2445,7 @@ body.simple[data-role='visita'] .toolbar .tool[data-tool='hand'] { display: inli
   border-radius: 50%;
   background: var(--accent);
 }
+@media (max-width: 760px) {
+  /* En el celular la barra de visita va abajo para no tapar las cámaras de arriba. */
+  .visitor-bar { top: auto; bottom: calc(130px + var(--safe-bottom)); font-size: 0.82rem; }
+}
